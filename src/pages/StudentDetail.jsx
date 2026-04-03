@@ -16,7 +16,7 @@ export default function StudentDetail() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [classForm, setClassForm] = useState({ date: '', hours: 1, packageId: '', notes: '' });
-  const [packageForm, setPackageForm] = useState({ name: '', total: 20, price: '', expiryDate: '' });
+  const [packageForm, setPackageForm] = useState({ total: 20, price: '' });
 
   useEffect(() => {
     async function loadStudentData() {
@@ -105,7 +105,7 @@ export default function StudentDetail() {
     try {
       await packageOps.add(id, { ...packageForm, used: 0 });
       setShowPackageModal(false);
-      setPackageForm({ name: '', total: 20, price: '', expiryDate: '' });
+      setPackageForm({ total: 20, price: '' });
       const packagesData = await packageOps.getByStudent(id);
       setPackages(Array.isArray(packagesData) ? packagesData : []);
     } catch (err) {
@@ -602,17 +602,6 @@ export default function StudentDetail() {
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-semibold text-gray-800 mb-6">添加课时包</h2>
             <form onSubmit={handleAddPackage} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">课时包名称 *</label>
-                <input
-                  type="text"
-                  required
-                  value={packageForm.name}
-                  onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="如：60节口语课"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">总课时 *</label>
@@ -623,6 +612,7 @@ export default function StudentDetail() {
                     value={packageForm.total}
                     onChange={(e) => setPackageForm({ ...packageForm, total: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="如：20、30、60"
                   />
                 </div>
                 <div>
@@ -636,15 +626,6 @@ export default function StudentDetail() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">到期日期</label>
-                <input
-                  type="date"
-                  value={packageForm.expiryDate}
-                  onChange={(e) => setPackageForm({ ...packageForm, expiryDate: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -657,7 +638,7 @@ export default function StudentDetail() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
                 >
-                  保存
+                  添加
                 </button>
               </div>
             </form>
