@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Clock, User, BookOpen, CheckCircle, XCircle, Calendar } from 'lucide-react';
-import { teacherOps, classOps } from '../store';
+import { teacherOps, classOps, packageOps } from '../store';
 
 const STATUS_LABELS = {
   scheduled: '已预约',
@@ -40,30 +40,25 @@ export default function TeacherPortal() {
   const loadTeacherData = async () => {
     setLoading(true);
     try {
-      // 加载教师信息
       const teacherData = await teacherOps.getById(teacherId);
       setTeacher(teacherData);
 
-      // 加载该教师的所有课程
       const allClasses = await classOps.getAll();
       const teacherClasses = allClasses.filter(c => c.teacher_id === parseInt(teacherId));
 
-      // 获取今天日期
       const today = new Date().toISOString().split('T')[0];
 
-      // 分类：今日、即将到来、已过去
-      const todayClasses = teacherClasses.filter(c => c.date === today && c.status === 'scheduled');
+      const todayCls = teacherClasses.filter(c => c.date === today && c.status === 'scheduled');
       const upcoming = teacherClasses.filter(c => c.date > today && c.status === 'scheduled');
       const past = teacherClasses.filter(c => c.date < today || c.status !== 'scheduled');
 
-      // 按时间排序
-      todayClasses.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+      todayCls.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
       upcoming.sort((a, b) => a.date.localeCompare(b.date));
       past.sort((a, b) => b.date.localeCompare(a.date));
 
-      setTodayClasses(todayClasses);
-      setUpcomingClasses(upcoming.slice(0, 10)); // 最近10节
-      setPastClasses(past.slice(0, 20)); // 最近20节
+      setTodayClasses(todayCls);
+      setUpcomingClasses(upcoming.slice(0, 10));
+      setPastClasses(past.slice(0, 20));
     } catch (err) {
       console.error('Load error:', err);
     }
@@ -84,10 +79,39 @@ export default function TeacherPortal() {
   const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     try {
+      // 更新上课记录
       await classOps.update(selectedClass.id, {
         ...feedbackForm,
         status: feedbackForm.status
       });
+      
+      // 如果状态为「已完成」，扣除课时
+      if (feedbackForm.status === 'completed' && selectedClass.student_id) {
+        console.log('开始扣除课时，学生ID:', selectedClass.student_id, '课时:', selectedClass.hours);
+        // 获取学生的课时包
+        const packagesData = await packageOps.getByStudent(selectedClass.student_id);
+        const packages = packagesData || [];
+        console.log('找到课时包:', packages);
+        
+        // 找到有剩余课时的包并扣除
+        const hoursToDeduct = selectedClass.hours || 1;
+        let remaining = hoursToDeduct;
+        
+        for (const pkg of packages) {
+          if ((pkg.remaining || pkg.total - pkg.used) > 0 && remaining > 0) {
+            const pkgRemaining = pkg.remaining !== undefined ? pkg.remaining : pkg.total - pkg.used;
+            const toDeduct = Math.min(pkgRemaining, remaining);
+            console.log(`更新课时包 ${pkg.id}: used ${pkg.used} -> ${pkg.used + toDeduct}`);
+            // 只更新 used 字段，remaining 由后端计算
+            await packageOps.update(pkg.id, {
+              used: pkg.used + toDeduct
+            });
+            remaining -= toDeduct;
+          }
+        }
+        console.log('课时扣除完成');
+      }
+      
       setShowFeedbackModal(false);
       setSelectedClass(null);
       loadTeacherData();
@@ -286,6 +310,7 @@ export default function TeacherPortal() {
                 <div><span className="font-medium">日期：</span>{selectedClass.date}</div>
                 <div><span className="font-medium">时间：</span>{formatTime(selectedClass.start_time)}</div>
                 <div><span className="font-medium">科目：</span>{selectedClass.subject}</div>
+                <div><span className="font-medium">课时：</span>{selectedClass.hours || 1} 节</div>
               </div>
             </div>
             <form onSubmit={handleSubmitFeedback} className="space-y-4">
@@ -326,9 +351,9 @@ export default function TeacherPortal() {
                   onChange={(e) => setFeedbackForm({ ...feedbackForm, status: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="completed">已完成</option>
-                  <option value="absent">学生缺席</option>
-                  <option value="cancelled">已取消</option>
+                  <option value="completed">已完成（扣除课时）</option>
+                  <option value="absent">学生缺席（不扣课时）</option>
+                  <option value="cancelled">已取消（不扣课时）</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-4">

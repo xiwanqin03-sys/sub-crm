@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS classes (
   student_id INTEGER NOT NULL,
   package_id INTEGER,
   teacher TEXT,
+  teacher_id INTEGER,
   subject TEXT,
   hours REAL NOT NULL DEFAULT 1 CHECK (hours > 0),
   date TEXT NOT NULL DEFAULT (date('now')),
@@ -66,11 +67,13 @@ CREATE TABLE IF NOT EXISTS classes (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE SET NULL
+  FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE SET NULL,
+  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_classes_student_id ON classes (student_id);
 CREATE INDEX IF NOT EXISTS idx_classes_package_id ON classes (package_id);
+CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes (teacher_id);
 CREATE INDEX IF NOT EXISTS idx_classes_date ON classes (date);
 CREATE INDEX IF NOT EXISTS idx_classes_status ON classes (status);
 CREATE INDEX IF NOT EXISTS idx_classes_teacher ON classes (teacher);

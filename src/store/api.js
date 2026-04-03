@@ -149,6 +149,37 @@ export const classOps = {
 };
 
 // ============================================
+// 应收账款相关操作
+// ============================================
+export const receivableOps = {
+  getByStudent: async (studentId) => {
+    const result = await request(`/receivables/student/${studentId}`);
+    return result.data?.data || result.data || [];
+  },
+  getAll: async () => {
+    const result = await request('/receivables');
+    return result.data?.data || result.data || [];
+  },
+  add: async (studentId, receivable) => {
+    const result = await request(`/receivables/student/${studentId}`, {
+      method: 'POST',
+      body: receivable,
+    });
+    return result.data;
+  },
+  markPaid: async (id) => {
+    const result = await request(`/receivables/${id}/paid`, {
+      method: 'POST',
+    });
+    return result.data;
+  },
+  delete: async (id) => {
+    await request(`/receivables/${id}`, { method: 'DELETE' });
+    return true;
+  },
+};
+
+// ============================================
 // 付款记录相关操作
 // ============================================
 export const paymentOps = {

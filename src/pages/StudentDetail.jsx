@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Calendar, Package, CreditCard, Clock, Plus, Trash2, Edit, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare } from 'lucide-react';
 import { studentOps, packageOps, classOps, paymentOps } from '../store';
 
 export default function StudentDetail() {
@@ -12,11 +12,9 @@ export default function StudentDetail() {
   const [payments, setPayments] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [showClassModal, setShowClassModal] = useState(false);
-  const [showPackageModal, setShowPackageModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [classForm, setClassForm] = useState({ date: '', hours: 1, packageId: '', notes: '' });
-  const [packageForm, setPackageForm] = useState({ total: 20, price: '' });
+  const [classForm, setClassForm] = useState({ date: '', hours: 1, notes: '' });
 
   useEffect(() => {
     async function loadStudentData() {
@@ -48,66 +46,40 @@ export default function StudentDetail() {
   const handleAddClass = async (e) => {
     e.preventDefault();
     const hoursToConsume = classForm.hours || 1;
-    let packageIdToUse = classForm.packageId;
 
-    // 自动选择有剩余课时的课时包
-    if (!packageIdToUse) {
-      const availablePkg = packages.find(p => p.remaining > 0);
-      if (availablePkg) {
-        packageIdToUse = availablePkg.id;
-      }
-    }
-
-    // 检查课时是否足够
-    const selectedPkg = packages.find(p => p.id === packageIdToUse);
-    if (selectedPkg && selectedPkg.remaining < hoursToConsume) {
-      alert(`课时不足！当前课时包剩余 ${selectedPkg.remaining} 节，需要 ${hoursToConsume} 节。请先购买新课时包。`);
-      return;
-    }
-
-    // 检查是否有可用的课时包
-    if (!selectedPkg && packages.length > 0) {
-      alert('所有课时包的课时已用完，请先购买新课时包。');
-      return;
-    }
-
-    if (packages.length === 0) {
-      alert('该学生没有课时包，请先添加课时包。');
+    // 计算总课时余额
+    const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
+    
+    if (totalRemaining < hoursToConsume) {
+      alert(`课时不足！当前剩余 ${totalRemaining} 节，需要 ${hoursToConsume} 节。请先购买课时。`);
       return;
     }
 
     try {
-      // 添加上课记录并自动扣除课时
-      await classOps.add(classForm.studentId || id, {
-        ...classForm,
-        studentId: id,
-        packageId: packageIdToUse,
-        hours: hoursToConsume
-      });
+      // 找到第一个有剩余课时的课时包
+      let remaining = hoursToConsume;
+      for (const pkg of packages) {
+        if (pkg.remaining > 0 && remaining > 0) {
+          const toUse = Math.min(pkg.remaining, remaining);
+          await classOps.add(id, {
+            ...classForm,
+            studentId: id,
+            packageId: pkg.id,
+            hours: toUse
+          });
+          remaining -= toUse;
+        }
+      }
 
       setShowClassModal(false);
-      setClassForm({ date: '', hours: 1, packageId: '', notes: '' });
-
-      // 刷新数据
+      setClassForm({ date: '', hours: 1, notes: '' });
+      
       const [packagesData, classesData] = await Promise.all([
         packageOps.getByStudent(id),
         classOps.getByStudent(id)
       ]);
       setPackages(Array.isArray(packagesData) ? packagesData : []);
       setClasses(Array.isArray(classesData) ? classesData : []);
-    } catch (err) {
-      alert('添加失败：' + err.message);
-    }
-  };
-
-  const handleAddPackage = async (e) => {
-    e.preventDefault();
-    try {
-      await packageOps.add(id, { ...packageForm, used: 0 });
-      setShowPackageModal(false);
-      setPackageForm({ total: 20, price: '' });
-      const packagesData = await packageOps.getByStudent(id);
-      setPackages(Array.isArray(packagesData) ? packagesData : []);
     } catch (err) {
       alert('添加失败：' + err.message);
     }
@@ -129,8 +101,8 @@ export default function StudentDetail() {
     }
   };
 
-  const totalRemaining = (packages || []).reduce((sum, p) => sum + (p.remaining || 0), 0);
-  const totalSpent = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
+  const totalSpent = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   if (loading) {
     return (
@@ -157,7 +129,6 @@ export default function StudentDetail() {
 
   const tabs = [
     { id: 'overview', label: '概览' },
-    { id: 'packages', label: '课时包' },
     { id: 'classes', label: '上课记录' },
     { id: 'payments', label: '付款记录' },
   ];
@@ -178,7 +149,6 @@ export default function StudentDetail() {
 
   return (
     <div className="p-8">
-      {/* 返回按钮 */}
       <button
         onClick={() => navigate('/students')}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6"
@@ -238,7 +208,7 @@ export default function StudentDetail() {
         {totalRemaining === 0 && (
           <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg flex items-center gap-2 text-red-800">
             <AlertTriangle size={18} />
-            <span className="text-sm font-medium">课时已用完，请立即购买新课时包</span>
+            <span className="text-sm font-medium">课时已用完，请立即购买新课时</span>
           </div>
         )}
 
@@ -249,16 +219,16 @@ export default function StudentDetail() {
             <div className="text-sm text-gray-500">剩余课时</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">{packages.length}</div>
-            <div className="text-sm text-gray-500">课时包数</div>
-          </div>
-          <div className="text-center">
             <div className="text-2xl font-bold text-gray-800">{classes.length}</div>
             <div className="text-sm text-gray-500">上课次数</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">¥{totalSpent.toLocaleString()}</div>
             <div className="text-sm text-gray-500">累计消费</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-800">{payments.length}</div>
+            <div className="text-sm text-gray-500">付款次数</div>
           </div>
         </div>
       </div>
@@ -283,36 +253,17 @@ export default function StudentDetail() {
       {/* 概览 */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 课时包概览 */}
+          {/* 课时余额概览 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-800">课时包</h3>
-              <button
-                onClick={() => setShowPackageModal(true)}
-                className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1"
-              >
-                <Plus size={16} />
-                添加
-              </button>
+            <h3 className="font-semibold text-gray-800 mb-4">课时余额</h3>
+            <div className="text-center py-4">
+              <div className="text-4xl font-bold text-primary-600">{totalRemaining}</div>
+              <div className="text-sm text-gray-500 mt-1">剩余课时</div>
             </div>
-            {packages.length > 0 ? (
-              <div className="space-y-3">
-                {packages.slice(0, 3).map(pkg => (
-                  <div key={pkg.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-gray-800">{pkg.name}</div>
-                      <div className="text-sm text-gray-500">
-                        剩余 {pkg.remaining}/{pkg.total} 节
-                      </div>
-                    </div>
-                    <div className={`text-sm font-medium ${pkg.remaining < 5 ? 'text-red-500' : 'text-green-500'}`}>
-                      {Math.round(pkg.remaining / pkg.total * 100)}%
-                    </div>
-                  </div>
-                ))}
+            {totalRemaining < 5 && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                课时不足，请提醒家长续费
               </div>
-            ) : (
-              <p className="text-gray-400 text-center py-4">暂无课时包</p>
             )}
           </div>
 
@@ -365,63 +316,6 @@ export default function StudentDetail() {
         </div>
       )}
 
-      {/* 课时包详情 */}
-      {activeTab === 'packages' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-gray-800">课时包详情</h3>
-            <button
-              onClick={() => setShowPackageModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-            >
-              <Plus size={18} />
-              添加课时包
-            </button>
-          </div>
-
-          {packages.length > 0 ? (
-            <div className="space-y-4">
-              {packages.map(pkg => (
-                <div key={pkg.id} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-medium text-gray-800">{pkg.name}</h4>
-                      <div className="text-sm text-gray-500">
-                        {pkg.price && `¥${pkg.price}`} · {pkg.expiryDate && `到期: ${pkg.expiryDate}`}
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      pkg.remaining < 5 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {pkg.remaining < 5 ? '课时不足' : '正常'}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                    <div
-                      className={`h-2 rounded-full ${pkg.remaining < 5 ? 'bg-red-500' : 'bg-primary-500'}`}
-                      style={{ width: `${(pkg.remaining / pkg.total) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>已用: {pkg.used} 节</span>
-                    <span>剩余: {pkg.remaining} 节</span>
-                    <span>总计: {pkg.total} 节</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-400">
-              <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>暂无课时包</p>
-              <button onClick={() => setShowPackageModal(true)} className="text-primary-600 hover:underline mt-2">
-                立即添加
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* 上课记录 */}
       {activeTab === 'classes' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -435,7 +329,6 @@ export default function StudentDetail() {
               记录上课
             </button>
           </div>
-
           {classes.length > 0 ? (
             <div className="space-y-3">
               {classes.map(cls => (
@@ -503,8 +396,8 @@ export default function StudentDetail() {
                     <div>
                       <div className="font-medium text-gray-800">{payment.date}</div>
                       <div className="text-sm text-gray-500">
-                        {payment.method || '微信支付'}
-                        {payment.notes && `· ${payment.notes}`}
+                        {payment.payment_method || payment.method || '微信支付'}
+                        {payment.description && ` · ${payment.description}`}
                       </div>
                     </div>
                   </div>
@@ -552,21 +445,6 @@ export default function StudentDetail() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">扣除课时包</label>
-                <select
-                  value={classForm.packageId}
-                  onChange={(e) => setClassForm({ ...classForm, packageId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">选择课时包（可选）</option>
-                  {packages.filter(p => p.remaining > 0).map(pkg => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.name} - 剩余 {pkg.remaining} 节
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <input
                   type="text"
@@ -596,62 +474,11 @@ export default function StudentDetail() {
         </div>
       )}
 
-      {/* 添加课时包弹窗 */}
-      {showPackageModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">添加课时包</h2>
-            <form onSubmit={handleAddPackage} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">总课时 *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={packageForm.total}
-                    onChange={(e) => setPackageForm({ ...packageForm, total: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="如：20、30、60"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">价格</label>
-                  <input
-                    type="number"
-                    value={packageForm.price}
-                    onChange={(e) => setPackageForm({ ...packageForm, price: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="¥"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPackageModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                >
-                  添加
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* 反馈详情弹窗 */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">上课反馈详情</h2>
-
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
@@ -674,7 +501,6 @@ export default function StudentDetail() {
                 </div>
               </div>
             </div>
-
             <div className="space-y-4">
               {showFeedbackModal.content && (
                 <div>
@@ -684,7 +510,6 @@ export default function StudentDetail() {
                   </div>
                 </div>
               )}
-
               {showFeedbackModal.homework && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-1">作业布置</h3>
@@ -693,7 +518,6 @@ export default function StudentDetail() {
                   </div>
                 </div>
               )}
-
               {showFeedbackModal.notes && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-1">备注</h3>
@@ -703,7 +527,6 @@ export default function StudentDetail() {
                 </div>
               )}
             </div>
-
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowFeedbackModal(null)}

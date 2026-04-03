@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Plus, User, Calendar, Trash2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { paymentOps, studentOps } from '../store';
+import { studentOps, packageOps, paymentOps } from '../store';
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ export default function Payments() {
     date: new Date().toISOString().slice(0, 10),
     method: 'wechat',
     notes: '',
+    packageHours: 0,
   });
 
   useEffect(() => {
@@ -22,33 +24,55 @@ export default function Payments() {
 
   const loadPayments = async () => {
     try {
-      const [pays, studs] = await Promise.all([
+      const [pays, studs, pkgs] = await Promise.all([
         paymentOps.getAll(),
-        studentOps.getAll()
+        studentOps.getAll(),
+        packageOps.getAll()
       ]);
-      console.log('Payments data:', pays);
-      console.log('Students data:', studs);
       setPayments(Array.isArray(pays) ? pays : []);
       setStudents(Array.isArray(studs) ? studs : []);
+      setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (err) {
       console.error('Load error:', err);
       setPayments([]);
       setStudents([]);
+      setPackages([]);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await paymentOps.add(formData);
-    setShowModal(false);
-    setFormData({
-      studentId: '',
-      amount: '',
-      date: new Date().toISOString().slice(0, 10),
-      method: 'wechat',
-      notes: '',
-    });
-    loadPayments();
+    try {
+      await paymentOps.add(formData.studentId, {
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        payment_method: formData.method,  // 修正字段名
+        description: formData.notes        // 修正字段名
+      });
+
+      if (formData.packageHours && parseInt(formData.packageHours) > 0) {
+        await packageOps.add(formData.studentId, {
+          total: parseInt(formData.packageHours),
+          used: 0,
+          price: parseFloat(formData.amount),
+          name: `${formData.packageHours}课时包`,
+          status: 'active'
+        });
+      }
+
+      setShowModal(false);
+      setFormData({
+        studentId: '',
+        amount: '',
+        date: new Date().toISOString().slice(0, 10),
+        method: 'wechat',
+        notes: '',
+        packageHours: 0
+      });
+      loadPayments();
+    } catch (err) {
+      alert('保存失败：' + err.message);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -58,22 +82,11 @@ export default function Payments() {
     }
   };
 
-  const getStudentName = (studentId) => {
-    const student = students.find(s => s.id === studentId);
+  const getStudentName = (payment) => {
+    if (payment.student_name) return payment.student_name;
+    const student = students.find(s => s.id === payment.studentId || s.id === payment.student_id);
     return student?.name || '未知学生';
   };
-
-  const filteredPayments = payments.filter(p => {
-    const studentName = getStudentName(p.studentId).toLowerCase();
-    return studentName.includes(searchTerm.toLowerCase());
-  });
-
-  // 统计数据
-  const totalReceived = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const thisMonthTotal = payments
-    .filter(p => p.date?.startsWith(thisMonth))
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const methodLabels = {
     wechat: '微信支付',
@@ -91,6 +104,27 @@ export default function Payments() {
     other: 'bg-gray-100 text-gray-700',
   };
 
+  const getMethodLabel = (payment) => {
+    const method = payment.payment_method || payment.method || 'other';
+    return methodLabels[method] || method || '未指定';
+  };
+
+  const getMethodColor = (payment) => {
+    const method = payment.payment_method || payment.method || 'other';
+    return methodColors[method] || methodColors.other;
+  };
+
+  const filteredPayments = payments.filter(p => {
+    const studentName = getStudentName(p).toLowerCase();
+    return studentName.includes(searchTerm.toLowerCase());
+  });
+
+  const totalReceived = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const thisMonthTotal = payments
+    .filter(p => p.date?.startsWith(thisMonth))
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -107,7 +141,6 @@ export default function Payments() {
         </button>
       </div>
 
-      {/* 统计 */}
       <div className="grid grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="text-3xl font-bold text-green-600">¥{totalReceived.toLocaleString()}</div>
@@ -123,7 +156,6 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* 搜索 */}
       <div className="mb-6">
         <input
           type="text"
@@ -134,7 +166,6 @@ export default function Payments() {
         />
       </div>
 
-      {/* 付款记录列表 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -158,21 +189,18 @@ export default function Payments() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <Link
-                      to={`/students/${payment.studentId}`}
-                      className="flex items-center gap-2 text-gray-800 hover:text-primary-600"
-                    >
+                    <Link to={`/students/${payment.studentId || payment.student_id}`} className="flex items-center gap-2 text-gray-800 hover:text-primary-600">
                       <User size={16} className="text-gray-400" />
-                      {getStudentName(payment.studentId)}
+                      {getStudentName(payment)}
                     </Link>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${methodColors[payment.method] || methodColors.other}`}>
-                      {methodLabels[payment.method] || payment.method}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(payment)}`}>
+                      {getMethodLabel(payment)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-500 text-sm">
-                    {payment.notes || '-'}
+                    {payment.notes || payment.description || '-'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <span className="text-lg font-semibold text-green-600">
@@ -200,7 +228,6 @@ export default function Payments() {
         </table>
       </div>
 
-      {/* 添加弹窗 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
@@ -220,6 +247,20 @@ export default function Payments() {
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">购买课时数</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.packageHours}
+                  onChange={(e) => setFormData({ ...formData, packageHours: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="如：20、30、60（留空则不添加课时）"
+                />
+                <p className="text-xs text-gray-400 mt-1">填写后，付款成功会自动给学生添加对应课时</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">金额 *</label>
@@ -245,6 +286,7 @@ export default function Payments() {
                   />
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">付款方式</label>
                 <select
@@ -259,6 +301,7 @@ export default function Payments() {
                   <option value="other">其他</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <input
@@ -269,6 +312,7 @@ export default function Payments() {
                   placeholder="如：续费60节口语课"
                 />
               </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"

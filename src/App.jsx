@@ -1,15 +1,13 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, CreditCard, Settings, Calendar, BookOpen, GraduationCap, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
-import Packages from './pages/Packages';
 import Payments from './pages/Payments';
 import SettingsPage from './pages/Settings';
 import ParentView from './pages/ParentView';
 import Classes from './pages/Classes';
 import Teachers from './pages/Teachers';
-import Courses from './pages/Courses';
 import Schedule from './pages/Schedule';
 import TeacherPortal from './pages/TeacherPortal';
 
@@ -20,7 +18,6 @@ function Sidebar() {
         <h1 className="text-xl font-bold text-primary-600">阳光桥 CRM</h1>
         <p className="text-sm text-gray-500 mt-1">在线英语客户管理</p>
       </div>
-
       <nav className="flex-1 p-4 space-y-1">
         <NavLink
           to="/"
@@ -45,18 +42,6 @@ function Sidebar() {
         >
           <Users size={20} />
           <span>学生管理</span>
-        </NavLink>
-
-        <NavLink
-          to="/packages"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
-            }`
-          }
-        >
-          <Package size={20} />
-          <span>课时包管理</span>
         </NavLink>
 
         <NavLink
@@ -96,18 +81,6 @@ function Sidebar() {
         </NavLink>
 
         <NavLink
-          to="/courses"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
-            }`
-          }
-        >
-          <BookOpen size={20} />
-          <span>课程管理</span>
-        </NavLink>
-
-        <NavLink
           to="/schedule"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -131,7 +104,6 @@ function Sidebar() {
           <span>设置</span>
         </NavLink>
       </nav>
-
       <div className="p-4 border-t border-gray-200">
         <div className="text-xs text-gray-400 text-center">
           © 2024 阳光桥在线英语
@@ -151,11 +123,9 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentDetail />} />
-            <Route path="/packages" element={<Packages />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/teachers" element={<Teachers />} />
-            <Route path="/courses" element={<Courses />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
             <Route path="/settings" element={<SettingsPage />} />

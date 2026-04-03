@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { teacherOps, studentOps, classOps } from '../store';
+import { teacherOps, studentOps, classOps, packageOps } from '../store';
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const TIME_SLOTS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', 
+  '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
   '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
 ];
 
@@ -33,7 +33,6 @@ export default function Schedule() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // 加载教师和学生
       const [teachersData, studentsData] = await Promise.all([
         teacherOps.getAll(),
         studentOps.getAll()
@@ -41,11 +40,8 @@ export default function Schedule() {
       setTeachers(Array.isArray(teachersData) ? teachersData.filter(t => t.status === 'active') : []);
       setStudents(Array.isArray(studentsData) ? studentsData.filter(s => s.status === 'active') : []);
 
-      // 加载课程记录（状态为 scheduled 的）
       const classesData = await classOps.getAll();
-      const scheduled = Array.isArray(classesData) 
-        ? classesData.filter(c => c.status === 'scheduled') 
-        : [];
+      const scheduled = Array.isArray(classesData) ? classesData.filter(c => c.status === 'scheduled') : [];
       setSchedules(scheduled);
     } catch (err) {
       console.error('Load error:', err);
@@ -53,14 +49,12 @@ export default function Schedule() {
     setLoading(false);
   };
 
-  // 获取两周的日期范围
   const getTwoWeeks = () => {
     const weeks = [];
     for (let w = 0; w < 2; w++) {
       const week = [];
       const startOfWeek = new Date(currentDate);
       startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + (w * 7));
-      
       for (let d = 0; d < 7; d++) {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + d);
@@ -142,12 +136,24 @@ export default function Schedule() {
     e.preventDefault();
     
     try {
+      // 检查学生课时是否足够（仅新增时检查）
+      if (formData.student_id && !editingSchedule) {
+        const packagesData = await packageOps.getByStudent(formData.student_id);
+        const totalRemaining = (packagesData || []).reduce((sum, p) => sum + (p.remaining || 0), 0);
+        const hoursNeeded = formData.duration / 60;
+        
+        if (totalRemaining < hoursNeeded) {
+          alert(`课时不足！该学生剩余 ${totalRemaining} 节，需要 ${hoursNeeded} 节。请先购买课时。`);
+          return;
+        }
+      }
+      
       // 计算结束时间
       const [hours, minutes] = formData.time.split(':').map(Number);
       const endHours = hours + Math.floor(formData.duration / 60);
       const endMinutes = minutes + (formData.duration % 60);
       const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
-
+      
       const scheduleData = {
         student_id: formData.student_id ? parseInt(formData.student_id) : null,
         teacher_id: formData.teacher_id ? parseInt(formData.teacher_id) : null,
@@ -160,7 +166,7 @@ export default function Schedule() {
         notes: formData.notes,
         status: 'scheduled'
       };
-
+      
       if (editingSchedule) {
         await classOps.update(editingSchedule.id, scheduleData);
       } else {
@@ -170,7 +176,7 @@ export default function Schedule() {
         }
         await classOps.add(scheduleData.student_id, scheduleData);
       }
-
+      
       setShowModal(false);
       setEditingSchedule(null);
       loadData();
@@ -225,12 +231,12 @@ export default function Schedule() {
             <ChevronRight className="w-5 h-5" />
           </button>
           <span className="text-gray-600 font-medium">
-            {weeks[0][0].toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} - {weeks[1][6].toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
+            {weeks[0][0].toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} -
+            {weeks[1][6].toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
           </span>
         </div>
       </div>
 
-      {/* 两周日历视图 */}
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <div className="min-w-[1200px]">
           {/* 表头 */}
@@ -261,7 +267,6 @@ export default function Schedule() {
                 week.map((date, dayIdx) => {
                   const dateKey = formatDateKey(date);
                   const slotSchedules = getSchedulesForSlot(dateKey, time);
-                  
                   return (
                     <div
                       key={`${weekIdx}-${dayIdx}-${time}`}
@@ -277,7 +282,7 @@ export default function Schedule() {
                             e.stopPropagation();
                             handleEditSchedule(schedule);
                           }}
-                          className="bg-purple-100 text-purple-800 text-xs p-1 rounded mb-1 hover:bg-purple-200 group"
+                          className="bg-purple-100 text-purple-800 text-xs p-1 rounded mb-1 hover:bg-purple-200 group relative"
                         >
                           <div className="font-medium truncate">
                             {getStudentName(schedule.student_id)}
@@ -327,6 +332,7 @@ export default function Schedule() {
                   ))}
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">教师 *</label>
                 <select
@@ -341,6 +347,7 @@ export default function Schedule() {
                   ))}
                 </select>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
@@ -365,6 +372,7 @@ export default function Schedule() {
                   </select>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">时长（分钟）</label>
@@ -390,6 +398,7 @@ export default function Schedule() {
                   />
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <textarea
@@ -399,6 +408,7 @@ export default function Schedule() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
               </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
