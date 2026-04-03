@@ -84,7 +84,7 @@ export const studentOps = {
 // ============================================
 export const packageOps = {
   getByStudent: async (studentId) => {
-    const result = await request(`/packages?student_id=${studentId}`);
+    const result = await request(`/packages/student/${studentId}`);
     return result.data?.data || result.data || [];
   },
   getAll: async () => {
@@ -92,10 +92,10 @@ export const packageOps = {
     return result.data?.data || result.data || [];
   },
   add: async (studentId, pkg) => {
-    // 改用 /packages 路由，传递 student_id
-    const result = await request('/packages', {
+    // 使用正确的路由: /packages/student/:student_id
+    const result = await request(`/packages/student/${studentId}`, {
       method: 'POST',
-      body: { ...pkg, student_id: studentId },
+      body: pkg,
     });
     return result.data;
   },
