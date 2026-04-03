@@ -92,9 +92,10 @@ export const packageOps = {
     return result.data?.data || result.data || [];
   },
   add: async (studentId, pkg) => {
-    const result = await request(`/students/${studentId}/packages`, {
+    // 改用 /packages 路由，传递 student_id
+    const result = await request('/packages', {
       method: 'POST',
-      body: pkg,
+      body: { ...pkg, student_id: studentId },
     });
     return result.data;
   },
