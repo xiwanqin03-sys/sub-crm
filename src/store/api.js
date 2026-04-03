@@ -351,6 +351,20 @@ export async function importData(file, mode = 'merge') {
 }
 
 // ============================================
+// 管理操作
+// ============================================
+export const adminOps = {
+  clearAll: async () => {
+    const result = await request('/admin/clear-all', { method: 'POST' });
+    return result.data;
+  },
+  getStats: async () => {
+    const result = await request('/admin/stats');
+    return result.data;
+  },
+};
+
+// ============================================
 // 兼容旧代码的 localStorage 回退
 // ============================================
 const STORAGE_KEY = 'sunnybridge_crm_data';

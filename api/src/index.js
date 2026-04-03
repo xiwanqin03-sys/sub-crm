@@ -16,6 +16,7 @@ import courses from './routes/courses.js';
 import settings from './routes/settings.js';
 import search from './routes/search.js';
 import dashboard from './routes/dashboard.js';
+import admin from './routes/admin.js';
 
 const app = new Hono();
 
@@ -61,6 +62,7 @@ app.route('/api/v1/courses', courses);
 app.route('/api/v1/settings', settings);
 app.route('/api/v1/search', search);
 app.route('/api/v1/dashboard', dashboard);
+app.route('/api/v1/admin', admin);
 
 // 404 处理
 app.notFound(notFound);

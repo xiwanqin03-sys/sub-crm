@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Download, Upload, Database, Trash2, AlertTriangle, Users, ExternalLink } from 'lucide-react';
 import { exportData, importData, loadData } from '../store';
+import { adminOps } from '../store/api';
 
 export default function SettingsPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -24,24 +25,28 @@ export default function SettingsPage() {
     } catch (err) {
       setMessage({ type: 'error', text: err.message || '导入失败，请检查文件格式' });
     }
-    
-    // 清空 input 以便再次选择同一文件
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     if (!confirmClear) {
       setConfirmClear(true);
       return;
     }
     
     if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
-      localStorage.removeItem('sunnybridge_crm_data');
-      setMessage({ type: 'success', text: '数据已清空！' });
-      setConfirmClear(false);
-      window.location.reload();
+      try {
+        await adminOps.clearAll();
+        setMessage({ type: 'success', text: '数据已清空！' });
+        setConfirmClear(false);
+        window.location.reload();
+      } catch (err) {
+        setMessage({ type: 'error', text: '清空失败：' + err.message });
+        setConfirmClear(false);
+      }
     }
   };
 
@@ -94,6 +99,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
       {/* 家长访问入口 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
@@ -104,8 +110,8 @@ export default function SettingsPage() {
           家长可通过以下链接查看孩子的学习进度和上课记录。无需登录，只需输入学生ID或手机号。
         </p>
         <div className="flex items-center gap-4">
-          <a 
-            href="/parent" 
+          <a
+            href="/parent"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
@@ -133,7 +139,6 @@ export default function SettingsPage() {
         <p className="text-gray-500 text-sm mb-6">
           导出您的所有数据为 JSON 文件，以便备份或迁移到其他设备。导入数据将覆盖当前所有数据。
         </p>
-        
         <div className="flex gap-4">
           <button
             onClick={handleExport}
@@ -142,7 +147,6 @@ export default function SettingsPage() {
             <Download size={20} />
             导出数据
           </button>
-          
           <div className="relative">
             <input
               ref={fileInputRef}
@@ -165,19 +169,15 @@ export default function SettingsPage() {
         <p className="text-gray-500 text-sm mb-4">
           清空所有数据将删除所有学生、课时包、上课记录和付款记录。此操作不可恢复，请提前导出数据进行备份。
         </p>
-        
         <button
           onClick={handleClearData}
           className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${
-            confirmClear 
-              ? 'bg-red-600 text-white hover:bg-red-700' 
-              : 'border border-red-200 text-red-600 hover:bg-red-50'
+            confirmClear ? 'bg-red-600 text-white hover:bg-red-700' : 'border border-red-200 text-red-600 hover:bg-red-50'
           }`}
         >
           <Trash2 size={20} />
           {confirmClear ? '再次点击确认清空' : '清空所有数据'}
         </button>
-        
         {confirmClear && (
           <p className="mt-3 text-sm text-red-500 flex items-center gap-1">
             <AlertTriangle size={14} />
