@@ -37,7 +37,11 @@ export const packageSchema = z.object({
   total: z.number().int().positive('总课时必须大于0'),
   price: z.number().min(0).optional(),
   purchase_date: z.string().optional(),
-  expire_date: z.string().optional().or(z.literal('')),
+  expire_date: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v) return null;
+    // 支持 YYYY/MM/DD 格式转换为 YYYY-MM-DD
+    return v.replace(/\//g, '-');
+  }),
   notes: z.string().optional().or(z.literal('')),
   status: z.enum(['active', 'expired', 'refunded']).optional().default('active')
 });

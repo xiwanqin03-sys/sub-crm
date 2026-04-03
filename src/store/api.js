@@ -153,7 +153,8 @@ export const classOps = {
 // ============================================
 export const paymentOps = {
   getByStudent: async (studentId) => {
-    const result = await request(`/payments?student_id=${studentId}`);
+    // 使用正确的路由: /payments/student/:student_id
+    const result = await request(`/payments/student/${studentId}`);
     return result.data?.data || result.data || [];
   },
   getAll: async () => {
@@ -161,7 +162,8 @@ export const paymentOps = {
     return result.data?.data || result.data || [];
   },
   add: async (studentId, payment) => {
-    const result = await request(`/students/${studentId}/payments`, {
+    // 使用正确的路由: /payments/student/:student_id
+    const result = await request(`/payments/student/${studentId}`, {
       method: 'POST',
       body: payment,
     });
