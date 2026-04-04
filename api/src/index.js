@@ -19,6 +19,7 @@ import dashboard from './routes/dashboard.js';
 import admin from './routes/admin.js';
 import exportRoute from './routes/export.js';
 import importRoute from './routes/import.js';
+import teacherShare from './routes/teacherShare.js';
 
 const app = new Hono();
 
@@ -67,6 +68,7 @@ app.route('/api/v1/dashboard', dashboard);
 app.route('/api/v1/admin', admin);
 app.route('/api/v1/export', exportRoute);
 app.route('/api/v1/import', importRoute);
+app.route('/api/v1/teacher/share', teacherShare);
 
 // 404 处理
 app.notFound(notFound);

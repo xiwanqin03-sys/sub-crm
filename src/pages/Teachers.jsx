@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Plus, Edit2, Trash2, Phone, Mail, BookOpen, Search, ExternalLink } from 'lucide-react';
+import { User, Plus, Edit2, Trash2, Phone, Mail, BookOpen, Search, ExternalLink, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { teacherOps } from '../store';
 
@@ -49,7 +49,15 @@ export default function Teachers() {
 
       setShowModal(false);
       setEditingTeacher(null);
-      setFormData({ name: '', phone: '', email: '', subjects: '', hourly_rate: '', status: 'active', notes: '' });
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        subjects: '',
+        hourly_rate: '',
+        status: 'active',
+        notes: ''
+      });
       loadTeachers();
     } catch (err) {
       alert('保存失败：' + err.message);
@@ -80,7 +88,7 @@ export default function Teachers() {
     }
   };
 
-  const filteredTeachers = teachers.filter(t => 
+  const filteredTeachers = teachers.filter(t =>
     t.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.phone?.includes(searchTerm) ||
     t.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -96,7 +104,15 @@ export default function Teachers() {
         <button
           onClick={() => {
             setEditingTeacher(null);
-            setFormData({ name: '', phone: '', email: '', subjects: '', hourly_rate: '', status: 'active', notes: '' });
+            setFormData({
+              name: '',
+              phone: '',
+              email: '',
+              subjects: '',
+              hourly_rate: '',
+              status: 'active',
+              notes: ''
+            });
             setShowModal(true);
           }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -123,7 +139,12 @@ export default function Teachers() {
         <h2 className="text-lg font-semibold text-gray-700 mb-3">在职教师 ({activeTeachers.length})</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeTeachers.map(teacher => (
-            <TeacherCard key={teacher.id} teacher={teacher} onEdit={handleEdit} onDelete={handleDelete} />
+            <TeacherCard
+              key={teacher.id}
+              teacher={teacher}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
         {activeTeachers.length === 0 && (
@@ -137,7 +158,12 @@ export default function Teachers() {
           <h2 className="text-lg font-semibold text-gray-400 mb-3">离职教师 ({inactiveTeachers.length})</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
             {inactiveTeachers.map(teacher => (
-              <TeacherCard key={teacher.id} teacher={teacher} onEdit={handleEdit} onDelete={handleDelete} />
+              <TeacherCard
+                key={teacher.id}
+                teacher={teacher}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         </div>
@@ -217,6 +243,7 @@ export default function Teachers() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -241,6 +268,26 @@ export default function Teachers() {
 }
 
 function TeacherCard({ teacher, onEdit, onDelete }) {
+  const [shareUrl, setShareUrl] = useState(null);
+  const API_BASE = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
+
+  const handleGenerateShareLink = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/teacher/share/${teacher.id}/generate-token`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.data?.token) {
+        const url = `${window.location.origin}/teacher/share/${data.data.token}`;
+        setShareUrl(url);
+        navigator.clipboard.writeText(url);
+        alert('分享链接已复制到剪贴板！\n\n链接：' + url);
+      }
+    } catch (err) {
+      alert('生成失败：' + err.message);
+    }
+  };
+
   return (
     <div className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-3">
@@ -257,18 +304,39 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
             </span>
           </div>
         </div>
+
         <div className="flex gap-1">
-          <Link 
-            to={`/teacher/${teacher.id}`} 
+          {/* 分享链接按钮 */}
+          <button
+            onClick={handleGenerateShareLink}
+            className="p-1 hover:bg-green-100 rounded"
+            title="生成分享链接"
+          >
+            <Share2 className="w-4 h-4 text-green-500" />
+          </button>
+          
+          {/* 教师门户链接 */}
+          <Link
+            to={`/teacher/${teacher.id}`}
             className="p-1 hover:bg-purple-100 rounded"
             title="教师门户"
           >
             <ExternalLink className="w-4 h-4 text-purple-500" />
           </Link>
-          <button onClick={() => onEdit(teacher)} className="p-1 hover:bg-gray-100 rounded">
+          
+          {/* 编辑按钮 */}
+          <button
+            onClick={() => onEdit(teacher)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
             <Edit2 className="w-4 h-4 text-gray-500" />
           </button>
-          <button onClick={() => onDelete(teacher.id)} className="p-1 hover:bg-gray-100 rounded">
+          
+          {/* 删除按钮 */}
+          <button
+            onClick={() => onDelete(teacher.id)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
             <Trash2 className="w-4 h-4 text-red-500" />
           </button>
         </div>

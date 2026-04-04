@@ -10,6 +10,7 @@ import Classes from './pages/Classes';
 import Teachers from './pages/Teachers';
 import Schedule from './pages/Schedule';
 import TeacherPortal from './pages/TeacherPortal';
+import TeacherShare from './pages/TeacherShare';
 
 function Sidebar() {
   return (
@@ -128,6 +129,7 @@ function App() {
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
+              <Route path="/teacher/share/:token" element={<TeacherShare />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/parent" element={<ParentView />} />
             <Route path="/parent/:studentId" element={<ParentView />} />
