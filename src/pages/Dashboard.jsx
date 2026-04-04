@@ -161,20 +161,13 @@ export default function Dashboard() {
       {/* 快捷操作 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">快捷操作</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             to="/students?action=add"
             className="p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors text-center"
           >
             <Users className="w-8 h-8 mx-auto mb-2 text-primary-600" />
             <div className="text-primary-700 font-medium">添加学生</div>
-          </Link>
-          <Link
-            to="/packages?action=add"
-            className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center"
-          >
-            <Package className="w-8 h-8 mx-auto mb-2 text-orange-600" />
-            <div className="text-orange-700 font-medium">购买课时包</div>
           </Link>
           <Link
             to="/payments?action=add"
@@ -187,7 +180,7 @@ export default function Dashboard() {
             to="/settings"
             className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
           >
-            <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+            <Package className="w-8 h-8 mx-auto mb-2 text-gray-600" />
             <div className="text-gray-700 font-medium">导出/导入数据</div>
           </Link>
         </div>
