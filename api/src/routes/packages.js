@@ -3,7 +3,7 @@
  * P0: 核心 CRUD 功能
  */
 import { Hono } from 'hono';
-import { packageSchema, packageUpdateSchema, validate, validateParams, idParamSchema } from '../utils/validation.js';
+import { packageSchema, packageUpdateSchema, packageAdjustSchema, validate, validateParams, idParamSchema } from '../utils/validation.js';
 import { success, error } from '../utils/response.js';
 
 const packages = new Hono();
@@ -68,7 +68,6 @@ packages.get('/student/:student_id', async (c) => {
     summary.total_hours += pkg.total;
     summary.used_hours += pkg.used;
     summary.remaining_hours += pkg.remaining;
-
     return {
       id: pkg.id,
       student_id: pkg.student_id,
@@ -216,7 +215,6 @@ packages.patch('/:id', validateParams(idParamSchema), validate(packageUpdateSche
 
   // 返回更新后的课时包
   const pkg = await DB.prepare('SELECT * FROM packages WHERE id = ?').bind(id).first();
-
   return c.json(success({
     id: pkg.id,
     name: pkg.name,
@@ -243,8 +241,56 @@ packages.delete('/:id', validateParams(idParamSchema), async (c) => {
   }
 
   await DB.prepare('DELETE FROM packages WHERE id = ?').bind(id).run();
-
   return c.body(null, 204);
+});
+
+// 调整课时（管理员使用）
+packages.post('/:id/adjust', validateParams(idParamSchema), validate(packageAdjustSchema), async (c) => {
+  const DB = c.env.DB;
+  const { id } = c.req.validatedParams;
+  const { adjustment, reason, notes } = c.req.validated;
+
+  // 检查课时包是否存在
+  const existing = await DB.prepare(`
+    SELECT p.*, s.name as student_name
+    FROM packages p
+    JOIN students s ON p.student_id = s.id
+    WHERE p.id = ?
+  `).bind(id).first();
+
+  if (!existing) {
+    return c.json(error('NOT_FOUND', '课时包不存在'), 404);
+  }
+
+  // 计算新的课时数
+  const newTotal = existing.total + adjustment;
+  if (newTotal < existing.used) {
+    return c.json(error('INVALID_ADJUSTMENT', '调整后总课时不能小于已用课时'), 400);
+  }
+
+  const newRemaining = newTotal - existing.used;
+
+  // 更新课时包
+  await DB.prepare(`
+    UPDATE packages
+    SET total = ?, remaining = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(newTotal, newRemaining, new Date().toISOString(), id).run();
+
+  return c.json(success({
+    id,
+    student_id: existing.student_id,
+    student_name: existing.student_name,
+    package_name: existing.name,
+    previous_total: existing.total,
+    adjustment,
+    new_total: newTotal,
+    used: existing.used,
+    new_remaining: newRemaining,
+    reason,
+    notes,
+    adjusted_at: new Date().toISOString()
+  }));
 });
 
 export default packages;

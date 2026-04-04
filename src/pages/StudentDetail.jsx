@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare } from 'lucide-react';
 import { studentOps, packageOps, classOps, paymentOps } from '../store';
+import AdjustHoursModal from '../components/AdjustHoursModal';
 
 export default function StudentDetail() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export default function StudentDetail() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showClassModal, setShowClassModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(null);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [classForm, setClassForm] = useState({ date: '', hours: 1, notes: '' });
 
@@ -46,34 +48,22 @@ export default function StudentDetail() {
   const handleAddClass = async (e) => {
     e.preventDefault();
     const hoursToConsume = classForm.hours || 1;
-
-    // 计算总课时余额
     const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
-    
     if (totalRemaining < hoursToConsume) {
       alert(`课时不足！当前剩余 ${totalRemaining} 节，需要 ${hoursToConsume} 节。请先购买课时。`);
       return;
     }
-
     try {
-      // 找到第一个有剩余课时的课时包
       let remaining = hoursToConsume;
       for (const pkg of packages) {
         if (pkg.remaining > 0 && remaining > 0) {
           const toUse = Math.min(pkg.remaining, remaining);
-          await classOps.add(id, {
-            ...classForm,
-            studentId: id,
-            packageId: pkg.id,
-            hours: toUse
-          });
+          await classOps.add(id, { ...classForm, studentId: id, packageId: pkg.id, hours: toUse });
           remaining -= toUse;
         }
       }
-
       setShowClassModal(false);
       setClassForm({ date: '', hours: 1, notes: '' });
-      
       const [packagesData, classesData] = await Promise.all([
         packageOps.getByStudent(id),
         classOps.getByStudent(id)
@@ -101,8 +91,16 @@ export default function StudentDetail() {
     }
   };
 
+  const handleAdjustSuccess = async () => {
+    const packagesData = await packageOps.getByStudent(id);
+    setPackages(Array.isArray(packagesData) ? packagesData : []);
+  };
+
   const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
   const totalSpent = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+  // 获取第一个活跃的课时包（用于调整）
+  const activePackage = packages.find(p => p.remaining > 0) || packages[0];
 
   if (loading) {
     return (
@@ -149,10 +147,7 @@ export default function StudentDetail() {
 
   return (
     <div className="p-8">
-      <button
-        onClick={() => navigate('/students')}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6"
-      >
+      <button onClick={() => navigate('/students')} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6">
         <ArrowLeft size={20} />
         返回学生列表
       </button>
@@ -255,11 +250,32 @@ export default function StudentDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 课时余额概览 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">课时余额</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-800">课时余额</h3>
+              {activePackage && (
+                <button
+                  onClick={() => setShowAdjustModal(true)}
+                  className="text-sm text-primary-600 hover:text-primary-700"
+                >
+                  调整课时
+                </button>
+              )}
+            </div>
             <div className="text-center py-4">
               <div className="text-4xl font-bold text-primary-600">{totalRemaining}</div>
               <div className="text-sm text-gray-500 mt-1">剩余课时</div>
             </div>
+            {/* 课时包列表 */}
+            {packages.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {packages.map(pkg => (
+                  <div key={pkg.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                    <span className="text-gray-600">{pkg.name || `套餐 #${pkg.id}`}</span>
+                    <span className="font-medium text-primary-600">{pkg.remaining}/{pkg.total}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {totalRemaining < 5 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 课时不足，请提醒家长续费
@@ -271,10 +287,7 @@ export default function StudentDetail() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-800">最近上课</h3>
-              <button
-                onClick={() => setShowClassModal(true)}
-                className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1"
-              >
+              <button onClick={() => setShowClassModal(true)} className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1">
                 <Plus size={16} />
                 添加
               </button>
@@ -298,11 +311,7 @@ export default function StudentDetail() {
                       </div>
                     </div>
                     {(cls.content || cls.homework) && (
-                      <button
-                        onClick={() => setShowFeedbackModal(cls)}
-                        className="text-primary-600 hover:text-primary-700"
-                        title="查看反馈"
-                      >
+                      <button onClick={() => setShowFeedbackModal(cls)} className="text-primary-600 hover:text-primary-700" title="查看反馈">
                         <MessageSquare size={16} />
                       </button>
                     )}
@@ -321,10 +330,7 @@ export default function StudentDetail() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-semibold text-gray-800">上课记录</h3>
-            <button
-              onClick={() => setShowClassModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-            >
+            <button onClick={() => setShowClassModal(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
               <Plus size={18} />
               记录上课
             </button>
@@ -346,26 +352,17 @@ export default function StudentDetail() {
                             {STATUS_LABELS[cls.status]}
                           </span>
                         )}
-                        {cls.content && (
-                          <span className="text-primary-600">· 有反馈</span>
-                        )}
+                        {cls.content && <span className="text-primary-600">· 有反馈</span>}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {(cls.content || cls.homework) && (
-                      <button
-                        onClick={() => setShowFeedbackModal(cls)}
-                        className="p-2 text-primary-600 hover:text-primary-700"
-                        title="查看反馈"
-                      >
+                      <button onClick={() => setShowFeedbackModal(cls)} className="p-2 text-primary-600 hover:text-primary-700" title="查看反馈">
                         <MessageSquare size={18} />
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDeleteClass(cls.id)}
-                      className="p-2 text-gray-400 hover:text-red-600"
-                    >
+                    <button onClick={() => handleDeleteClass(cls.id)} className="p-2 text-gray-400 hover:text-red-600">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -401,8 +398,8 @@ export default function StudentDetail() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-lg font-semibold text-green-600">
-                    +¥{payment.amount?.toLocaleString()}
+                  <div className={`text-lg font-semibold ${payment.amount > 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                    {payment.amount > 0 ? '+' : ''}¥{payment.amount?.toLocaleString()}
                   </div>
                 </div>
               ))}
@@ -455,17 +452,10 @@ export default function StudentDetail() {
                 />
               </div>
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowClassModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
-                >
+                <button type="button" onClick={() => setShowClassModal(false)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
                   取消
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                >
+                <button type="submit" className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
                   保存
                 </button>
               </div>
@@ -528,15 +518,21 @@ export default function StudentDetail() {
               )}
             </div>
             <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowFeedbackModal(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-              >
+              <button onClick={() => setShowFeedbackModal(null)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
                 关闭
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 调整课时弹窗 */}
+      {showAdjustModal && activePackage && (
+        <AdjustHoursModal
+          packageInfo={activePackage}
+          onClose={() => setShowAdjustModal(false)}
+          onSuccess={handleAdjustSuccess}
+        />
       )}
     </div>
   );

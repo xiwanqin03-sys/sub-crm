@@ -110,6 +110,14 @@ export const packageOps = {
     await request(`/packages/${id}`, { method: 'DELETE' });
     return true;
   },
+  // 调整课时（管理员使用）
+  adjust: async (packageId, adjustment, reason, notes = '') => {
+    const result = await request(`/packages/${packageId}/adjust`, {
+      method: 'POST',
+      body: { adjustment, reason, notes },
+    });
+    return result.data;
+  },
 };
 
 // ============================================
