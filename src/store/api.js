@@ -332,22 +332,12 @@ export async function exportData(format = 'json') {
   return result;
 }
 
-export async function importData(file, mode = 'merge') {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('mode', mode);
-
-  const response = await fetch(`${API_BASE_URL}/import`, {
+export async function importData(data, mode = 'replace') {
+  const result = await request('/import', {
     method: 'POST',
-    headers: { 'X-API-Key': API_KEY },
-    body: formData,
+    body: { data, mode },
   });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Import failed');
-  }
-  return data;
+  return result;
 }
 
 // ============================================

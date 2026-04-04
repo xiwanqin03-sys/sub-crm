@@ -8,10 +8,24 @@ export default function SettingsPage() {
   const [confirmClear, setConfirmClear] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleExport = () => {
-    exportData();
-    setMessage({ type: 'success', text: '数据已导出成功！' });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  const handleExport = async () => {
+    try {
+      const result = await exportData();
+      // 创建下载链接
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sunnybridge-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMessage({ type: 'success', text: '数据已导出成功！' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } catch (err) {
+      setMessage({ type: 'error', text: '导出失败：' + err.message });
+    }
   };
 
   const handleImport = async (e) => {
@@ -19,9 +33,14 @@ export default function SettingsPage() {
     if (!file) return;
 
     try {
-      await importData(file);
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await importData(data, 'replace');
       setMessage({ type: 'success', text: '数据导入成功！' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      setTimeout(() => {
+        setMessage({ type: '', text: '' });
+        window.location.reload();
+      }, 1500);
     } catch (err) {
       setMessage({ type: 'error', text: err.message || '导入失败，请检查文件格式' });
     }
