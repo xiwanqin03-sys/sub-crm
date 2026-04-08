@@ -44,7 +44,7 @@ export default function Payments() {
     e.preventDefault();
     try {
       await paymentOps.add(formData.studentId, {
-        amount: parseFloat(formData.amount),
+        amount: parseFloat(formData.amount) || 0,
         date: formData.date,
         payment_method: formData.method,  // 修正字段名
         description: formData.notes        // 修正字段名
