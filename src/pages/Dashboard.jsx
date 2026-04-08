@@ -137,7 +137,7 @@ export default function Dashboard() {
                     <div>
                       <div className="font-medium text-gray-800">{cls.student_name || '未知学生'}</div>
                       <div className="text-sm text-gray-500">
-                        {cls.teacher_name || '未指定老师'} · {cls.subject || '未指定科目'}
+                        {cls.teacher || '未指定老师'} · {cls.subject || '未指定科目'}
                       </div>
                     </div>
                   </div>
