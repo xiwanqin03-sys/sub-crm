@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Package, CreditCard, Calendar, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
-import { getStats } from '../store';
+import { Users, Package, CreditCard, Calendar, AlertTriangle, ArrowRight, Loader2, Clock } from 'lucide-react';
+import { getStats, getTodayClasses } from '../store';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [todayClasses, setTodayClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -12,8 +13,9 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getStats();
+      const [data, classes] = await Promise.all([getStats(), getTodayClasses()]);
       setStats(data);
+      setTodayClasses(classes);
     } catch (err) {
       console.error('加载统计失败:', err);
       setError(err.message);
@@ -107,7 +109,50 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* 课时预警 */}
+      {/* 今日课程 */}
+        {todayClasses.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Clock className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">今日课程</h2>
+                <p className="text-sm text-gray-500">即将上课的安排</p>
+              </div>
+              <span className="ml-auto bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                {todayClasses.length} 节
+              </span>
+            </div>
+            <div className="space-y-3">
+              {todayClasses.map((cls) => (
+                <div key={cls.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {cls.start_time?.substring(0, 5) || '--:--'}
+                      </div>
+                      <div className="text-xs text-gray-500">-{cls.end_time?.substring(0, 5) || '--:--'}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">{cls.student_name || '未知学生'}</div>
+                      <div className="text-sm text-gray-500">
+                        {cls.teacher_name || '未指定老师'} · {cls.subject || '未指定科目'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                      {cls.status === 'scheduled' ? '已预约' : cls.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 课时预警 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-red-100 rounded-lg">
