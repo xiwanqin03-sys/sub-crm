@@ -361,15 +361,12 @@ export default function Schedule() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">时间</label>
-                  <select
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                  >
-                    {TIME_SLOTS.map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
+              <input
+                type="time"
+                value={formData.time}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
                 </div>
               </div>
 
