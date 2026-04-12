@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import PasswordProtect from './components/PasswordProtect';
 import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
@@ -122,11 +123,12 @@ function Sidebar() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          <Routes>
+    <PasswordProtect>
+      <BrowserRouter>
+        <div className="flex min-h-screen bg-gray-50">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentDetail />} />
@@ -142,9 +144,10 @@ function App() {
             <Route path="/parent/:studentId" element={<ParentView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+          </main>
+        </div>
+      </BrowserRouter>
+    </PasswordProtect>
   );
 }
 
