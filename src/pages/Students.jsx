@@ -106,7 +106,7 @@ export default function Students() {
   });
 
   const getStudentRemaining = (student) => {
-    return student.package_summary?.remaining_hours || 0;
+    return (student.total_hours || 0) - (student.used_hours || 0);
   };
 
   return (

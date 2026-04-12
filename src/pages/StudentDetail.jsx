@@ -48,20 +48,14 @@ export default function StudentDetail() {
   const handleAddClass = async (e) => {
     e.preventDefault();
     const hoursToConsume = classForm.hours || 1;
-    const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
+    const totalRemaining = student ? (student.total_hours ?? student.package_summary?.total_hours ?? 0) - (student.used_hours ?? student.package_summary?.used_hours ?? 0) : 0;
     if (totalRemaining < hoursToConsume) {
       alert(`课时不足！当前剩余 ${totalRemaining} 节，需要 ${hoursToConsume} 节。请先购买课时。`);
       return;
     }
     try {
-      let remaining = hoursToConsume;
-      for (const pkg of packages) {
-        if (pkg.remaining > 0 && remaining > 0) {
-          const toUse = Math.min(pkg.remaining, remaining);
-          await classOps.add(id, { ...classForm, studentId: id, packageId: pkg.id, hours: toUse });
-          remaining -= toUse;
-        }
-      }
+      // 直接添加课程，不再需要 packageId
+      await classOps.add(id, { ...classForm, studentId: id, hours: hoursToConsume });
       setShowClassModal(false);
       setClassForm({ date: '', hours: 1, notes: '' });
       const [packagesData, classesData] = await Promise.all([
@@ -92,11 +86,10 @@ export default function StudentDetail() {
   };
 
   const handleAdjustSuccess = async () => {
-    const packagesData = await packageOps.getByStudent(id);
-    setPackages(Array.isArray(packagesData) ? packagesData : []);
+    loadStudent();
   };
 
-  const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
+  const totalRemaining = student ? (student.total_hours ?? student.package_summary?.total_hours ?? 0) - (student.used_hours ?? student.package_summary?.used_hours ?? 0) : 0;
   const totalSpent = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   // 获取第一个活跃的课时包（用于调整）
@@ -527,9 +520,9 @@ export default function StudentDetail() {
       )}
 
       {/* 调整课时弹窗 */}
-      {showAdjustModal && activePackage && (
+      {showAdjustModal && student && (
         <AdjustHoursModal
-          packageInfo={activePackage}
+          studentInfo={student}
           onClose={() => setShowAdjustModal(false)}
           onSuccess={handleAdjustSuccess}
         />

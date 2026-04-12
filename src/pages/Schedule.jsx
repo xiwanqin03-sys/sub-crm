@@ -4,8 +4,10 @@ import { teacherOps, studentOps, classOps, packageOps } from '../store';
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const TIME_SLOTS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
-  '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
+ '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+ '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+ '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+ '20:00', '20:30', '21:00'
 ];
 
 export default function Schedule() {
@@ -138,8 +140,8 @@ export default function Schedule() {
     try {
       // 检查学生课时是否足够（仅新增时检查）
       if (formData.student_id && !editingSchedule) {
-        const packagesData = await packageOps.getByStudent(formData.student_id);
-        const totalRemaining = (packagesData || []).reduce((sum, p) => sum + (p.remaining || 0), 0);
+        const studentData = await studentOps.getById(formData.student_id);
+        const totalHours = studentData?.total_hours ?? 0; const usedHours = studentData?.used_hours ?? 0; const totalRemaining = totalHours - usedHours;
         const hoursNeeded = formData.duration / 60;
         
         if (totalRemaining < hoursNeeded) {
@@ -186,7 +188,17 @@ export default function Schedule() {
   };
 
   const getSchedulesForSlot = (dateKey, time) => {
-    return schedules.filter(s => s.date === dateKey && s.start_time === time);
+    // 模糊匹配：找到该时间段内的课程
+    return schedules.filter(s => {
+      if (s.date !== dateKey) return false;
+      // 精确匹配
+      if (s.start_time === time) return true;
+      // 如果课程时间不在标准时间槽，显示在最接近的时间槽
+      const slotMinutes = parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1]);
+      const startMinutes = parseInt(s.start_time.split(':')[0]) * 60 + parseInt(s.start_time.split(':')[1]);
+      // 30分钟范围内都显示在这个槽
+      return startMinutes >= slotMinutes && startMinutes < slotMinutes + 30;
+    });
   };
 
   const getStudentName = (id) => {

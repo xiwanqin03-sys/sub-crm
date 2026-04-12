@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
-import { packageOps } from '../store/api';
+import { studentOps } from '../store/api';
 
 /**
- * 调整课时弹窗组件（精简版）
+ * 调整学生总课时弹窗组件
  */
-export default function AdjustHoursModal({ packageInfo, onClose, onSuccess }) {
+export default function AdjustHoursModal({ studentInfo, onClose, onSuccess }) {
   const [adjustment, setAdjustment] = useState(0);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,10 +33,12 @@ export default function AdjustHoursModal({ packageInfo, onClose, onSuccess }) {
       setError('请填写调整原因');
       return;
     }
+
     setLoading(true);
     setError('');
+
     try {
-      await packageOps.adjust(packageInfo.id, adjustment, reason);
+      await studentOps.adjustHours(studentInfo.id, adjustment, reason);
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -46,26 +48,32 @@ export default function AdjustHoursModal({ packageInfo, onClose, onSuccess }) {
     }
   };
 
-  const newTotal = (packageInfo?.total || 0) + adjustment;
-  const newRemaining = (packageInfo?.remaining || 0) + adjustment;
+  const totalHours = studentInfo?.total_hours || 0;
+  const usedHours = studentInfo?.used_hours || 0;
+  const remainingHours = totalHours - usedHours;
+  const newTotal = totalHours + adjustment;
+  const newRemaining = remainingHours + adjustment;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-5 w-full max-w-sm mx-4">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">调整课时</h2>
 
-        {/* 当前课时包信息 */}
+        {/* 学生课时信息 */}
         <div className="bg-gray-50 rounded-lg p-3 mb-4">
-          <div className="text-sm text-gray-500 mb-1">课时包</div>
-          <div className="font-medium text-gray-800">{packageInfo?.name || `套餐 #${packageInfo?.id}`}</div>
-          <div className="grid grid-cols-2 gap-3 mt-2">
+          <div className="text-sm text-gray-500 mb-1">学生：{studentInfo?.name}</div>
+          <div className="grid grid-cols-3 gap-3 mt-2">
             <div>
               <div className="text-xs text-gray-400">总课时</div>
-              <div className="text-lg font-bold text-gray-800">{packageInfo?.total || 0}</div>
+              <div className="text-lg font-bold text-gray-800">{totalHours}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-400">已用</div>
+              <div className="text-lg font-bold text-gray-600">{usedHours}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400">剩余</div>
-              <div className="text-lg font-bold text-primary-600">{packageInfo?.remaining || 0}</div>
+              <div className="text-lg font-bold text-primary-600">{remainingHours}</div>
             </div>
           </div>
         </div>
@@ -129,7 +137,7 @@ export default function AdjustHoursModal({ packageInfo, onClose, onSuccess }) {
                 </span>
               </div>
               <div className="text-xs text-gray-500 mt-0.5">
-                总课时: {packageInfo?.total || 0} → {newTotal} | 剩余: {packageInfo?.remaining || 0} → {newRemaining}
+                总课时: {totalHours} → {newTotal} | 剩余: {remainingHours} → {newRemaining}
               </div>
             </div>
           )}

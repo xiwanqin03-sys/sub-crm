@@ -75,7 +75,8 @@ export const paymentSchema = z.object({
   description: z.string().optional().or(z.literal('')),
   date: z.string().optional(),
   receipt_number: z.string().max(50).optional().or(z.literal('')),
-  notes: z.string().optional().or(z.literal(''))
+  notes: z.string().optional().or(z.literal('')),
+  hours: z.number().int().min(0).optional().default(0)
 });
 
 // Teachers Schema
@@ -86,7 +87,8 @@ export const teacherSchema = z.object({
   subjects: z.string().optional().or(z.literal('')), // JSON string
   hourly_rate: z.number().min(0).optional(),
   status: z.enum(['active', 'inactive']).optional().default('active'),
-  notes: z.string().optional().or(z.literal(''))
+  notes: z.string().optional().or(z.literal('')),
+  hours: z.number().int().min(0).optional().default(0)
 });
 
 export const teacherUpdateSchema = teacherSchema.partial();

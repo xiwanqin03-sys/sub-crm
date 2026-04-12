@@ -20,12 +20,12 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
   const params = [];
 
   if (search) {
-    whereClause += ' AND (s.name LIKE ? OR s.phone LIKE ?)';
+    whereClause += ' AND (name LIKE ? OR phone LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
 
   if (status) {
-    whereClause += ' AND s.status = ?';
+    whereClause += ' AND status = ?';
     params.push(status);
   }
 
@@ -36,7 +36,7 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
   const safeSortField = validSortFields.includes(sortField) ? sortField : 'created_at';
 
   // 查询总数
-  const countSql = `SELECT COUNT(*) as total FROM students s ${whereClause}`;
+  const countSql = `SELECT COUNT(*) as total FROM students ${whereClause}`;
   const countResult = await DB.prepare(countSql).bind(...params).first();
   const total = countResult?.total || 0;
 
@@ -45,15 +45,10 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
 
   // 查询列表
   const sql = `
-    SELECT s.*,
-      COALESCE(SUM(p.total), 0) as total_hours,
-      COALESCE(SUM(p.used), 0) as used_hours,
-      COALESCE(SUM(p.remaining), 0) as remaining_hours
-    FROM students s
-    LEFT JOIN packages p ON s.id = p.student_id AND p.status = 'active'
+    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
     ${whereClause}
-    GROUP BY s.id
-    ORDER BY s.${safeSortField} ${sortOrder}
+    
+    ORDER BY ${safeSortField} ${sortOrder}
     LIMIT ? OFFSET ?
   `;
 
@@ -69,11 +64,8 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
     parent_name: student.parent_name,
     notes: student.notes,
     status: student.status,
-    package_summary: {
-      total_hours: student.total_hours,
-      used_hours: student.used_hours,
-      remaining_hours: student.remaining_hours
-    },
+    total_hours: student.total_hours || 0,
+    used_hours: student.used_hours || 0,
     created_at: student.created_at,
     updated_at: student.updated_at,
     _links: {
@@ -94,14 +86,9 @@ students.get('/:id', validateParams(idParamSchema), async (c) => {
 
   // 查询学生信息
   const student = await DB.prepare(`
-    SELECT s.*,
-      COALESCE(SUM(p.total), 0) as total_hours,
-      COALESCE(SUM(p.used), 0) as used_hours,
-      COALESCE(SUM(p.remaining), 0) as remaining_hours
-    FROM students s
-    LEFT JOIN packages p ON s.id = p.student_id AND p.status = 'active'
-    WHERE s.id = ?
-    GROUP BY s.id
+    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
+    WHERE id = ?
+    
   `).bind(id).first();
 
   if (!student) {
@@ -143,17 +130,8 @@ students.get('/:id', validateParams(idParamSchema), async (c) => {
     parent_name: student.parent_name,
     notes: student.notes,
     status: student.status,
-    package_summary: {
-      total_hours: student.total_hours,
-      used_hours: student.used_hours,
-      remaining_hours: student.remaining_hours,
-      packages: packages.results?.map(pkg => ({
-        id: pkg.id,
-        name: pkg.name,
-        remaining: pkg.remaining,
-        expire_date: pkg.expire_date
-      })) || []
-    },
+    total_hours: student.total_hours || 0,
+    used_hours: student.used_hours || 0,
     class_stats: {
       total: classStats?.total || 0,
       this_month: classStats?.this_month || 0
@@ -274,31 +252,26 @@ students.get('/', async (c) => {
   const params = [];
 
   if (search) {
-    whereClause += ' AND (s.name LIKE ? OR s.phone LIKE ?)';
+    whereClause += ' AND (name LIKE ? OR phone LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
 
   if (status) {
-    whereClause += ' AND s.status = ?';
+    whereClause += ' AND status = ?';
     params.push(status);
   }
 
-  const countSql = `SELECT COUNT(*) as total FROM students s ${whereClause}`;
+  const countSql = `SELECT COUNT(*) as total FROM students ${whereClause}`;
   const countResult = await DB.prepare(countSql).bind(...params).first();
   const total = countResult?.total || 0;
 
   const finalPagination = calculatePagination(page, pageSize, total);
 
   const sql = `
-    SELECT s.*,
-      COALESCE(SUM(p.total), 0) as total_hours,
-      COALESCE(SUM(p.used), 0) as used_hours,
-      COALESCE(SUM(p.remaining), 0) as remaining_hours
-    FROM students s
-    LEFT JOIN packages p ON s.id = p.student_id AND p.status = 'active'
+    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
     ${whereClause}
-    GROUP BY s.id
-    ORDER BY s.created_at DESC
+    
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `;
 
@@ -314,11 +287,8 @@ students.get('/', async (c) => {
     parent_name: student.parent_name,
     notes: student.notes,
     status: student.status,
-    package_summary: {
-      total_hours: student.total_hours,
-      used_hours: student.used_hours,
-      remaining_hours: student.remaining_hours
-    },
+    total_hours: student.total_hours || 0,
+    used_hours: student.used_hours || 0,
     created_at: student.created_at,
     updated_at: student.updated_at,
     _links: {
@@ -330,6 +300,107 @@ students.get('/', async (c) => {
   })) || [];
 
   return c.json(success(paginated(data, finalPagination, '/api/v1/students')));
+});
+
+
+// 增加学生课时（直接更新 total_hours）
+students.patch('/:id/add-hours', validateParams(idParamSchema), async (c) => {
+  const DB = c.env.DB;
+  const { id } = c.req.validatedParams;
+  const body = await c.req.json();
+  const hours = parseInt(body.hours) || 0;
+
+  if (hours <= 0) {
+    return c.json(error('BAD_REQUEST', '课时数必须大于0'), 400);
+  }
+
+  // 检查学生是否存在
+  const student = await DB.prepare('SELECT id, total_hours, used_hours FROM students WHERE id = ?').bind(id).first();
+  if (!student) {
+    return c.json(error('NOT_FOUND', '学生不存在'), 404);
+  }
+
+  // 更新课时
+  const newTotal = (student.total_hours || 0) + hours;
+  await DB.prepare('UPDATE students SET total_hours = ?, updated_at = ? WHERE id = ?')
+    .bind(newTotal, new Date().toISOString(), id)
+    .run();
+
+  return c.json(success({
+    id,
+    added_hours: hours,
+    total_hours: newTotal,
+    used_hours: student.used_hours || 0,
+    remaining_hours: newTotal - (student.used_hours || 0)
+  }));
+});
+
+// 调整学生课时（可增可减）
+students.patch('/:id/adjust-hours', validateParams(idParamSchema), async (c) => {
+  const DB = c.env.DB;
+  const { id } = c.req.validatedParams;
+  const { adjustment, reason } = await c.req.json();
+
+  if (!adjustment || adjustment === 0) {
+    return c.json(error('VALIDATION_ERROR', '调整数量不能为0'), 400);
+  }
+
+  const student = await DB.prepare('SELECT id, name, total_hours, used_hours FROM students WHERE id = ?').bind(id).first();
+  if (!student) {
+    return c.json(error('NOT_FOUND', '学生不存在'), 404);
+  }
+
+  const newTotal = Math.max(0, (student.total_hours || 0) + adjustment);
+
+  await DB.prepare('UPDATE students SET total_hours = ?, updated_at = ? WHERE id = ?')
+    .bind(newTotal, new Date().toISOString(), id)
+    .run();
+
+  return c.json(success({
+    id: student.id,
+    name: student.name,
+    previous_total: student.total_hours || 0,
+    adjustment: adjustment,
+    new_total: newTotal,
+    remaining_hours: newTotal - (student.used_hours || 0),
+    reason: reason || '手动调整'
+  }));
+});
+
+
+
+// 使用学生课时（更新 used_hours）
+students.patch('/:id/use-hours', validateParams(idParamSchema), async (c) => {
+  const DB = c.env.DB;
+  const { id } = c.req.validatedParams;
+  const body = await c.req.json();
+  const hours = parseInt(body.hours) || 0;
+
+  if (hours <= 0) {
+    return c.json(error('BAD_REQUEST', '课时数必须大于0'), 400);
+  }
+
+  const student = await DB.prepare('SELECT id, total_hours, used_hours FROM students WHERE id = ?').bind(id).first();
+  if (!student) {
+    return c.json(error('NOT_FOUND', '学生不存在'), 404);
+  }
+
+  const remaining = (student.total_hours || 0) - (student.used_hours || 0);
+  if (remaining < hours) {
+    return c.json(error('BAD_REQUEST', `课时不足，剩余 ${remaining} 节`), 400);
+  }
+
+  const newUsed = (student.used_hours || 0) + hours;
+  await DB.prepare('UPDATE students SET used_hours = ?, updated_at = ? WHERE id = ?')
+    .bind(newUsed, new Date().toISOString(), id)
+    .run();
+
+  return c.json(success({
+    id,
+    used_hours: newUsed,
+    total_hours: student.total_hours || 0,
+    remaining_hours: (student.total_hours || 0) - newUsed
+  }));
 });
 
 export default students;

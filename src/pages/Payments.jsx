@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Plus, User, Calendar, Trash2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { studentOps, packageOps, paymentOps } from '../store';
+import { studentOps, paymentOps } from '../store';
+
+// API 增加课时
+const addStudentHours = async (studentId, hours) => {
+  const res = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/students/${studentId}/add-hours`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': 'sunnybridge-dev-key-2024'
+    },
+    body: JSON.stringify({ hours })
+  });
+  return res.json();
+};
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
-  const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -24,19 +36,16 @@ export default function Payments() {
 
   const loadPayments = async () => {
     try {
-      const [pays, studs, pkgs] = await Promise.all([
+      const [pays, studs] = await Promise.all([
         paymentOps.getAll(),
-        studentOps.getAll(),
-        packageOps.getAll()
+        studentOps.getAll()
       ]);
       setPayments(Array.isArray(pays) ? pays : []);
       setStudents(Array.isArray(studs) ? studs : []);
-      setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (err) {
       console.error('Load error:', err);
       setPayments([]);
       setStudents([]);
-      setPackages([]);
     }
   };
 
@@ -51,13 +60,7 @@ export default function Payments() {
       });
 
       if (formData.packageHours && parseInt(formData.packageHours) > 0) {
-        await packageOps.add(formData.studentId, {
-          total: parseInt(formData.packageHours),
-          used: 0,
-          price: parseFloat(formData.amount),
-          name: `${formData.packageHours}课时包`,
-          status: 'active'
-        });
+      await addStudentHours(formData.studentId, parseInt(formData.packageHours));
       }
 
       setShowModal(false);
@@ -173,7 +176,8 @@ export default function Payments() {
               <th className="text-left px-6 py-4 font-medium text-gray-500">日期</th>
               <th className="text-left px-6 py-4 font-medium text-gray-500">学生</th>
               <th className="text-left px-6 py-4 font-medium text-gray-500">付款方式</th>
-              <th className="text-left px-6 py-4 font-medium text-gray-500">备注</th>
+              <th className="text-left px-6 py-4 font-medium text-gray-500">课时数</th>
+ <th className="text-left px-6 py-4 font-medium text-gray-500">备注</th>
               <th className="text-right px-6 py-4 font-medium text-gray-500">金额</th>
               <th className="text-right px-6 py-4 font-medium text-gray-500">操作</th>
             </tr>
@@ -199,7 +203,14 @@ export default function Payments() {
                       {getMethodLabel(payment)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-sm">
+ <td className="px-6 py-4 text-center">
+ {payment.hours > 0 ? (
+ <span className="text-primary-600 font-medium">{payment.hours}节</span>
+ ) : (
+ <span className="text-gray-400">-</span>
+ )}
+ </td>
+ <td className="px-6 py-4 text-gray-500 text-sm">
                     {payment.notes || payment.description || '-'}
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -219,7 +230,7 @@ export default function Payments() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                   {searchTerm ? '未找到匹配的记录' : '暂无收款记录'}
                 </td>
               </tr>

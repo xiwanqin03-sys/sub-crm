@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS students (
   grade TEXT,
   parent_name TEXT,
   notes TEXT,
+  hours INTEGER DEFAULT 0,
+  total_hours INTEGER NOT NULL DEFAULT 0 CHECK (total_hours >= 0),
+  used_hours INTEGER NOT NULL DEFAULT 0 CHECK (used_hours >= 0),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'graduated')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS packages (
   purchase_date TEXT NOT NULL DEFAULT (date('now')),
   expire_date TEXT,
   notes TEXT,
+  hours INTEGER DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'refunded')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -63,6 +67,7 @@ CREATE TABLE IF NOT EXISTS classes (
   content TEXT,
   homework TEXT,
   notes TEXT,
+  hours INTEGER DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'absent')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -84,13 +89,14 @@ CREATE INDEX IF NOT EXISTS idx_classes_teacher ON classes (teacher);
 CREATE TABLE IF NOT EXISTS payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id INTEGER NOT NULL,
-  amount REAL NOT NULL CHECK (amount > 0),
-  payment_method TEXT CHECK (payment_method IN ('cash', 'wechat', 'alipay', 'bank', 'other')),
+  amount REAL NOT NULL CHECK (amount >= 0),
+  payment_method TEXT CHECK (payment_method IN ('cash', 'wechat', 'alipay', 'bank', 'other', 'gift')),
   package_id INTEGER,
   description TEXT,
   date TEXT NOT NULL DEFAULT (date('now')),
   receipt_number TEXT,
   notes TEXT,
+  hours INTEGER DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
   FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE SET NULL
@@ -112,6 +118,7 @@ CREATE TABLE IF NOT EXISTS teachers (
   hourly_rate REAL CHECK (hourly_rate >= 0),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   notes TEXT,
+  hours INTEGER DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

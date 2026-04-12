@@ -33,11 +33,13 @@ payments.get('/', async (c) => {
     student_id: payment.student_id,
     student_name: payment.student_name,
     amount: payment.amount,
+    hours: payment.hours || 0,
     payment_method: payment.payment_method,
     package_id: payment.package_id,
     package_name: payment.package_name,
     description: payment.description,
     date: payment.date,
+    notes: payment.notes,
     receipt_number: payment.receipt_number,
     created_at: payment.created_at
   })) || [];
@@ -81,11 +83,13 @@ payments.get('/student/:student_id', async (c) => {
     id: payment.id,
     student_id: payment.student_id,
     amount: payment.amount,
+    hours: payment.hours || 0,
     payment_method: payment.payment_method,
     package_id: payment.package_id,
     package_name: payment.package_name,
     description: payment.description,
     date: payment.date,
+    notes: payment.notes,
     receipt_number: payment.receipt_number,
     notes: payment.notes,
     created_at: payment.created_at,
@@ -131,11 +135,13 @@ payments.get('/:id', validateParams(idParamSchema), async (c) => {
     student_id: payment.student_id,
     student_name: payment.student_name,
     amount: payment.amount,
+    hours: payment.hours || 0,
     payment_method: payment.payment_method,
     package_id: payment.package_id,
     package_name: payment.package_name,
     description: payment.description,
     date: payment.date,
+    notes: payment.notes,
     receipt_number: payment.receipt_number,
     notes: payment.notes,
     created_at: payment.created_at,
@@ -171,8 +177,8 @@ payments.post('/student/:student_id', validate(paymentSchema), async (c) => {
   const today = new Date().toISOString().split('T')[0];
 
   const result = await DB.prepare(`
-    INSERT INTO payments (student_id, amount, payment_method, package_id, description, date, receipt_number, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO payments (student_id, amount, payment_method, package_id, description, date, receipt_number, notes, hours)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     studentId,
     data.amount,
@@ -181,7 +187,8 @@ payments.post('/student/:student_id', validate(paymentSchema), async (c) => {
     data.description || null,
     data.date || today,
     data.receipt_number || null,
-    data.notes || null
+    data.notes || null,
+          data.hours || 0
   ).run();
 
   return c.json(success({
@@ -234,6 +241,7 @@ payments.patch('/:id', validateParams(idParamSchema), async (c) => {
   return c.json(success({
     id: payment.id,
     amount: payment.amount,
+    hours: payment.hours || 0,
     updated_at: payment.created_at,
     _links: {
       self: `/api/v1/payments/${payment.id}`

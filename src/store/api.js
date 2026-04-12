@@ -77,6 +77,22 @@ export const studentOps = {
     const result = await request(`/students?${query}`);
     return result.data?.data || [];
   },
+  // 增加学生课时
+  addHours: async (studentId, hours) => {
+    const result = await request(`/students/${studentId}/add-hours`, {
+      method: 'PATCH',
+      body: { hours },
+    });
+    return result.data;
+  },
+  // 调整学生课时（可增可减）
+  adjustHours: async (studentId, adjustment, reason) => {
+    const result = await request(`/students/${studentId}/adjust-hours`, {
+      method: 'PATCH',
+      body: { adjustment, reason },
+    });
+    return result.data;
+  },
 };
 
 // ============================================

@@ -87,30 +87,27 @@ export default function TeacherPortal() {
       
       // 如果状态为「已完成」，扣除课时
       if (feedbackForm.status === 'completed' && selectedClass.student_id) {
-        console.log('开始扣除课时，学生ID:', selectedClass.student_id, '课时:', selectedClass.hours);
-        // 获取学生的课时包
-        const packagesData = await packageOps.getByStudent(selectedClass.student_id);
-        const packages = packagesData || [];
-        console.log('找到课时包:', packages);
-        
-        // 找到有剩余课时的包并扣除
-        const hoursToDeduct = selectedClass.hours || 1;
-        let remaining = hoursToDeduct;
-        
-        for (const pkg of packages) {
-          if ((pkg.remaining || pkg.total - pkg.used) > 0 && remaining > 0) {
-            const pkgRemaining = pkg.remaining !== undefined ? pkg.remaining : pkg.total - pkg.used;
-            const toDeduct = Math.min(pkgRemaining, remaining);
-            console.log(`更新课时包 ${pkg.id}: used ${pkg.used} -> ${pkg.used + toDeduct}`);
-            // 只更新 used 字段，remaining 由后端计算
-            await packageOps.update(pkg.id, {
-              used: pkg.used + toDeduct
-            });
-            remaining -= toDeduct;
-          }
-        }
-        console.log('课时扣除完成');
+      const hoursToDeduct = selectedClass.hours || 1;
+      console.log('扣除课时，学生ID:', selectedClass.student_id, '课时:', hoursToDeduct);
+      
+      const res = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/students/${selectedClass.student_id}/use-hours`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'sunnybridge-dev-key-2024'
+        },
+        body: JSON.stringify({ hours: hoursToDeduct })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        console.error('扣除课时失败:', errData);
+        throw new Error(errData?.error?.message || '扣除课时失败');
       }
+      
+      const result = await res.json();
+      console.log('课时扣除成功:', result);
+    }
       
       setShowFeedbackModal(false);
       setSelectedClass(null);

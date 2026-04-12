@@ -43,13 +43,14 @@ dashboard.get('/stats', async (c) => {
     WHERE strftime('%Y-%m', date) = ?
   `).bind(thisMonth).first();
 
-  // 预警：课时不足的学生（剩余<=3）
+  // 预警：课时不足的学生（剩余<=5）
   const lowBalanceStudents = await DB.prepare(`
-    SELECT s.id, s.name, p.remaining as remaining_hours
+    SELECT s.id, s.name, s.phone,
+           (s.total_hours - s.used_hours) as remaining_hours
     FROM students s
-    JOIN packages p ON s.id = p.student_id
-    WHERE p.status = 'active' AND p.remaining <= 3
-    ORDER BY p.remaining ASC
+    WHERE (s.total_hours - s.used_hours) <= 5
+      AND (s.total_hours - s.used_hours) > 0
+    ORDER BY (s.total_hours - s.used_hours) ASC
     LIMIT 10
   `).all();
 

@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
 import Payments from './pages/Payments';
+import TeacherPayments from './pages/TeacherPayments';
 import SettingsPage from './pages/Settings';
 import ParentView from './pages/ParentView';
 import Classes from './pages/Classes';
@@ -32,7 +33,6 @@ function Sidebar() {
           <LayoutDashboard size={20} />
           <span>仪表盘</span>
         </NavLink>
-
         <NavLink
           to="/students"
           className={({ isActive }) =>
@@ -44,7 +44,6 @@ function Sidebar() {
           <Users size={20} />
           <span>学生管理</span>
         </NavLink>
-
         <NavLink
           to="/payments"
           className={({ isActive }) =>
@@ -56,7 +55,6 @@ function Sidebar() {
           <CreditCard size={20} />
           <span>收款记录</span>
         </NavLink>
-
         <NavLink
           to="/classes"
           className={({ isActive }) =>
@@ -68,7 +66,6 @@ function Sidebar() {
           <Calendar size={20} />
           <span>上课记录</span>
         </NavLink>
-
         <NavLink
           to="/teachers"
           className={({ isActive }) =>
@@ -80,7 +77,17 @@ function Sidebar() {
           <GraduationCap size={20} />
           <span>教师管理</span>
         </NavLink>
-
+        <NavLink
+          to="/teacher-payments"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
+            }`
+          }
+        >
+          <DollarSign size={20} />
+          <span>教师薪资</span>
+        </NavLink>
         <NavLink
           to="/schedule"
           className={({ isActive }) =>
@@ -92,7 +99,6 @@ function Sidebar() {
           <CalendarDays size={20} />
           <span>排课管理</span>
         </NavLink>
-
         <NavLink
           to="/settings"
           className={({ isActive }) =>
@@ -125,11 +131,12 @@ function App() {
             <Route path="/students" element={<Students />} />
             <Route path="/students/:id" element={<StudentDetail />} />
             <Route path="/payments" element={<Payments />} />
+            <Route path="/teacher-payments" element={<TeacherPayments />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
-              <Route path="/teacher/share/:token" element={<TeacherShare />} />
+            <Route path="/teacher/share/:token" element={<TeacherShare />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/parent" element={<ParentView />} />
             <Route path="/parent/:studentId" element={<ParentView />} />
