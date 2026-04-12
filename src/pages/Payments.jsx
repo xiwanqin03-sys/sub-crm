@@ -56,7 +56,8 @@ export default function Payments() {
         amount: parseFloat(formData.amount) || 0,
         date: formData.date,
         payment_method: formData.method,  // 修正字段名
-        description: formData.notes        // 修正字段名
+        description: formData.notes,
+      hours: parseInt(formData.packageHours) || 0
       });
 
       if (formData.packageHours && parseInt(formData.packageHours) > 0) {
