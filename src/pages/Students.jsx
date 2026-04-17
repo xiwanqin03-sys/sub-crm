@@ -53,6 +53,7 @@ export default function Students() {
         grade: formData.grade || null,
         parent_name: formData.parentName || null,
         notes: formData.notes || null,
+        status: formData.status || 'active',
       };
       
       if (editingStudent) {
@@ -62,7 +63,7 @@ export default function Students() {
       }
       setShowModal(false);
       setEditingStudent(null);
-      setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '' });
+      setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active' });
       loadStudents();
     } catch (error) {
       console.error('保存学生失败:', error);
@@ -82,6 +83,7 @@ export default function Students() {
       grade: student.grade || '',
       parentName: student.parent_name || student.parentName || '',
       notes: student.notes || '',
+      status: student.status || 'active',
     });
     setShowModal(true);
   };
@@ -333,7 +335,7 @@ export default function Students() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingStudent(null);
-                    setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '' });
+                    setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active' });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={submitting}
