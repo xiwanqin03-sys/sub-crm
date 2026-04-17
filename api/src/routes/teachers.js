@@ -27,7 +27,7 @@ teachers.get('/', async (c) => {
     
     return c.json({
       data: {
-        data,
+        items: data,
         pagination: {
           page: 1,
           page_size: 20,

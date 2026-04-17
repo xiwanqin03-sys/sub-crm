@@ -141,15 +141,15 @@ export const packageOps = {
 // ============================================
 export const classOps = {
   getByStudent: async (studentId, params = {}) => {
-    const queryParams = { ...params, student_id: studentId };
+    const queryParams = { page_size: 100, ...params, student_id: studentId };
     const query = new URLSearchParams(queryParams).toString();
     const result = await request(`/classes?${query}`);
     return result.data?.data || result.data || [];
   },
   getAll: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    const endpoint = query ? `/classes?${query}` : '/classes';
-    const result = await request(endpoint);
+    const queryParams = { page_size: 100, ...params };
+    const query = new URLSearchParams(queryParams).toString();
+    const result = await request(`/classes?${query}`);
     return result.data?.data || result.data || [];
   },
   add: async (studentId, cls) => {
@@ -236,7 +236,7 @@ export const paymentOps = {
 export const teacherOps = {
   getAll: async () => {
     const result = await request('/teachers');
-    return result.data?.data || result.data || [];
+    return result.data?.items || result.data?.data || result.data || [];
   },
   getById: async (id) => {
     const result = await request(`/teachers/${id}`);

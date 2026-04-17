@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { classOps, studentOps, packageOps } from '../store';
 
 function Classes() {
@@ -9,6 +9,8 @@ function Classes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const [newClass, setNewClass] = useState({
     studentId: '',
     packageId: '',
@@ -96,6 +98,18 @@ function Classes() {
     }
   };
 
+  // 分页计算
+  const totalPages = Math.ceil(filteredClasses.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedClasses = filteredClasses.slice(startIndex, endIndex);
+
+  // 搜索时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
   const getStudentPackages = (studentId) => {
     return packages.filter(p => p.studentId === studentId);
   };
@@ -162,7 +176,7 @@ function Classes() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredClasses.map(cls => {
+              {paginatedClasses.map(cls => {
                 const student = students.find(s => s.id === cls.studentId);
                 const displayName = cls.studentName || student?.name || '未知';
                 const status = cls.status || 'pending';
@@ -227,6 +241,34 @@ function Classes() {
           </div>
         )}
       </div>
+
+      {/* 分页控制 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-4">
+          <div className="text-sm text-gray-500">
+            显示 {startIndex + 1}-{Math.min(endIndex, filteredClasses.length)} 条，共 {filteredClasses.length} 条
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <span className="px-4 py-2 text-sm font-medium">
+              第 {currentPage} / {totalPages} 页
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 添加记录弹窗 */}
       {showAddModal && (
