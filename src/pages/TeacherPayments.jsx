@@ -86,7 +86,7 @@ export default function TeacherPayments() {
       });
       const data = await res.json();
       if (data.data) {
-        alert(`结算创建成功！\n课时数: ${data.data.total_classes}\n总时长: ${data.data.total_hours} 小时\n应付金额: ¥${data.data.total_amount}`);
+        alert(`结算创建成功！\n课时数: ${data.data.total_classes}\n总时长: ${data.data.total_hours} 小时\n应付金额: ₱${data.data.total_amount}`);
         setShowModal(false);
         loadPayments();
         setFormData({ teacher_id: '', period_start: '', period_end: '', notes: '' });
@@ -203,8 +203,8 @@ export default function TeacherPayments() {
               <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">结算周期</th>
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">课时数</th>
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">总时长</th>
-              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">时薪</th>
-              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">应付金额</th>
+              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">时薪 (₱)</th>
+              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">应付金额 (₱)</th>
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">状态/支付信息</th>
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">操作</th>
             </tr>
@@ -228,9 +228,9 @@ export default function TeacherPayments() {
                   </td>
                   <td className="px-6 py-4 text-center">{payment.total_classes}</td>
                   <td className="px-6 py-4 text-center">{payment.total_hours} 小时</td>
-                  <td className="px-6 py-4 text-right">¥{payment.hourly_rate}</td>
+                  <td className="px-6 py-4 text-right">₱{payment.hourly_rate}</td>
                   <td className="px-6 py-4 text-right font-semibold text-green-600">
-                    ¥{payment.total_amount?.toFixed(2)}
+                    ₱{payment.total_amount?.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 text-center">
                     {payment.status === 'paid' ? (

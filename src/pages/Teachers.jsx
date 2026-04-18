@@ -214,7 +214,7 @@ export default function Teachers() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">时薪（元）</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">时薪（₱/小时）</label>
                 <input
                   type="number"
                   step="0.01"
@@ -363,7 +363,7 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
         )}
         {teacher.hourly_rate && (
           <div className="text-green-600 font-medium">
-            ¥{teacher.hourly_rate}/小时
+            ₱{teacher.hourly_rate}/小时
           </div>
         )}
       </div>
