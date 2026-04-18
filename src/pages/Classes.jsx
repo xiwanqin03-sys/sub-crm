@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { classOps, studentOps, packageOps } from '../store';
 
 function Classes() {
@@ -7,6 +7,7 @@ function Classes() {
   const [students, setStudents] = useState([]);
   const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [quickFilter, setQuickFilter] = useState({ teacher: '', status: '', dateRange: '' });
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,11 +62,75 @@ function Classes() {
     }
   };
 
+  // 快捷日期范围
+  const getDateRange = (range) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    switch (range) {
+      case 'today': return { start: today, end: today };
+      case 'thisWeek': {
+        const day = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
+      }
+      case 'lastWeek': {
+        const day = now.getDay();
+        const lastMonday = new Date(now);
+        lastMonday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) - 7);
+        const lastSunday = new Date(lastMonday);
+        lastSunday.setDate(lastMonday.getDate() + 6);
+        return { start: lastMonday.toISOString().split('T')[0], end: lastSunday.toISOString().split('T')[0] };
+      }
+      case 'thisMonth': {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        return { start: first.toISOString().split('T')[0], end: last.toISOString().split('T')[0] };
+      }
+      default: return null;
+    }
+  };
+
+  const handleQuickFilter = (key, value) => {
+    setQuickFilter(prev => ({
+      ...prev,
+      [key]: prev[key] === value ? '' : value
+    }));
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setQuickFilter({ teacher: '', status: '', dateRange: '' });
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilter = searchTerm || quickFilter.teacher || quickFilter.status || quickFilter.dateRange;
+
   const filteredClasses = classes.filter(cls => {
     const student = students.find(s => s.id === cls.studentId);
-    return student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // 文本搜索
+    const matchesSearch = !searchTerm ||
+      student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.teacher?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.date?.includes(searchTerm);
+    // 教师筛选
+    const matchesTeacher = !quickFilter.teacher ||
+      cls.teacherName === quickFilter.teacher ||
+      cls.teacher === quickFilter.teacher;
+    // 状态筛选
+    const matchesStatus = !quickFilter.status || cls.status === quickFilter.status;
+    // 日期范围
+    let matchesDate = true;
+    if (quickFilter.dateRange) {
+      const range = getDateRange(quickFilter.dateRange);
+      if (range) {
+        matchesDate = cls.date >= range.start && cls.date <= range.end;
+      }
+    }
+    return matchesSearch && matchesTeacher && matchesStatus && matchesDate;
   });
 
   const handleAddClass = async () => {
@@ -154,10 +219,67 @@ function Classes() {
             type="text"
             placeholder="搜索学生姓名、老师或日期..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
+
+        {/* 快捷筛选 */}
+        <div className="mt-3 space-y-2">
+          {/* 教师 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 flex items-center gap-1"><Filter size={12} />教师</span>
+            {['Aliana', 'Jennifer', 'elaine'].map(t => (
+              <button
+                key={t}
+                onClick={() => handleQuickFilter('teacher', t)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  quickFilter.teacher === t
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600'
+                }`}
+              >{t}</button>
+            ))}
+          </div>
+          {/* 状态 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 w-10">状态</span>
+            {[{ key: 'completed', label: '已完成' }, { key: 'scheduled', label: '待上课' }, { key: 'cancelled', label: '已取消' }, { key: 'absent', label: '缺课' }].map(s => (
+              <button
+                key={s.key}
+                onClick={() => handleQuickFilter('status', s.key)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  quickFilter.status === s.key
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600'
+                }`}
+              >{s.label}</button>
+            ))}
+          </div>
+          {/* 日期 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 w-10">日期</span>
+            {[{ key: 'today', label: '今天' }, { key: 'thisWeek', label: '本周' }, { key: 'lastWeek', label: '上周' }, { key: 'thisMonth', label: '本月' }].map(d => (
+              <button
+                key={d.key}
+                onClick={() => handleQuickFilter('dateRange', d.key)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  quickFilter.dateRange === d.key
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600'
+                }`}
+              >{d.label}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 已激活筛选标签 */}
+        {hasActiveFilter && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-gray-400">已筛选: {filteredClasses.length} 条</span>
+            <button onClick={clearFilters} className="text-xs text-primary-600 hover:underline">清除全部</button>
+          </div>
+        )}
       </div>
 
       {/* 记录列表 */}
