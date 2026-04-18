@@ -20,7 +20,7 @@ teacherPayments.get('/stats/:teacher_id', async (c) => {
 
   // 查询该周已完成的课程
   const classes = await DB.prepare(`
-    SELECT 
+    SELECT
       COUNT(*) as total_classes,
       SUM(hours) as total_hours
     FROM classes
@@ -74,7 +74,7 @@ teacherPayments.get('/', async (c) => {
   }
 
   const payments = await DB.prepare(`
-    SELECT 
+    SELECT
       tp.*,
       t.name as teacher_name
     FROM teacher_payments tp
@@ -99,7 +99,7 @@ teacherPayments.post('/', async (c) => {
 
   // 获取上课统计
   const stats = await DB.prepare(`
-    SELECT 
+    SELECT
       COUNT(*) as total_classes,
       SUM(hours) as total_hours
     FROM classes
@@ -135,7 +135,7 @@ teacherPayments.post('/', async (c) => {
 
   // 创建结算记录
   const result = await DB.prepare(`
-    INSERT INTO teacher_payments 
+    INSERT INTO teacher_payments
       (teacher_id, period_start, period_end, total_classes, total_hours, hourly_rate, total_amount, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(teacher_id, period_start, period_end, totalClasses, totalHours, hourlyRate, totalAmount, notes || null).run();
@@ -157,6 +157,8 @@ teacherPayments.post('/', async (c) => {
 teacherPayments.patch('/:id/pay', async (c) => {
   const DB = c.env.DB;
   const id = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+  const { payment_method, paid_at } = body;
 
   const payment = await DB.prepare(`
     SELECT id FROM teacher_payments WHERE id = ?
@@ -166,16 +168,18 @@ teacherPayments.patch('/:id/pay', async (c) => {
     return c.json(error('NOT_FOUND', '结算记录不存在'), 404);
   }
 
+  const paidAtValue = paid_at 
+    ? paid_at + ' ' + new Date().toTimeString().slice(0, 8)
+    : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
   await DB.prepare(`
     UPDATE teacher_payments 
-    SET status = 'paid', paid_at = datetime('now'), updated_at = datetime('now')
-    WHERE id = ?
-  `).bind(id).run();
+    SET status = 'paid', paid_at = ?, payment_method = ?, updated_at = datetime('now') 
+    WHERE id = ? 
+  `).bind(paidAtValue, payment_method || null, id).run();
 
-  return c.json(success({ id, status: 'paid' }));
+  return c.json(success({ id, status: 'paid', payment_method }));
 });
-
-// 取消结算
 teacherPayments.patch('/:id/cancel', async (c) => {
   const DB = c.env.DB;
   const id = c.req.param('id');
@@ -189,7 +193,7 @@ teacherPayments.patch('/:id/cancel', async (c) => {
   }
 
   await DB.prepare(`
-    UPDATE teacher_payments 
+    UPDATE teacher_payments
     SET status = 'cancelled', updated_at = datetime('now')
     WHERE id = ?
   `).bind(id).run();
@@ -197,4 +201,54 @@ teacherPayments.patch('/:id/cancel', async (c) => {
   return c.json(success({ id, status: 'cancelled' }));
 });
 
+// 删除结算记录
+teacherPayments.delete('/:id', async (c) => {
+  const DB = c.env.DB;
+  const id = c.req.param('id');
+
+  const payment = await DB.prepare(`
+    SELECT id, status FROM teacher_payments WHERE id = ?
+  `).bind(id).first();
+
+  if (!payment) {
+    return c.json(error('NOT_FOUND', '结算记录不存在'), 404);
+  }
+
+  // 只允许删除待支付或已取消的记录
+  if (payment.status === 'paid') {
+    return c.json(error('BAD_REQUEST', '已支付的记录不能删除'), 400);
+  }
+
+  await DB.prepare(`
+    DELETE FROM teacher_payments WHERE id = ?
+  `).bind(id).run();
+
+  return c.body(null, 204);
+});
+
 export default teacherPayments;
+
+// 删除结算记录
+teacherPayments.delete('/:id', async (c) => {
+  const DB = c.env.DB;
+  const id = c.req.param('id');
+
+  const payment = await DB.prepare(`
+    SELECT id, status FROM teacher_payments WHERE id = ?
+  `).bind(id).first();
+
+  if (!payment) {
+    return c.json(error('NOT_FOUND', '结算记录不存在'), 404);
+  }
+
+  // 只允许删除待支付或已取消的记录
+  if (payment.status === 'paid') {
+    return c.json(error('BAD_REQUEST', '已支付的记录不能删除'), 400);
+  }
+
+  await DB.prepare(`
+    DELETE FROM teacher_payments WHERE id = ?
+  `).bind(id).run();
+
+  return c.body(null, 204);
+});

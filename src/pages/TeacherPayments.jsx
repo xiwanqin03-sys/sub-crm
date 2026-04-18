@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Calendar, CheckCircle, XCircle, Plus, RefreshCw } from 'lucide-react';
+import { DollarSign, Calendar, CheckCircle, XCircle, Plus, RefreshCw, Trash2, CreditCard } from 'lucide-react';
 
 const API_BASE = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
 const API_KEY = 'sunnybridge-dev-key-2024';
@@ -8,6 +8,10 @@ export default function TeacherPayments() {
   const [payments, setPayments] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payingId, setPayingId] = useState(null);
+  const [payMethod, setPayMethod] = useState('gcash');
+  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     teacher_id: '',
@@ -39,15 +43,13 @@ export default function TeacherPayments() {
         headers: { 'X-API-Key': API_KEY }
       });
       const data = await res.json();
-      // 处理嵌套的 data.data
-      const teachersList = data.data?.data || data.data || [];
+      const teachersList = data.data?.items || data.data?.data || data.data || [];
       setTeachers(teachersList);
     } catch (err) {
       console.error('加载教师列表失败:', err);
     }
   };
 
-  // 获取本周日期范围
   const getThisWeek = () => {
     const now = new Date();
     const dayOfWeek = now.getDay();
@@ -55,21 +57,18 @@ export default function TeacherPayments() {
     monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-
     return {
       start: monday.toISOString().split('T')[0],
       end: sunday.toISOString().split('T')[0]
     };
   };
 
-  // 获取上周日期范围
   const getLastWeek = () => {
     const { start, end } = getThisWeek();
     const lastStart = new Date(start);
     lastStart.setDate(lastStart.getDate() - 7);
     const lastEnd = new Date(end);
     lastEnd.setDate(lastEnd.getDate() - 7);
-
     return {
       start: lastStart.toISOString().split('T')[0],
       end: lastEnd.toISOString().split('T')[0]
@@ -79,17 +78,12 @@ export default function TeacherPayments() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const res = await fetch(`${API_BASE}/teacher-payments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
-        },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
         body: JSON.stringify(formData)
       });
-
       const data = await res.json();
       if (data.data) {
         alert(`结算创建成功！\n课时数: ${data.data.total_classes}\n总时长: ${data.data.total_hours} 小时\n应付金额: ¥${data.data.total_amount}`);
@@ -102,21 +96,27 @@ export default function TeacherPayments() {
     } catch (err) {
       alert('请求失败: ' + err.message);
     }
-
     setLoading(false);
   };
 
   const handlePay = async (id) => {
-    if (!confirm('确认标记为已支付？')) return;
+    setPayingId(id);
+    setPayMethod('gcash');
+    setPayDate(new Date().toISOString().split('T')[0]);
+    setShowPayModal(true);
+  };
 
+  const confirmPay = async () => {
+    if (!payingId) return;
     try {
-      const res = await fetch(`${API_BASE}/teacher-payments/${id}/pay`, {
+      const res = await fetch(`${API_BASE}/teacher-payments/${payingId}/pay`, {
         method: 'PATCH',
-        headers: { 'X-API-Key': API_KEY }
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify({ payment_method: payMethod, paid_at: payDate })
       });
-
       const data = await res.json();
       if (data.data) {
+        setShowPayModal(false);
         loadPayments();
       }
     } catch (err) {
@@ -126,13 +126,11 @@ export default function TeacherPayments() {
 
   const handleCancel = async (id) => {
     if (!confirm('确认取消此结算？')) return;
-
     try {
       const res = await fetch(`${API_BASE}/teacher-payments/${id}/cancel`, {
         method: 'PATCH',
         headers: { 'X-API-Key': API_KEY }
       });
-
       const data = await res.json();
       if (data.data) {
         loadPayments();
@@ -142,13 +140,27 @@ export default function TeacherPayments() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm('确定要删除此结算记录吗？')) return;
+    try {
+      const res = await fetch(`${API_BASE}/teacher-payments/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': API_KEY }
+      });
+      if (res.ok) {
+        loadPayments();
+      } else {
+        const data = await res.json();
+        alert('删除失败: ' + (data.error?.message || '未知错误'));
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  };
+
   const quickFillLastWeek = () => {
     const { start, end } = getLastWeek();
-    setFormData(prev => ({
-      ...prev,
-      period_start: start,
-      period_end: end
-    }));
+    setFormData(prev => ({ ...prev, period_start: start, period_end: end }));
   };
 
   const statusColors = {
@@ -161,6 +173,13 @@ export default function TeacherPayments() {
     pending: '待支付',
     paid: '已支付',
     cancelled: '已取消'
+  };
+
+  const paymentMethodLabels = {
+    gcash: 'GCash',
+    bank: '银行转账',
+    cash: '现金',
+    other: '其他'
   };
 
   return (
@@ -176,7 +195,6 @@ export default function TeacherPayments() {
         </button>
       </div>
 
-      {/* 薪资记录列表 */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -187,7 +205,7 @@ export default function TeacherPayments() {
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">总时长</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">时薪</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">应付金额</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">状态</th>
+              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">状态/支付信息</th>
               <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">操作</th>
             </tr>
           </thead>
@@ -215,26 +233,47 @@ export default function TeacherPayments() {
                     ¥{payment.total_amount?.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-1 rounded-full text-xs ${statusColors[payment.status]}`}>
-                      {statusLabels[payment.status]}
-                    </span>
+                    {payment.status === 'paid' ? (
+                      <div className="text-xs">
+                        <div className="font-medium text-green-600">{statusLabels[payment.status]}</div>
+                        <div className="text-gray-500">{payment.paid_at?.split(' ')[0]}</div>
+                        {payment.payment_method && (
+                          <div className="text-gray-400">{paymentMethodLabels[payment.payment_method]}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className={`px-2 py-1 rounded-full text-xs ${statusColors[payment.status]}`}>
+                        {statusLabels[payment.status]}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {payment.status === 'pending' && (
+                    {(payment.status === 'pending' || payment.status === 'cancelled') && (
                       <div className="flex justify-center gap-2">
+                        {payment.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handlePay(payment.id)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              title="标记已支付"
+                            >
+                              <CheckCircle size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleCancel(payment.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="取消"
+                            >
+                              <XCircle size={18} />
+                            </button>
+                          </>
+                        )}
                         <button
-                          onClick={() => handlePay(payment.id)}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded"
-                          title="标记已支付"
+                          onClick={() => handleDelete(payment.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          title="删除"
                         >
-                          <CheckCircle size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleCancel(payment.id)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="取消"
-                        >
-                          <XCircle size={18} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     )}
@@ -251,7 +290,6 @@ export default function TeacherPayments() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">新建薪资结算</h2>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">教师</label>
@@ -267,7 +305,6 @@ export default function TeacherPayments() {
                   ))}
                 </select>
               </div>
-
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
@@ -290,7 +327,6 @@ export default function TeacherPayments() {
                   />
                 </div>
               </div>
-
               <button
                 type="button"
                 onClick={quickFillLastWeek}
@@ -299,7 +335,6 @@ export default function TeacherPayments() {
                 <RefreshCw size={14} />
                 快速填入上周
               </button>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <input
@@ -310,7 +345,6 @@ export default function TeacherPayments() {
                   placeholder="可选"
                 />
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -328,6 +362,56 @@ export default function TeacherPayments() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 支付确认弹窗 */}
+      {showPayModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <CreditCard size={20} />
+              确认支付
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">支付方式</label>
+                <select
+                  value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                >
+                  <option value="gcash">GCash</option>
+                  <option value="bank">银行转账</option>
+                  <option value="cash">现金</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">支付日期</label>
+                <input
+                  type="date"
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowPayModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmPay}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                >
+                  确认已支付
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
