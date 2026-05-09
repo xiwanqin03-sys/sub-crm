@@ -264,19 +264,19 @@ export default function Schedule() {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <div className="min-w-[1200px]">
+        <div className="min-w-[1400px]">
           {/* 表头 */}
-          <div className="grid grid-cols-[60px_repeat(14,1fr)] border-b">
-            <div className="p-2 text-center text-gray-500 font-medium border-r">时间</div>
+          <div className="grid grid-cols-[80px_repeat(14,minmax(90px,1fr))] border-b">
+            <div className="p-3 text-center text-gray-500 font-medium border-r bg-gray-50">时间</div>
             {weeks.map((week, weekIdx) => (
               week.map((date, dayIdx) => (
                 <div
                   key={`${weekIdx}-${dayIdx}`}
-                  className={`p-2 text-center border-r ${isToday(date) ? 'bg-blue-50' : ''}`}
+                  className={`p-3 text-center border-r last:border-r-0 ${isToday(date) ? 'bg-blue-50' : ''}`}
                 >
                   <div className="text-xs text-gray-500">{DAYS[date.getDay()]}</div>
-                  <div className={`font-medium ${isToday(date) ? 'text-blue-600' : ''}`}>
-                    {formatDisplayDate(date)}
+                  <div className={`font-semibold text-lg ${isToday(date) ? 'text-blue-600' : 'text-gray-700'}`}>
+                    {date.getDate()}
                   </div>
                 </div>
               ))
@@ -285,8 +285,8 @@ export default function Schedule() {
 
           {/* 时间行 */}
           {TIME_SLOTS.map(time => (
-            <div key={time} className="grid grid-cols-[60px_repeat(14,1fr)] border-b hover:bg-gray-50">
-              <div className="p-2 text-center text-sm text-gray-500 border-r bg-gray-50">
+            <div key={time} className="grid grid-cols-[80px_repeat(14,minmax(90px,1fr))] border-b hover:bg-gray-50">
+              <div className="p-3 text-center text-sm text-gray-600 font-medium border-r bg-gray-50">
                 {time}
               </div>
               {weeks.map((week, weekIdx) => (
@@ -297,8 +297,8 @@ export default function Schedule() {
                     <div
                       key={`${weekIdx}-${dayIdx}-${time}`}
                       onClick={() => handleSlotClick(date, time)}
-                      className={`min-h-[50px] p-1 border-r cursor-pointer relative ${
-                        isToday(date) ? 'bg-blue-50/50' : ''
+                      className={`min-h-[70px] p-1.5 border-r last:border-r-0 cursor-pointer relative flex flex-col gap-1 ${
+                        isToday(date) ? 'bg-blue-50/30' : ''
                       }`}
                     >
                       {slotSchedules.map(schedule => {

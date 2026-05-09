@@ -67,11 +67,12 @@ export default function TeacherPortal() {
 
   const handleOpenFeedback = (cls) => {
     setSelectedClass(cls);
+    // 编辑反馈时保留原有状态，新提交反馈时默认为 completed
     setFeedbackForm({
       content: cls.content || '',
       homework: cls.homework || '',
       notes: cls.notes || '',
-      status: 'completed'
+      status: cls.status || 'completed'
     });
     setShowFeedbackModal(true);
   };
@@ -85,8 +86,8 @@ export default function TeacherPortal() {
         status: feedbackForm.status
       });
       
-      // 如果状态为「已完成」，扣除课时
-      if (feedbackForm.status === 'completed' && selectedClass.student_id) {
+      // 只有当原状态为「已预约」且新状态为「已完成」时才扣除课时（编辑反馈时不扣课时）
+      if (selectedClass.status === 'scheduled' && feedbackForm.status === 'completed' && selectedClass.student_id) {
       const hoursToDeduct = selectedClass.hours || 1;
       console.log('扣除课时，学生ID:', selectedClass.student_id, '课时:', hoursToDeduct);
       
@@ -358,6 +359,8 @@ export default function TeacherPortal() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
               </div>
+              {/* 课程状态：仅在新提交反馈时显示，编辑时不显示 */}
+              {selectedClass.status === 'scheduled' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">课程状态</label>
                 <select
@@ -370,6 +373,7 @@ export default function TeacherPortal() {
                   <option value="cancelled">已取消（不扣课时）</option>
                 </select>
               </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
