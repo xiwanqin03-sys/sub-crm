@@ -51,18 +51,19 @@ export const packageUpdateSchema = packageSchema.partial();
 
 // Classes Schema
 export const classSchema = z.object({
-  package_id: z.number().int().positive().optional().nullable(),
-  teacher_id: z.number().int().positive().optional().nullable(),
-  teacher: z.string().max(100).optional().nullable().transform(v => v || null),
-  subject: z.string().max(100).optional().nullable().transform(v => v || null),
-  hours: z.number().positive('课时数必须大于0').default(1),
-  date: z.string().optional(),
-  start_time: z.string().optional().nullable().transform(v => v || null),
-  end_time: z.string().optional().nullable().transform(v => v || null),
-  content: z.string().optional().nullable().transform(v => v || null),
-  homework: z.string().optional().nullable().transform(v => v || null),
-  notes: z.string().optional().nullable().transform(v => v || null),
-  status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed')
+ package_id: z.number().int().positive().optional().nullable(),
+ teacher_id: z.number().int().positive().optional().nullable(),
+ teacher: z.string().max(100).optional().nullable().transform(v => v || null),
+ subject: z.string().max(100).optional().nullable().transform(v => v || null),
+ hours: z.number().positive('课时数必须大于0').default(1),
+ date: z.string().optional(),
+ start_time: z.string().optional().nullable().transform(v => v || null),
+ end_time: z.string().optional().nullable().transform(v => v || null),
+ content: z.string().optional().nullable().transform(v => v || null),
+ homework: z.string().optional().nullable().transform(v => v || null),
+ notes: z.string().optional().nullable().transform(v => v || null),
+ class_link: z.string().optional().nullable().transform(v => v || null),
+ status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed')
 });
 
 export const classUpdateSchema = classSchema.partial();

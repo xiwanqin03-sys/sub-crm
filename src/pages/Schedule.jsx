@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { teacherOps, studentOps, classOps, packageOps } from '../store';
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -8,6 +8,20 @@ const TIME_SLOTS = [
   '13:00', '14:00', '15:00', '16:00', '17:00',
   '18:00', '19:00', '20:00', '21:00'
 ];
+
+// 根据课程状态获取样式
+const getStatusStyle = (status) => {
+  switch (status) {
+    case 'completed':
+      return { bg: 'bg-green-100', text: 'text-green-800', icon: <CheckCircle className="w-3 h-3 text-green-600" /> };
+    case 'scheduled':
+      return { bg: 'bg-purple-100', text: 'text-purple-800', icon: <Clock className="w-3 h-3 text-purple-600" /> };
+    case 'cancelled':
+      return { bg: 'bg-red-100', text: 'text-red-800', icon: <XCircle className="w-3 h-3 text-red-600" /> };
+    default:
+      return { bg: 'bg-purple-100', text: 'text-purple-800', icon: <Clock className="w-3 h-3 text-purple-600" /> };
+  }
+};
 
 export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -42,8 +56,9 @@ export default function Schedule() {
       setStudents(Array.isArray(studentsData) ? studentsData.filter(s => s.status === 'active') : []);
 
       const classesData = await classOps.getAll();
-      const scheduled = Array.isArray(classesData) ? classesData.filter(c => c.status === 'scheduled') : [];
-      setSchedules(scheduled);
+      // 加载所有状态的课程（包括已完成的）
+      const allClasses = Array.isArray(classesData) ? classesData : [];
+      setSchedules(allClasses);
     } catch (err) {
       console.error('Load error:', err);
     }
@@ -286,19 +301,24 @@ export default function Schedule() {
                         isToday(date) ? 'bg-blue-50/50' : ''
                       }`}
                     >
-                      {slotSchedules.map(schedule => (
+                      {slotSchedules.map(schedule => {
+                        const statusStyle = getStatusStyle(schedule.status);
+                        return (
                         <div
                           key={schedule.id}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditSchedule(schedule);
                           }}
-                          className="bg-purple-100 text-purple-800 text-xs p-1 rounded mb-1 hover:bg-purple-200 group relative"
+                          className={`${statusStyle.bg} ${statusStyle.text} text-xs p-1 rounded mb-1 hover:opacity-80 group relative`}
                         >
-                          <div className="font-medium truncate">
-                            {getStudentName(schedule.student_id)}
+                          <div className="flex items-center gap-1">
+                            {statusStyle.icon}
+                            <div className="font-medium truncate">
+                              {getStudentName(schedule.student_id)}
+                            </div>
                           </div>
-                          <div className="text-purple-600 truncate">
+                          <div className={`truncate ml-4 ${statusStyle.text.replace('800', '600')}`}>
                             {getTeacherName(schedule.teacher_id)}
                           </div>
                           <button
@@ -311,7 +331,8 @@ export default function Schedule() {
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })

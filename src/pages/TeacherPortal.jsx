@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, BookOpen, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { Clock, User, BookOpen, CheckCircle, XCircle, Calendar, Edit } from 'lucide-react';
 import { teacherOps, classOps, packageOps } from '../store';
 
 const STATUS_LABELS = {
@@ -191,12 +191,19 @@ export default function TeacherPortal() {
                       <span>{cls.subject}</span>
                     </div>
                   </div>
-                  {cls.status === 'scheduled' && (
+                  {cls.status === 'scheduled' ? (
                     <button
                       onClick={() => handleOpenFeedback(cls)}
                       className="mt-4 w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
                     >
                       提交上课反馈
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenFeedback(cls)}
+                      className="mt-4 w-full py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 text-sm"
+                    >
+                      编辑反馈
                     </button>
                   )}
                 </div>
@@ -260,6 +267,7 @@ export default function TeacherPortal() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">科目</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">状态</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">反馈</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -287,6 +295,15 @@ export default function TeacherPortal() {
                           </span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleOpenFeedback(cls)}
+                          className="text-purple-600 hover:text-purple-800 text-sm flex items-center gap-1"
+                        >
+                          <Edit className="w-4 h-4" />
+                          {cls.status !== 'scheduled' ? '编辑' : '填写'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,7 +317,7 @@ export default function TeacherPortal() {
       {showFeedbackModal && selectedClass && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">提交上课反馈</h2>
+            <h2 className="text-xl font-bold mb-4">{selectedClass.status !== 'scheduled' ? '编辑上课反馈' : '提交上课反馈'}</h2>
             <div className="bg-gray-50 rounded-lg p-3 mb-4">
               <div className="text-sm text-gray-600 space-y-1">
                 <div><span className="font-medium">学生：</span>{selectedClass.student_name}</div>
@@ -365,7 +382,7 @@ export default function TeacherPortal() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
-                  提交反馈
+                  {selectedClass.status !== 'scheduled' ? '保存修改' : '提交反馈'}
                 </button>
               </div>
             </form>

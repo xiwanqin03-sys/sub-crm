@@ -53,27 +53,28 @@ classes.get('/', async (c) => {
     LIMIT ? OFFSET ?
   `).bind(...params, pagination.page_size, pagination.offset).all();
 
-  const data = results.results?.map(cls => ({
-    id: cls.id,
-    student_id: cls.student_id,
-    student_name: cls.student_name,
-    package_id: cls.package_id,
-    package_name: cls.package_name,
-    teacher: cls.teacher,
-    teacher_id: cls.teacher_id,
-    teacher_name: cls.teacher_name,
-    subject: cls.subject,
-    hours: cls.hours,
-    date: cls.date,
-    start_time: cls.start_time,
-    end_time: cls.end_time,
-    content: cls.content,
-    homework: cls.homework,
-    notes: cls.notes,
-    status: cls.status,
-    created_at: cls.created_at,
-    updated_at: cls.updated_at
-  })) || [];
+const data = results.results?.map(cls => ({
+  id: cls.id,
+  student_id: cls.student_id,
+  student_name: cls.student_name,
+  package_id: cls.package_id,
+  package_name: cls.package_name,
+  teacher: cls.teacher,
+  teacher_id: cls.teacher_id,
+  teacher_name: cls.teacher_name,
+  subject: cls.subject,
+  hours: cls.hours,
+  date: cls.date,
+  start_time: cls.start_time,
+  end_time: cls.end_time,
+  content: cls.content,
+  homework: cls.homework,
+  notes: cls.notes,
+  status: cls.status,
+  class_link: cls.class_link,
+  created_at: cls.created_at,
+  updated_at: cls.updated_at
+})) || [];
 
   return c.json(success({ data, pagination }));
 });
@@ -105,25 +106,26 @@ classes.get('/student/:student_id', async (c) => {
     LIMIT ? OFFSET ?
   `).bind(studentId, pagination.page_size, pagination.offset).all();
 
-  const data = results.results?.map(cls => ({
-    id: cls.id,
-    student_id: cls.student_id,
-    package_id: cls.package_id,
-    package_name: cls.package_name,
-    teacher: cls.teacher,
-    teacher_id: cls.teacher_id,
-    subject: cls.subject,
-    hours: cls.hours,
-    date: cls.date,
-    start_time: cls.start_time,
-    end_time: cls.end_time,
-    content: cls.content,
-    homework: cls.homework,
-    notes: cls.notes,
-    status: cls.status,
-    created_at: cls.created_at,
-    updated_at: cls.updated_at
-  })) || [];
+const data = results.results?.map(cls => ({
+  id: cls.id,
+  student_id: cls.student_id,
+  package_id: cls.package_id,
+  package_name: cls.package_name,
+  teacher: cls.teacher,
+  teacher_id: cls.teacher_id,
+  subject: cls.subject,
+  hours: cls.hours,
+  date: cls.date,
+  start_time: cls.start_time,
+  end_time: cls.end_time,
+  content: cls.content,
+  homework: cls.homework,
+  notes: cls.notes,
+  class_link: cls.class_link,
+  status: cls.status,
+  created_at: cls.created_at,
+  updated_at: cls.updated_at
+ })) || [];
 
   return c.json(success({ data, pagination }));
 });
@@ -146,27 +148,28 @@ classes.get('/:id', validateParams(idParamSchema), async (c) => {
     return c.json(error('NOT_FOUND', '上课记录不存在'), 404);
   }
 
-  return c.json(success({
-    id: cls.id,
-    student_id: cls.student_id,
-    student_name: cls.student_name,
-    package_id: cls.package_id,
-    package_name: cls.package_name,
-    teacher: cls.teacher,
-    teacher_id: cls.teacher_id,
-    teacher_name: cls.teacher_name,
-    subject: cls.subject,
-    hours: cls.hours,
-    date: cls.date,
-    start_time: cls.start_time,
-    end_time: cls.end_time,
-    content: cls.content,
-    homework: cls.homework,
-    notes: cls.notes,
-    status: cls.status,
-    created_at: cls.created_at,
-    updated_at: cls.updated_at
-  }));
+return c.json(success({
+  id: cls.id,
+  student_id: cls.student_id,
+  student_name: cls.student_name,
+  package_id: cls.package_id,
+  package_name: cls.package_name,
+  teacher: cls.teacher,
+  teacher_id: cls.teacher_id,
+  teacher_name: cls.teacher_name,
+  subject: cls.subject,
+  hours: cls.hours,
+  date: cls.date,
+  start_time: cls.start_time,
+  end_time: cls.end_time,
+  content: cls.content,
+  homework: cls.homework,
+  notes: cls.notes,
+  class_link: cls.class_link,
+  status: cls.status,
+  created_at: cls.created_at,
+  updated_at: cls.updated_at
+ }));
 });
 
 // 创建上课记录（指定学生）
@@ -257,26 +260,27 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
 
   // 返回更新后的记录
   const cls = await DB.prepare('SELECT * FROM classes WHERE id = ?').bind(id).first();
-  return c.json(success({
-    id: cls.id,
-    student_id: cls.student_id,
-    package_id: cls.package_id,
-    teacher: cls.teacher,
-    teacher_id: cls.teacher_id,
-    subject: cls.subject,
-    hours: cls.hours,
-    date: cls.date,
-    start_time: cls.start_time,
-    end_time: cls.end_time,
-    content: cls.content,
-    homework: cls.homework,
-    notes: cls.notes,
-    status: cls.status,
-    updated_at: cls.updated_at
-  }));
+return c.json(success({
+  id: cls.id,
+  student_id: cls.student_id,
+  package_id: cls.package_id,
+  teacher: cls.teacher,
+  teacher_id: cls.teacher_id,
+  subject: cls.subject,
+  hours: cls.hours,
+  date: cls.date,
+  start_time: cls.start_time,
+  end_time: cls.end_time,
+  content: cls.content,
+  homework: cls.homework,
+  notes: cls.notes,
+  status: cls.status,
+  class_link: cls.class_link,
+  updated_at: cls.updated_at
+ }));
 });
 
-// 删除上课记录
+ // 删除上课记录
 classes.delete('/:id', validateParams(idParamSchema), async (c) => {
   const DB = c.env.DB;
   const { id } = c.req.validatedParams;
