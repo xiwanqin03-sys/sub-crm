@@ -141,7 +141,7 @@ function App() {
             <Route path="/teacher/share/:token" element={<TeacherShare />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/parent" element={<ParentView />} />
-            <Route path="/parent/:studentId" element={<ParentView />} />
+            <Route path="/parent/:studentId/:accessToken" element={<ParentView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </main>

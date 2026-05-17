@@ -6,6 +6,8 @@
 CREATE TABLE IF NOT EXISTS students (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
+  access_token TEXT UNIQUE,
+  -- 家长访问令牌，随机生成
   phone TEXT,
   email TEXT,
   age INTEGER CHECK (age >= 0 AND age <= 120),

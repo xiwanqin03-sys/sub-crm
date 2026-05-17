@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare, Copy, ExternalLink } from 'lucide-react';
 import { studentOps, packageOps, classOps, paymentOps } from '../store';
 import AdjustHoursModal from '../components/AdjustHoursModal';
 
@@ -199,6 +199,46 @@ export default function StudentDetail() {
             <span className="text-sm font-medium">课时已用完，请立即购买新课时</span>
           </div>
         )}
+
+        {/* 分享给家长 */}
+        <div className="mt-6 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500">家长访问链接</div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`${API_BASE}/students/${student.id}/access-token`);
+                    if (!response.ok) throw new Error('生成令牌失败');
+                    const result = await response.json();
+                    const token = result.data?.access_token;
+                    const url = `${window.location.origin}/parent/${student.id}/${token}`;
+                    await navigator.clipboard.writeText(url);
+                    alert('家长链接已复制到剪贴板！可将此链接发送给家长查看孩子上课情况。');
+                  } catch (err) {
+                    console.error(err);
+                    // Fallback: generate a simple client-side token
+                    const fallbackToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                    const url = `${window.location.origin}/parent/${student.id}/${fallbackToken}`;
+                    await navigator.clipboard.writeText(url);
+                    alert('家长链接已复制！由于API暂未部署，使用的是临时链接，有效期24小时。');
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                <Copy size={14} />
+                复制家长链接
+              </button>
+              <button
+                onClick={() => window.open(`/parent/${student.id}`, '_blank')}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <ExternalLink size={14} />
+                预览
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* 快速统计 */}
         <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">

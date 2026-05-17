@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { User, Calendar, Package, Clock, BookOpen, AlertCircle } from 'lucide-react';
 import { studentOps, packageOps, classOps, loadData } from '../store';
 
-// 家长端 - 通过学生ID或手机号查询
+// API URL
+const API_URL = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
+
+// 家长端 - 通过学生ID查询（token只是让URL难猜测，不参与验证）
 function ParentLookup() {
   const [searchType, setSearchType] = useState('id'); // 'id' or 'phone'
   const [searchValue, setSearchValue] = useState('');
@@ -99,12 +102,13 @@ function ParentLookup() {
   );
 }
 
-// 家长端 - 查看孩子信息页面
+// 家长端 - 查看孩子信息页面（token仅用于URL混淆，不验证）
 function ParentStudentView() {
   const { studentId } = useParams();
   const [student, setStudent] = useState(null);
   const [packages, setPackages] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -114,7 +118,19 @@ function ParentStudentView() {
       setPackages(packageOps.getByStudent(studentId));
       setClasses(classOps.getByStudent(studentId));
     }
+    setLoading(false);
   }, [studentId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!student) {
     return (
@@ -130,7 +146,6 @@ function ParentStudentView() {
     );
   }
 
-  // 计算统计数据
   const totalRemaining = packages.reduce((sum, p) => sum + (p.remaining || 0), 0);
   const totalHours = packages.reduce((sum, p) => sum + (p.total || 0), 0);
   const usedHours = totalHours - totalRemaining;
@@ -274,19 +289,6 @@ function ParentStudentView() {
             <p className="text-gray-400 text-center py-4">暂无上课记录</p>
           )}
         </div>
-
-        {/* 当前单元/进度 */}
-        {student.currentUnit && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-orange-500" />
-              当前学习单元
-            </h2>
-            <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg">
-              <p className="text-gray-800">{student.currentUnit}</p>
-            </div>
-          </div>
-        )}
 
         {/* 底部信息 */}
         <div className="text-center text-sm text-gray-400 py-4">

@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import { studentSchema, studentUpdateSchema, studentQuerySchema, validate, validateQuery, validateParams, idParamSchema } from '../utils/validation.js';
 import { success, paginated, error, calculatePagination } from '../utils/response.js';
+import { generateAccessToken } from '../utils/token.js';
 
 const students = new Hono();
 
@@ -403,4 +404,6 @@ students.patch('/:id/use-hours', validateParams(idParamSchema), async (c) => {
   }));
 });
 
+
 export default students;
+
