@@ -147,10 +147,17 @@ export const classOps = {
     return result.data?.data || result.data || [];
   },
   getAll: async (params = {}) => {
-    const queryParams = { page_size: 100, ...params };
+    const queryParams = { page_size: 1000, ...params };
     const query = new URLSearchParams(queryParams).toString();
     const result = await request(`/classes?${query}`);
     return result.data?.data || result.data || [];
+  },
+  // Returns full response including pagination meta
+  getPage: async (page = 1, pageSize = 20, extraParams = {}) => {
+    const queryParams = { page, page_size: pageSize, ...extraParams };
+    const query = new URLSearchParams(queryParams).toString();
+    const result = await request(`/classes?${query}`);
+    return result.data || { data: [], pagination: { total: 0, pages: 0 } };
   },
   add: async (studentId, cls) => {
     const result = await request(`/classes/student/${studentId}`, {

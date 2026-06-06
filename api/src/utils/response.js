@@ -57,7 +57,7 @@ export const error = (code, message, details = null, status = 400) => {
  */
 export const calculatePagination = (page, pageSize, total) => {
   const p = Math.max(1, parseInt(page) || 1);
-  const ps = Math.min(100, Math.max(1, parseInt(pageSize) || 20));
+  const ps = Math.min(2000, Math.max(1, parseInt(pageSize) || 20));
   const totalRecords = total || 0;
   const totalPages = Math.ceil(totalRecords / ps);
 

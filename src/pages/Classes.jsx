@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { classOps, studentOps, packageOps } from '../store';
 
@@ -61,6 +61,20 @@ function Classes() {
       setPackages([]);
     }
   };
+
+  // 去重老师列表（不区分大小写，全大写保留，其他首字母大写）
+  const uniqueTeachers = useMemo(() => {
+    const seen = new Map();
+    classes.forEach(c => {
+      const t = (c.teacherName || c.teacher || '').trim();
+      if (t && !seen.has(t.toLowerCase())) {
+        // 全大写保持原样，其他转首字母大写
+        const normalized = /[a-z]/.test(t) ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t;
+        seen.set(t.toLowerCase(), normalized);
+      }
+    });
+    return [...seen.values()].sort();
+  }, [classes]);
 
   // 快捷日期范围
   const getDateRange = (range) => {
@@ -229,7 +243,7 @@ function Classes() {
           {/* 教师 */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500 flex items-center gap-1"><Filter size={12} />教师</span>
-            {['Aliana', 'Jennifer', 'elaine'].map(t => (
+            {uniqueTeachers.map(t => (
               <button
                 key={t}
                 onClick={() => handleQuickFilter('teacher', t)}
@@ -244,7 +258,7 @@ function Classes() {
           {/* 状态 */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500 w-10">状态</span>
-            {[{ key: 'completed', label: '已完成' }, { key: 'scheduled', label: '待上课' }, { key: 'cancelled', label: '已取消' }, { key: 'absent', label: '缺课' }].map(s => (
+            {[...new Set(classes.map(c => c.status).filter(Boolean))].sort().map(s => ({ key: s, label: {completed:'已完成', scheduled:'待上课', cancelled:'已取消', absent:'缺课'}[s] || s })).map(s => (
               <button
                 key={s.key}
                 onClick={() => handleQuickFilter('status', s.key)}
