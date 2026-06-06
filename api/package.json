@@ -1,0 +1,21 @@
+{
+  "name": "sunnybridge-crm-api",
+  "version": "1.0.0",
+  "description": "Sunnybridge CRM REST API on Cloudflare Workers",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 execute sunnybridge-crm --local --create",
+    "db:push": "wrangler d1 execute sunnybridge-crm --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute sunnybridge-crm --remote --file=./schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.79.0"
+  }
+}
