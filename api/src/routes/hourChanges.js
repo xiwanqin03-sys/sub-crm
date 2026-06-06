@@ -28,31 +28,36 @@ hourChanges.get('/student/:student_id', async (c) => {
   // 查询变动记录
   const results = await DB.prepare(`
     SELECT 
-      hc.*,
+      hc.id,
+      hc.student_id,
+      hc.type,
+      hc.amount,
+      hc.description,
+      hc.related_id,
+      hc.created_at,
       CASE 
         WHEN hc.type = 'payment' THEN p.description
         WHEN hc.type = 'class' THEN cl.date || ' ' || cl.subject
         ELSE hc.description
       END as detail_text
     FROM hour_changes hc
-    LEFT JOIN payments p ON hc.related_id = p.id AND hc.related_type = 'payment'
-    LEFT JOIN classes cl ON hc.related_id = cl.id AND hc.related_type = 'class'
+    LEFT JOIN payments p ON hc.related_id = p.id AND hc.type = 'payment'
+    LEFT JOIN classes cl ON hc.related_id = cl.id AND hc.type = 'class'
     WHERE hc.student_id = ?
     ORDER BY hc.created_at DESC
     LIMIT ? OFFSET ?
   `).bind(studentId, pagination.page_size, pagination.offset).all();
 
-  // 获取当前余额（从 students 表）
+  // 获取当前余额
   const studentData = await DB.prepare('SELECT total_hours, used_hours FROM students WHERE id = ?').bind(studentId).first();
   const currentBalance = (studentData?.total_hours || 0) - (studentData?.used_hours || 0);
 
   const data = results.results?.map(hc => ({
     id: hc.id,
+    student_id: hc.student_id,
     type: hc.type,
     amount: hc.amount,
-    balance_after: hc.balance_after,
     related_id: hc.related_id,
-    related_type: hc.related_type,
     description: hc.description,
     detail_text: hc.detail_text,
     created_at: hc.created_at
@@ -62,10 +67,7 @@ hourChanges.get('/student/:student_id', async (c) => {
     data,
     pagination,
     current_balance: currentBalance,
-    student: {
-      id: student.id,
-      name: student.name
-    }
+    student: { id: student.id, name: student.name }
   }));
 });
 
@@ -75,7 +77,15 @@ hourChanges.get('/:id', async (c) => {
   const { id } = c.req.param();
 
   const hc = await DB.prepare(`
-    SELECT hc.*, s.name as student_name
+    SELECT 
+      hc.id,
+      hc.student_id,
+      hc.type,
+      hc.amount,
+      hc.description,
+      hc.related_id,
+      hc.created_at,
+      s.name as student_name
     FROM hour_changes hc
     JOIN students s ON hc.student_id = s.id
     WHERE hc.id = ?
@@ -91,9 +101,7 @@ hourChanges.get('/:id', async (c) => {
     student_name: hc.student_name,
     type: hc.type,
     amount: hc.amount,
-    balance_after: hc.balance_after,
     related_id: hc.related_id,
-    related_type: hc.related_type,
     description: hc.description,
     created_at: hc.created_at
   }));

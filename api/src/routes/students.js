@@ -359,10 +359,9 @@ students.patch('/:id/adjust-hours', validateParams(idParamSchema), async (c) => 
 
   // 记录课时变动
   await DB.prepare(`
-    INSERT INTO hour_changes (student_id, type, amount, balance_after, description)
-    VALUES (?, 'adjust', ?, ?, ?)
-  `).bind(id, adjustment, newRemaining, reason || '手动调整').run();
-
+    INSERT INTO hour_changes (student_id, type, amount, description)
+    VALUES (?, 'adjust', ?, ?)
+  `).bind(id, adjustment, reason || '手动调整').run();
   return c.json(success({
     id: student.id,
     name: student.name,

@@ -416,6 +416,48 @@ export default function StudentDetail() {
         </div>
       )}
 
+      {activeTab === 'hour-changes' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="font-semibold text-gray-800 mb-6">课时变动记录</h3>
+          {hourChanges.length > 0 ? (
+            <div className="space-y-3">
+              {hourChanges.map(hc => (
+                <div key={hc.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      hc.type === 'payment' ? 'bg-green-50' :
+                      hc.type === 'class' ? 'bg-red-50' : 'bg-blue-50'
+                    }`}>
+                      {hc.type === 'payment' ? '+' : hc.type === 'class' ? '-' : '~'}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">
+                        {hc.type === 'payment' && '购买课时'}
+                        {hc.type === 'class' && '上课消耗'}
+                        {hc.type === 'adjust' && '手动调整'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {hc.description || hc.detail_text || '-'}
+                        {hc.created_at && ` · ${hc.created_at.split(' ')[0]}`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`text-lg font-semibold ${
+                    hc.amount > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {hc.amount > 0 ? '+' : ''}{hc.amount} 课时
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400">
+              <p>暂无课时变动记录</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 添加上课记录弹窗 */}
       {showClassModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

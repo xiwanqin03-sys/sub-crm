@@ -60,9 +60,7 @@ export default function Payments() {
       hours: parseInt(formData.packageHours) || 0
       });
 
-      if (formData.packageHours && parseInt(formData.packageHours) > 0) {
-      await addStudentHours(formData.studentId, parseInt(formData.packageHours));
-      }
+      // addStudentHours removed: backend already updates total_hours in payments.js
 
       setShowModal(false);
       setFormData({

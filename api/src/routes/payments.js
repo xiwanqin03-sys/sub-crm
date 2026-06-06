@@ -202,9 +202,9 @@ payments.post('/student/:student_id', validate(paymentSchema), async (c) => {
     await DB.prepare('UPDATE students SET total_hours = ? WHERE id = ?').bind(newTotal, studentId).run();
 
     await DB.prepare(`
-      INSERT INTO hour_changes (student_id, type, amount, balance_after, related_id, related_type, description)
-      VALUES (?, 'payment', ?, ?, ?, 'payment', ?)
-    `).bind(studentId, data.hours, newRemaining, paymentId, data.description || '购买课时').run();
+      INSERT INTO hour_changes (student_id, type, amount, related_id, description)
+      VALUES (?, 'payment', ?, ?, ?)
+    `).bind(studentId, data.hours, paymentId, data.description || '购买课时').run();
   }
 
   return c.json(success({

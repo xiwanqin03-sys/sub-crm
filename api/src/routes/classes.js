@@ -225,9 +225,9 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
 
     // 记录课时变动
     await DB.prepare(`
-      INSERT INTO hour_changes (student_id, type, amount, balance_after, related_id, related_type, description)
-      VALUES (?, 'class', ?, ?, ?, 'class', ?)
-    `).bind(studentId, -classHours, newRemaining, classId, `上课消耗 - ${classHours}节`).run();
+      INSERT INTO hour_changes (student_id, type, amount, related_id, description)
+      VALUES (?, 'class', ?, ?, ?)
+    `).bind(studentId, -classHours, classId, `上课消耗 - ${classHours}节`).run();
   }
 
   return c.json(success({
@@ -320,9 +320,9 @@ classes.delete('/:id', validateParams(idParamSchema), async (c) => {
 
     // 记录课时变动（反向）
     await DB.prepare(`
-      INSERT INTO hour_changes (student_id, type, amount, balance_after, related_id, related_type, description)
-      VALUES (?, 'class', ?, ?, ?, 'class', ?)
-    `).bind(cls.student_id, cls.hours, newRemaining, id, `删除上课记录 +${cls.hours}节`).run();
+      INSERT INTO hour_changes (student_id, type, amount, related_id, description)
+      VALUES (?, 'class', ?, ?, ?)
+    `).bind(cls.student_id, cls.hours, id, `删除上课记录 +${cls.hours}节`).run();
   }
 
   await DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();
