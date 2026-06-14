@@ -217,7 +217,7 @@ export default function StudentDetail() {
             <div className="text-sm text-gray-500">剩余课时</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-800">{classes.length}</div>
+            <div className="text-2xl font-bold text-gray-800">{classes.filter(c => c.status === 'completed').length}</div>
             <div className="text-sm text-gray-500">上课次数</div>
           </div>
           <div className="text-center">
