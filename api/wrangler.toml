@@ -9,6 +9,7 @@ workers_dev = true
 [vars]
 API_VERSION = "v1"
 DEBUG = "false"
+RESEND_API_KEY = "re_7ZfLM9p9_27LogrTCeuFi37jHdPDKhNEV"
 
 # D1 数据库配置
 [[d1_databases]]

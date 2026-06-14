@@ -22,6 +22,7 @@ import importRoute from './routes/import.js';
 import teacherShare from './routes/teacherShare.js';
 import teacherPayments from './routes/teacherPayments.js';
 import hourChanges from './routes/hourChanges.js';
+import leads from './routes/leads.js';
 
 const app = new Hono();
 
@@ -74,6 +75,7 @@ app.route('/api/v1/teacher/share', teacherShare);
 app.route('/api/v1/teacher-payments', teacherPayments);
 
 app.route('/api/v1/hour-changes', hourChanges);
+app.route('/api/v1/leads', leads);
 
 // 404 处理
 app.notFound(notFound);

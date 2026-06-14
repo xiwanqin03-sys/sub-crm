@@ -91,7 +91,6 @@ payments.get('/student/:student_id', async (c) => {
     date: payment.date,
     notes: payment.notes,
     receipt_number: payment.receipt_number,
-    notes: payment.notes,
     created_at: payment.created_at,
     _links: {
       self: `/api/v1/payments/${payment.id}`,
@@ -143,7 +142,6 @@ payments.get('/:id', validateParams(idParamSchema), async (c) => {
     date: payment.date,
     notes: payment.notes,
     receipt_number: payment.receipt_number,
-    notes: payment.notes,
     created_at: payment.created_at,
     _links: {
       self: `/api/v1/payments/${payment.id}`,
