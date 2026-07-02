@@ -58,7 +58,8 @@ app.get('/health', (c) => {
   });
 });
 
-// API v1 路由 - 使用不同的前缀避免路由冲突
+// API v1 路由
+import organizations from './routes/organizations.js';
 app.route('/api/v1/students', students);
 app.route('/api/v1/packages', packages);
 app.route('/api/v1/classes', classes);
@@ -76,6 +77,8 @@ app.route('/api/v1/teacher-payments', teacherPayments);
 
 app.route('/api/v1/hour-changes', hourChanges);
 app.route('/api/v1/leads', leads);
+
+app.route('/api/v1/organizations', organizations);
 
 // 404 处理
 app.notFound(notFound);
