@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { CreditCard, Plus, User, Calendar, Trash2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { studentOps, paymentOps } from '../store';
+import OrgFilter from '../components/OrgFilter';
+import { setSelectedOrg } from '../store/api';
 
 // API 增加课时
 const addStudentHours = async (studentId, hours) => {
@@ -20,6 +22,7 @@ export default function Payments() {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOrg, setSelectedOrgState] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     studentId: '',
@@ -158,7 +161,7 @@ export default function Payments() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex gap-4">
         <input
           type="text"
           placeholder="搜索学生姓名..."
@@ -166,6 +169,7 @@ export default function Payments() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:w-80 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
+        <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

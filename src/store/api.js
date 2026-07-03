@@ -2,6 +2,15 @@
 const API_BASE_URL = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
 const API_KEY = 'sunnybridge-dev-key-2024';
 
+// 当前选中的机构 ID（用于多机构数据隔离）
+let _selectedOrgId = '';
+let _userRole = 'super_admin'; // 默认超管，后续从登录态获取
+
+export function setSelectedOrg(orgId) { _selectedOrgId = orgId; }
+export function getSelectedOrg() { return _selectedOrgId; }
+export function setUserRole(role) { _userRole = role; }
+export function getUserRole() { return _userRole; }
+
 // 通用请求函数
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -10,6 +19,8 @@ async function request(endpoint, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': API_KEY,
+      'X-User-Role': _userRole,
+      ...(_selectedOrgId ? { 'X-Organization-Id': _selectedOrgId } : {}),
       ...options.headers,
     },
   };

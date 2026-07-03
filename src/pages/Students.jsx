@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { studentOps } from '../store';
+import OrgFilter from '../components/OrgFilter';
+import { setSelectedOrg } from '../store/api';
 
 export default function Students() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -9,6 +11,7 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedOrg, setSelectedOrgState] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('action') === 'add');
   const [editingStudent, setEditingStudent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +31,7 @@ export default function Students() {
       const params = {};
       if (searchTerm) params.search = searchTerm;
       if (statusFilter !== 'all') params.status = statusFilter;
+      if (selectedOrg) params.org_id = selectedOrg;
       const result = await studentOps.getPaginated(1, 100, params);
       setStudents(result || []);
     } catch (error) {
@@ -35,7 +39,7 @@ export default function Students() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, selectedOrg]);
 
   useEffect(() => {
     loadStudents();
@@ -125,7 +129,7 @@ export default function Students() {
           <Plus size={20} /> 添加学生
         </button>
       </div>
-
+      {/* 搜索筛选 */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -137,6 +141,7 @@ export default function Students() {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
+        <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
