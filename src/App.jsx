@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import PasswordProtect from './components/PasswordProtect';
-import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign, Building2 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
@@ -13,6 +13,7 @@ import Teachers from './pages/Teachers';
 import Schedule from './pages/Schedule';
 import TeacherPortal from './pages/TeacherPortal';
 import TeacherShare from './pages/TeacherShare';
+import Organizations from './pages/Organizations';
 
 function Sidebar() {
   return (
@@ -101,6 +102,17 @@ function Sidebar() {
           <span>排课管理</span>
         </NavLink>
         <NavLink
+          to="/organizations"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Building2 size={20} />
+          <span>机构管理</span>
+        </NavLink>
+        <NavLink
           to="/settings"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -139,6 +151,7 @@ function App() {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
             <Route path="/teacher/share/:token" element={<TeacherShare />} />
+            <Route path="/organizations" element={<Organizations />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/parent" element={<ParentView />} />
             <Route path="/parent/:studentId" element={<ParentView />} />

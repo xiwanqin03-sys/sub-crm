@@ -1,54 +1,257 @@
 import { useState, useEffect } from 'react';
-import { Plus, Building2, Users, GraduationCap, CalendarDays, Phone, Mail, Search } from 'lucide-react';
+import { Plus, Building2, Users, Phone, Mail, MapPin, Search, Edit2, Trash2, X } from 'lucide-react';
+import { organizationOps } from '../store/api';
 
 export default function Organizations() {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingOrg, setEditingOrg] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: ''
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchOrgs(); }, []);
 
   const fetchOrgs = async () => {
     try {
-      const res = await fetch('https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/organizations');
-      const data = await res.json();
-      if (data.success) setOrganizations(data.data?.data || []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      const data = await organizationOps.getAll();
+      setOrganizations(data);
+    } catch (e) {
+      console.error('获取机构列表失败:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filtered = organizations.filter(o => 
-    o.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = organizations.filter(o =>
+    o.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    o.contact_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editingOrg) {
+        await organizationOps.update(editingOrg.id, formData);
+      } else {
+        await organizationOps.add(formData);
+      }
+      setShowModal(false);
+      setEditingOrg(null);
+      setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '' });
+      fetchOrgs();
+    } catch (e) {
+      console.error('保存机构失败:', e);
+      alert('保存失败: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (org) => {
+    setEditingOrg(org);
+    setFormData({
+      name: org.name || '', contact_name: org.contact_name || '',
+      contact_phone: org.contact_phone || '', contact_email: org.contact_email || '',
+      address: org.address || '', notes: org.notes || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (org) => {
+    if (!confirm(`确定要删除「${org.name}」吗？此操作不可撤销。`)) return;
+    try {
+      await organizationOps.delete(org.id);
+      fetchOrgs();
+    } catch (e) {
+      alert('删除失败: ' + e.message);
+    }
+  };
+
+  const handleAdd = () => {
+    setEditingOrg(null);
+    setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '' });
+    setShowModal(true);
+  };
 
   if (loading) return <div className="p-6 text-gray-500">加载中...</div>;
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">机构管理</h1>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg">
+        <div>
+          <h1 className="text-2xl font-bold">机构管理</h1>
+          <p className="text-sm text-gray-500 mt-1">管理合作机构信息</p>
+        </div>
+        <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
           <Plus size={20} /> 新增机构
         </button>
       </div>
-      
-      <input 
-        type="text" 
-        placeholder="搜索..." 
-        value={searchTerm} 
-        onChange={e => setSearchTerm(e.target.value)}
-        className="mb-6 px-4 py-2 border rounded-lg w-80"
-      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {filtered.map(org => (
-          <div key={org.id} className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-bold text-lg">{org.name}</h3>
-            <p className="text-sm text-gray-500">{org.contact_name}</p>
-          </div>
-        ))}
+      <div className="mb-6">
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="搜索机构名称或联系人..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
       </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Building2 size={48} className="mx-auto mb-4 opacity-50" />
+          <p>暂无机构数据</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map(org => (
+            <div key={org.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                    <Building2 size={20} className="text-primary-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">{org.name}</h3>
+                    <p className="text-xs text-gray-400">ID: {org.id}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEdit(org)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(org)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                {org.contact_name && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Users size={14} /> <span>{org.contact_name}</span>
+                  </div>
+                )}
+                {org.contact_phone && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Phone size={14} /> <span>{org.contact_phone}</span>
+                  </div>
+                )}
+                {org.contact_email && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Mail size={14} /> <span className="truncate">{org.contact_email}</span>
+                  </div>
+                )}
+                {org.address && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <MapPin size={14} /> <span>{org.address}</span>
+                  </div>
+                )}
+              </div>
+
+              {org.notes && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-400">{org.notes}</p>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-gray-100 flex gap-4 text-xs text-gray-500">
+                <span>学生: {org.student_count || 0}</span>
+                <span>教师: {org.teacher_count || 0}</span>
+                <span>课程: {org.class_count || 0}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 新增/编辑弹窗 */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-bold">{editingOrg ? '编辑机构' : '新增机构'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">机构名称 *</label>
+                <input
+                  type="text" required
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">联系人</label>
+                <input
+                  type="text"
+                  value={formData.contact_name}
+                  onChange={e => setFormData({...formData, contact_name: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+                  <input
+                    type="text"
+                    value={formData.contact_phone}
+                    onChange={e => setFormData({...formData, contact_phone: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">联系邮箱</label>
+                  <input
+                    type="email"
+                    value={formData.contact_email}
+                    onChange={e => setFormData({...formData, contact_email: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">地址</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={e => setFormData({...formData, address: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
+                  取消
+                </button>
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+                  {saving ? '保存中...' : '保存'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

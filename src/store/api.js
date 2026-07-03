@@ -422,6 +422,40 @@ export async function importData(data, mode = 'replace') {
 }
 
 // ============================================
+// 机构管理相关操作
+// ============================================
+export const organizationOps = {
+  getAll: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = query ? `/organizations?${query}` : '/organizations';
+    const result = await request(endpoint);
+    return result.data?.data || result.data || [];
+  },
+  getById: async (id) => {
+    const result = await request(`/organizations/${id}`);
+    return result.data;
+  },
+  add: async (org) => {
+    const result = await request('/organizations', {
+      method: 'POST',
+      body: org,
+    });
+    return result.data;
+  },
+  update: async (id, updates) => {
+    const result = await request(`/organizations/${id}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+    return result.data;
+  },
+  delete: async (id) => {
+    await request(`/organizations/${id}`, { method: 'DELETE' });
+    return true;
+  },
+};
+
+// ============================================
 // 管理操作
 // ============================================
 export const adminOps = {
