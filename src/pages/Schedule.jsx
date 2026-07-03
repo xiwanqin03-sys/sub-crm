@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trash2, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, CheckCircle, Clock, XCircle, Building2 } from 'lucide-react';
 import { teacherOps, studentOps, classOps } from '../store';
+import OrgFilter from '../components/OrgFilter';
+import { setSelectedOrg } from '../store/api';
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const TIME_SLOTS = [
@@ -31,6 +33,7 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [selectedOrg, setSelectedOrgState] = useState('');
   const [formData, setFormData] = useState({
     student_id: '',
     teacher_id: '',
@@ -63,7 +66,7 @@ export default function Schedule() {
 
   useEffect(() => {
     loadData();
-  }, [currentDate]);
+  }, [currentDate, selectedOrg]);
 
   const getTwoWeeks = () => {
     const weeks = [];
@@ -236,7 +239,10 @@ export default function Schedule() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">排课管理</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">排课管理</h1>
+          <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleToday}
