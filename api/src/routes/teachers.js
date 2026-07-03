@@ -8,9 +8,21 @@ const teachers = new Hono();
 // 获取教师列表
 teachers.get('/', async (c) => {
   const DB = c.env.DB;
-  
+
   try {
-    const results = await DB.prepare('SELECT * FROM teachers ORDER BY name ASC').all();
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+
+    // 数据隔离：根据用户角色过滤组织数据
+    const userRole = c.req.header('X-User-Role') || 'org_admin';
+    const userOrgId = c.req.header('X-Organization-Id');
+
+    if (userRole !== 'super_admin' && userOrgId) {
+      whereClause += ' AND organization_id = ?';
+      params.push(parseInt(userOrgId));
+    }
+
+    const results = await DB.prepare(`SELECT * FROM teachers ${whereClause} ORDER BY name ASC`).bind(...params).all();
     
     const data = results.results?.map(teacher => ({
       id: teacher.id,
@@ -102,10 +114,15 @@ teachers.post('/', async (c) => {
   
   try {
     const subjectsJson = body.subjects ? JSON.stringify(body.subjects) : null;
-    
+
+    // 数据隔离：获取所属机构
+    const userRole = c.req.header('X-User-Role') || 'org_admin';
+    const userOrgId = c.req.header('X-Organization-Id');
+    const organizationId = (userRole !== 'super_admin' && userOrgId) ? parseInt(userOrgId) : 1;
+
     const result = await DB.prepare(`
-      INSERT INTO teachers (name, phone, email, subjects, hourly_rate, status, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO teachers (name, phone, email, subjects, hourly_rate, status, notes, organization_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       body.name,
       body.phone || null,
@@ -113,7 +130,8 @@ teachers.post('/', async (c) => {
       subjectsJson,
       body.hourly_rate || null,
       body.status || 'active',
-      body.notes || null
+      body.notes || null,
+      organizationId
     ).run();
     
     return c.json({

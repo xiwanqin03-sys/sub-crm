@@ -14,6 +14,17 @@ payments.get('/', async (c) => {
   const page = c.req.query('page') || '1';
   const pageSize = c.req.query('page_size') || '20';
 
+  // 数据隔离：根据用户角色过滤组织数据
+  let whereClause = 'WHERE 1=1';
+  const params = [];
+  const userRole = c.req.header('X-User-Role') || 'org_admin';
+  const userOrgId = c.req.header('X-Organization-Id');
+
+  if (userRole !== 'super_admin' && userOrgId) {
+    whereClause += ' AND p.organization_id = ?';
+    params.push(parseInt(userOrgId));
+  }
+
   // 查询总数
   const countResult = await DB.prepare('SELECT COUNT(*) as total FROM payments').first();
   const total = countResult?.total || 0;
@@ -24,9 +35,10 @@ payments.get('/', async (c) => {
     FROM payments p
     JOIN students s ON p.student_id = s.id
     LEFT JOIN packages pkg ON p.package_id = pkg.id
+    ${whereClause}
     ORDER BY p.date DESC, p.created_at DESC
     LIMIT ? OFFSET ?
-  `).bind(pagination.page_size, pagination.offset).all();
+  `).bind(...params, pagination.page_size, pagination.offset).all();
 
   const data = results.results?.map(payment => ({
     id: payment.id,
@@ -171,12 +183,17 @@ payments.post('/student/:student_id', validate(paymentSchema), async (c) => {
     }
   }
 
+  // 数据隔离：获取所属机构
+  const userRole = c.req.header('X-User-Role') || 'org_admin';
+  const userOrgId = c.req.header('X-Organization-Id');
+  const organizationId = (userRole !== 'super_admin' && userOrgId) ? parseInt(userOrgId) : 1;
+
   // 获取今天日期
   const today = new Date().toISOString().split('T')[0];
 
   const result = await DB.prepare(`
-    INSERT INTO payments (student_id, amount, payment_method, package_id, description, date, receipt_number, notes, hours)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO payments (student_id, amount, payment_method, package_id, description, date, receipt_number, notes, hours, organization_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     studentId,
     data.amount,
@@ -186,7 +203,8 @@ payments.post('/student/:student_id', validate(paymentSchema), async (c) => {
     data.date || today,
     data.receipt_number || null,
     data.notes || null,
-          data.hours || 0
+    data.hours || 0,
+    organizationId
   ).run();
 
   const paymentId = result.meta.last_row_id;

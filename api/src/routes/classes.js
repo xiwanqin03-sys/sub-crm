@@ -21,6 +21,15 @@ classes.get('/', async (c) => {
   let whereClause = 'WHERE 1=1';
   const params = [];
 
+  // 数据隔离：根据用户角色过滤组织数据
+  const userRole = c.req.header('X-User-Role') || 'org_admin';
+  const userOrgId = c.req.header('X-Organization-Id');
+
+  if (userRole !== 'super_admin' && userOrgId) {
+    whereClause += ' AND c.organization_id = ?';
+    params.push(parseInt(userOrgId));
+  }
+
   if (studentId) {
     whereClause += ' AND c.student_id = ?';
     params.push(studentId);
@@ -192,9 +201,14 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     }
   }
 
+  // 数据隔离：获取所属机构
+  const userRole = c.req.header('X-User-Role') || 'org_admin';
+  const userOrgId = c.req.header('X-Organization-Id');
+  const organizationId = (userRole !== 'super_admin' && userOrgId) ? parseInt(userOrgId) : 1;
+
   const result = await DB.prepare(`
-    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     studentId,
     data.package_id || null,
@@ -208,7 +222,8 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     data.content || null,
     data.homework || null,
     data.notes || null,
-    data.status || 'completed'
+    data.status || 'completed',
+    organizationId
   ).run();
 
   const classId = result.meta.last_row_id;
