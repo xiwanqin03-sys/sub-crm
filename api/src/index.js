@@ -3,7 +3,7 @@
  * 使用 Hono 框架实现 REST API
  */
 import { Hono } from 'hono';
-import { cors } from './middleware/auth.js';
+import { cors, orgContext } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // 路由
@@ -28,6 +28,7 @@ const app = new Hono();
 
 // 全局中间件
 app.use('*', cors);
+app.use('*', orgContext);
 app.use('*', errorHandler);
 
 // 根路由

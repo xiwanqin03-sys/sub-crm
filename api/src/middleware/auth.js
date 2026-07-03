@@ -14,7 +14,7 @@ export const cors = async (c, next) => {
   }
 
   c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-api-key');
+  c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-api-key, X-User-Role, X-Organization-Id');
   c.res.headers.set('Access-Control-Max-Age', '86400');
 
   // 处理预检请求
@@ -80,6 +80,27 @@ export const optionalAuth = async (c, next) => {
       c.req.auth = { token, authenticated: true };
     }
   }
+
+  await next();
+};
+
+/**
+ * 机构数据隔离中间件
+ * 从请求头提取用户角色和机构 ID，存入 context 供路由使用
+ * 
+ * 请求头：
+ * - X-User-Role: super_admin | org_admin | teacher | parent
+ * - X-Organization-Id: 机构 ID（非超管时必传）
+ * 
+ * 在路由中可通过 c.get('userRole') / c.get('orgId') 访问
+ */
+export const orgContext = async (c, next) => {
+  const userRole = c.req.header('X-User-Role') || 'super_admin';
+  const userOrgId = c.req.header('X-Organization-Id') || '';
+
+  c.set('userRole', userRole);
+  c.set('orgId', userOrgId ? parseInt(userOrgId) : null);
+  c.set('isSuperAdmin', userRole === 'super_admin');
 
   await next();
 };
