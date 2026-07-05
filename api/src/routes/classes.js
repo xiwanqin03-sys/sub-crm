@@ -8,6 +8,26 @@ import { success, error, calculatePagination } from '../utils/response.js';
 
 const classes = new Hono();
 
+// ── 老师时间冲突检查 ──
+// 同一老师、同一日期、时间区间重叠（排除 cancelled 状态）
+// 返回冲突记录数组（空=无冲突）
+async function checkTeacherConflict(DB, { teacherId, date, startTime, endTime, excludeId = null }) {
+  if (!teacherId || !date || !startTime || !endTime) return [];
+  const conflicts = await DB.prepare(`
+    SELECT id, student_id, date, start_time, end_time, status
+    FROM classes
+    WHERE teacher_id = ?
+      AND date = ?
+      AND status != 'cancelled'
+      AND start_time IS NOT NULL
+      AND end_time IS NOT NULL
+      AND start_time < ?
+      AND end_time > ?
+      ${excludeId ? 'AND id != ?' : ''}
+  `).bind(teacherId, date, endTime, startTime, ...(excludeId ? [excludeId] : [])).all();
+  return conflicts.results || [];
+}
+
 // 获取所有上课记录（支持过滤）
 classes.get('/', async (c) => {
   const DB = c.env.DB;
@@ -28,6 +48,9 @@ classes.get('/', async (c) => {
   if (userRole !== 'super_admin' && userOrgId) {
     whereClause += ' AND c.organization_id = ?';
     params.push(parseInt(userOrgId));
+  } else if (c.req.query('org_id')) {
+    whereClause += ' AND c.organization_id = ?';
+    params.push(parseInt(c.req.query('org_id')));
   }
 
   if (studentId) {
@@ -81,6 +104,7 @@ const data = results.results?.map(cls => ({
   notes: cls.notes,
   status: cls.status,
   class_link: cls.class_link,
+  organization_id: cls.organization_id,
   created_at: cls.created_at,
   updated_at: cls.updated_at
 })) || [];
@@ -132,9 +156,10 @@ const data = results.results?.map(cls => ({
   notes: cls.notes,
   class_link: cls.class_link,
   status: cls.status,
+  organization_id: cls.organization_id,
   created_at: cls.created_at,
   updated_at: cls.updated_at
- })) || [];
+})) || [];
 
   return c.json(success({ data, pagination }));
 });
@@ -176,9 +201,10 @@ return c.json(success({
   notes: cls.notes,
   class_link: cls.class_link,
   status: cls.status,
+  organization_id: cls.organization_id,
   created_at: cls.created_at,
   updated_at: cls.updated_at
- }));
+}));
 });
 
 // 创建上课记录（指定学生）
@@ -201,10 +227,37 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     }
   }
 
+  // ── 老师时间冲突检查 ──
+  if (data.teacher_id && data.date && data.start_time && data.end_time) {
+    const conflicts = await checkTeacherConflict(DB, {
+      teacherId: data.teacher_id,
+      date: data.date,
+      startTime: data.start_time,
+      endTime: data.end_time
+    });
+    if (conflicts.length > 0) {
+      // 查冲突记录的学生名做提示
+      const conflictStudentIds = conflicts.map(c => c.student_id);
+      const studentNames = await DB.prepare(
+        `SELECT id, name FROM students WHERE id IN (${conflictStudentIds.map(() => '?').join(',')})`
+      ).bind(...conflictStudentIds).all();
+      const names = (studentNames.results || []).map(s => s.name).join('、');
+      return c.json(error('TEACHER_CONFLICT',
+        `教师时间冲突！该教师 ${data.date} ${data.start_time}-${data.end_time} 已有课程（${names}）`
+      ), 409);
+    }
+  }
+
   // 数据隔离：获取所属机构
-  const userRole = c.req.header('X-User-Role') || 'org_admin';
-  const userOrgId = c.req.header('X-Organization-Id');
-  const organizationId = (userRole !== 'super_admin' && userOrgId) ? parseInt(userOrgId) : 1;
+  // 优先使用前端传入的 organization_id，否则从 header 取
+  let organizationId;
+  if (data.organization_id !== undefined && data.organization_id !== null) {
+    organizationId = parseInt(data.organization_id);
+  } else {
+    const userRole = c.req.header('X-User-Role') || 'org_admin';
+    const userOrgId = c.req.header('X-Organization-Id');
+    organizationId = (userRole !== 'super_admin' && userOrgId) ? parseInt(userOrgId) : 1;
+  }
 
   const result = await DB.prepare(`
     INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id)
@@ -229,6 +282,28 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
   const classId = result.meta.last_row_id;
   const classHours = data.hours || 1;
   const classStatus = data.status || 'completed';
+
+  // ── 同步机构课时包 ──
+  if (organizationId && classStatus === 'completed') {
+    // 找该机构最新 pending/partial_paid 包，增加 used_hours
+    const targetPkg = await DB.prepare(
+      `SELECT id FROM org_packages
+       WHERE org_id = ? AND status IN ('pending', 'partial_paid')
+       ORDER BY created_at DESC LIMIT 1`
+    ).bind(organizationId).first();
+
+    if (targetPkg) {
+      await DB.prepare(
+        `UPDATE org_packages SET used_hours = used_hours + ?, updated_at = datetime('now') WHERE id = ?`
+      ).bind(classHours, targetPkg.id).run();
+
+      // 记录分配明细到 org_hour_allocations（负值=课程消耗）
+      await DB.prepare(
+        `INSERT INTO org_hour_allocations (org_id, package_id, student_id, hours, notes, created_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).bind(organizationId, targetPkg.id, studentId, -classHours, `课程消耗 -${classHours}节 (class ${classId})`, 'system').run();
+    }
+  }
 
   // 如果是已完成状态，记录课时消耗
   if (classStatus === 'completed') {
@@ -276,6 +351,32 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
     return c.json(error('NOT_FOUND', '上课记录不存在'), 404);
   }
 
+  // ── 老师时间冲突检查 ──
+  // 用更新后的值（缺省回退到现有值）做检查
+  const checkTeacherId = data.teacher_id ?? existing.teacher_id;
+  const checkDate = data.date ?? existing.date;
+  const checkStart = data.start_time ?? existing.start_time;
+  const checkEnd = data.end_time ?? existing.end_time;
+  if (checkTeacherId && checkDate && checkStart && checkEnd) {
+    const conflicts = await checkTeacherConflict(DB, {
+      teacherId: checkTeacherId,
+      date: checkDate,
+      startTime: checkStart,
+      endTime: checkEnd,
+      excludeId: id
+    });
+    if (conflicts.length > 0) {
+      const conflictStudentIds = conflicts.map(c => c.student_id);
+      const studentNames = await DB.prepare(
+        `SELECT id, name FROM students WHERE id IN (${conflictStudentIds.map(() => '?').join(',')})`
+      ).bind(...conflictStudentIds).all();
+      const names = (studentNames.results || []).map(s => s.name).join('、');
+      return c.json(error('TEACHER_CONFLICT',
+        `教师时间冲突！该教师 ${checkDate} ${checkStart}-${checkEnd} 已有课程（${names}）`
+      ), 409);
+    }
+  }
+
   // 构建更新语句
   const fields = [];
   const values = [];
@@ -291,6 +392,63 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
   values.push(id);
 
   await DB.prepare(`UPDATE classes SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run();
+
+  // ── 同步机构课时包 ──
+  // 当 status 在 completed ↔ 其他 之间切换时，调整 org_packages.used_hours
+  const oldStatus = existing.status;
+  const newStatus = data.status ?? oldStatus;
+  const clsHours = data.hours ?? existing.hours;
+  const clsOrgId = existing.organization_id;
+
+  if (clsOrgId && oldStatus !== newStatus) {
+    let delta = 0;
+    let note = '';
+    if (newStatus === 'completed' && oldStatus !== 'completed') {
+      // 非完成 → 完成：增加消耗
+      delta = clsHours;
+      note = `课程标记完成 +${clsHours}节 (class ${id})`;
+    } else if (oldStatus === 'completed' && newStatus !== 'completed') {
+      // 完成 → 非完成：回退消耗
+      delta = -clsHours;
+      note = `课程取消完成 -${clsHours}节 (class ${id})`;
+    }
+
+    if (delta !== 0) {
+      const targetPkg = await DB.prepare(
+        `SELECT id FROM org_packages
+         WHERE org_id = ? AND status IN ('pending', 'partial_paid')
+         ORDER BY created_at DESC LIMIT 1`
+      ).bind(clsOrgId).first();
+
+      if (targetPkg) {
+        await DB.prepare(
+          `UPDATE org_packages SET used_hours = used_hours + ?, updated_at = datetime('now') WHERE id = ?`
+        ).bind(delta, targetPkg.id).run();
+
+        await DB.prepare(
+          `INSERT INTO org_hour_allocations (org_id, package_id, student_id, hours, notes, created_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+        ).bind(clsOrgId, targetPkg.id, existing.student_id, delta > 0 ? -delta : Math.abs(delta), note, 'system').run();
+      }
+    }
+  }
+
+  // 同步学生 used_hours（当 status 在 completed ↔ 其他 之间切换时）
+  if (oldStatus !== newStatus) {
+    if (newStatus === 'completed' && oldStatus !== 'completed') {
+      // 非完成 → 完成：增加学生 used_hours
+      await DB.prepare(
+        `UPDATE students SET used_hours = used_hours + ?, updated_at = datetime('now') WHERE id = ?`
+      ).bind(clsHours, existing.student_id).run();
+    } else if (oldStatus === 'completed' && newStatus !== 'completed') {
+      // 完成 → 非完成：减少学生 used_hours
+      const student = await DB.prepare('SELECT used_hours FROM students WHERE id = ?').bind(existing.student_id).first();
+      const newUsed = Math.max(0, (student?.used_hours || 0) - clsHours);
+      await DB.prepare(
+        `UPDATE students SET used_hours = ?, updated_at = datetime('now') WHERE id = ?`
+      ).bind(newUsed, existing.student_id).run();
+    }
+  }
 
   // 返回更新后的记录
   const cls = await DB.prepare('SELECT * FROM classes WHERE id = ?').bind(id).first();
@@ -327,17 +485,40 @@ classes.delete('/:id', validateParams(idParamSchema), async (c) => {
 
   // 如果是已完成状态，恢复课时
   if (cls.status === 'completed') {
+    // 1. 恢复学生 used_hours
     const student = await DB.prepare('SELECT total_hours, used_hours FROM students WHERE id = ?').bind(cls.student_id).first();
     const newUsed = Math.max(0, (student.used_hours || 0) - cls.hours);
     const newRemaining = (student.total_hours || 0) - newUsed;
 
     await DB.prepare('UPDATE students SET used_hours = ? WHERE id = ?').bind(newUsed, cls.student_id).run();
 
-    // 记录课时变动（反向）
+    // 记录学生课时变动（反向）
     await DB.prepare(`
       INSERT INTO hour_changes (student_id, type, amount, related_id, description)
       VALUES (?, 'class', ?, ?, ?)
     `).bind(cls.student_id, cls.hours, id, `删除上课记录 +${cls.hours}节`).run();
+
+    // 2. 回退机构课时包 used_hours（与 PATCH 逻辑对称）
+    if (cls.organization_id) {
+      const targetPkg = await DB.prepare(
+        `SELECT id FROM org_packages
+         WHERE org_id = ? AND status IN ('pending', 'partial_paid')
+         ORDER BY created_at DESC LIMIT 1`
+      ).bind(cls.organization_id).first();
+
+      if (targetPkg) {
+        await DB.prepare(
+          `UPDATE org_packages SET used_hours = MAX(0, used_hours - ?), updated_at = datetime('now') WHERE id = ?`
+        ).bind(cls.hours, targetPkg.id).run();
+
+        // 记录机构课时变动（反向）
+        const note = `删除上课记录 -${cls.hours}节 (class ${id})`;
+        await DB.prepare(
+          `INSERT INTO org_hour_allocations (org_id, package_id, student_id, hours, notes, created_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+        ).bind(cls.organization_id, targetPkg.id, cls.student_id, cls.hours, note, 'system').run();
+      }
+    }
   }
 
   await DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();

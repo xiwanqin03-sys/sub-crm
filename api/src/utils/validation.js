@@ -13,13 +13,15 @@ export const paginationSchema = z.object({
 // Students Schema
 export const studentSchema = z.object({
   name: z.string().min(1, '姓名不能为空').max(100),
+  english_name: z.string().min(1, '英文名不能为空').max(100),
   phone: z.string().max(20).optional().nullable().transform(v => v || null),
   email: z.string().email('邮箱格式不正确').optional().nullable().transform(v => v || null),
   age: z.number().int().min(0).max(120).optional().nullable(),
   grade: z.string().max(50).optional().nullable().transform(v => v || null),
   parent_name: z.string().max(100).optional().nullable().transform(v => v || null),
   notes: z.string().optional().nullable().transform(v => v || null),
-  status: z.enum(['active', 'inactive', 'graduated']).optional().default('active')
+  status: z.enum(['active', 'inactive', 'graduated']).optional().default('active'),
+  organization_id: z.number().int().optional().nullable()
 });
 
 export const studentUpdateSchema = studentSchema.partial();
@@ -51,19 +53,20 @@ export const packageUpdateSchema = packageSchema.partial();
 
 // Classes Schema
 export const classSchema = z.object({
- package_id: z.number().int().positive().optional().nullable(),
- teacher_id: z.number().int().positive().optional().nullable(),
- teacher: z.string().max(100).optional().nullable().transform(v => v || null),
- subject: z.string().max(100).optional().nullable().transform(v => v || null),
- hours: z.number().positive('课时数必须大于0').default(1),
- date: z.string().optional(),
- start_time: z.string().optional().nullable().transform(v => v || null),
- end_time: z.string().optional().nullable().transform(v => v || null),
- content: z.string().optional().nullable().transform(v => v || null),
- homework: z.string().optional().nullable().transform(v => v || null),
- notes: z.string().optional().nullable().transform(v => v || null),
- class_link: z.string().optional().nullable().transform(v => v || null),
- status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed')
+  package_id: z.number().int().positive().optional().nullable(),
+  teacher_id: z.number().int().positive().optional().nullable(),
+  teacher: z.string().max(100).optional().nullable().transform(v => v || null),
+  subject: z.string().max(100).optional().nullable().transform(v => v || null),
+  hours: z.number().positive('课时数必须大于0').default(1),
+  date: z.string().optional(),
+  start_time: z.string().optional().nullable().transform(v => v || null),
+  end_time: z.string().optional().nullable().transform(v => v || null),
+  content: z.string().optional().nullable().transform(v => v || null),
+  homework: z.string().optional().nullable().transform(v => v || null),
+  notes: z.string().optional().nullable().transform(v => v || null),
+  class_link: z.string().optional().nullable().transform(v => v || null),
+  status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed'),
+  organization_id: z.number().int().positive().optional().nullable()
 });
 
 export const classUpdateSchema = classSchema.partial();

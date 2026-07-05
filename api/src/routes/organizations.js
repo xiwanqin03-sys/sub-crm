@@ -37,11 +37,16 @@ organizations.get('/', async (c) => {
   const data = results.results?.map(org => ({
     id: org.id,
     name: org.name,
+    login_code: org.login_code,
+    has_password: !!org.password_hash,
     contact_name: org.contact_name,
     contact_phone: org.contact_phone,
     contact_email: org.contact_email,
     address: org.address,
     notes: org.notes,
+    unit_price_cny: org.unit_price_cny,
+    settlement_day: org.settlement_day,
+    credit_limit_cny: org.credit_limit_cny,
     status: org.status,
     created_at: org.created_at,
     updated_at: org.updated_at,
@@ -87,21 +92,35 @@ organizations.get('/:id', async (c) => {
 organizations.post('/', async (c) => {
   const DB = c.env.DB;
   const body = await c.req.json();
-  const { name, contact_name, contact_phone, contact_email, address, notes } = body;
+  const { name, contact_name, contact_phone, contact_email, address, notes, login_code, password, unit_price_cny, settlement_day, credit_limit_cny } = body;
 
   if (!name) {
     return c.json(error('VALIDATION_ERROR', '机构名称不能为空'), 400);
   }
 
+  // 检查 login_code 唯一性
+  if (login_code) {
+    const existing = await DB.prepare('SELECT id FROM organizations WHERE login_code = ?').bind(login_code).first();
+    if (existing) {
+      return c.json(error('DUPLICATE', '该登录代码已被使用'), 400);
+    }
+  }
+
+  // 如果有密码，hash 它
+  let passwordHash = null;
+  if (password) {
+    const { hashPassword } = await import('./auth.js');
+    passwordHash = await hashPassword(password);
+  }
+
   const result = await DB.prepare(`
-    INSERT INTO organizations (name, contact_name, contact_phone, contact_email, address, notes, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).bind(name, contact_name || null, contact_phone || null, contact_email || null, address || null, notes || null).run();
+    INSERT INTO organizations (name, contact_name, contact_phone, contact_email, address, notes, login_code, password_hash, unit_price_cny, settlement_day, credit_limit_cny, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).bind(name, contact_name || null, contact_phone || null, contact_email || null, address || null, notes || null, login_code || null, passwordHash, unit_price_cny ?? 80, settlement_day || 'monday', credit_limit_cny ?? 0).run();
 
   return c.json(success({
     id: result.meta.last_row_id,
     name,
-    contact_name,
     status: 'active'
   }), 201);
 });
@@ -112,7 +131,7 @@ organizations.patch('/:id', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
-  const { name, contact_name, contact_phone, contact_email, address, notes, status } = body;
+  const { name, contact_name, contact_phone, contact_email, address, notes, status, login_code, password, unit_price_cny, settlement_day, credit_limit_cny } = body;
 
   const updates = [];
   const values = [];
@@ -124,6 +143,18 @@ organizations.patch('/:id', async (c) => {
   if (address !== undefined) { updates.push('address = ?'); values.push(address); }
   if (notes !== undefined) { updates.push('notes = ?'); values.push(notes); }
   if (status !== undefined) { updates.push('status = ?'); values.push(status); }
+  if (login_code !== undefined) { updates.push('login_code = ?'); values.push(login_code); }
+  if (unit_price_cny !== undefined) { updates.push('unit_price_cny = ?'); values.push(unit_price_cny); }
+  if (settlement_day !== undefined) { updates.push('settlement_day = ?'); values.push(settlement_day); }
+  if (credit_limit_cny !== undefined) { updates.push('credit_limit_cny = ?'); values.push(credit_limit_cny); }
+
+  // 密码单独处理：如果传了非空 password，则 hash 后存储
+  if (password) {
+    const { hashPassword } = await import('./auth.js');
+    const hashed = await hashPassword(password);
+    updates.push('password_hash = ?');
+    values.push(hashed);
+  }
 
   if (updates.length === 0) {
     return c.json(error('VALIDATION_ERROR', '没有需要更新的字段'), 400);

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import PasswordProtect from './components/PasswordProtect';
-import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign, Building2, Receipt, Package } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
@@ -14,6 +14,10 @@ import Schedule from './pages/Schedule';
 import TeacherPortal from './pages/TeacherPortal';
 import TeacherShare from './pages/TeacherShare';
 import Organizations from './pages/Organizations';
+import OrgLogin from './pages/OrgLogin';
+import OrgPortal from './pages/OrgPortal';
+import OrgSettlements from './pages/OrgSettlements';
+import OrgPackages from './pages/OrgPackages';
 
 function Sidebar() {
   return (
@@ -113,6 +117,28 @@ function Sidebar() {
           <span>机构管理</span>
         </NavLink>
         <NavLink
+          to="/org-settlements"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Receipt size={20} />
+          <span>机构结算</span>
+        </NavLink>
+        <NavLink
+          to="/org-packages"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Package size={20} />
+          <span>课时包</span>
+        </NavLink>
+        <NavLink
           to="/settings"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -125,6 +151,13 @@ function Sidebar() {
         </NavLink>
       </nav>
       <div className="p-4 border-t border-gray-200">
+        <NavLink
+          to="/org-login"
+          className="flex items-center justify-center gap-2 px-4 py-2 mb-2 text-sm text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+        >
+          <Building2 size={16} />
+          <span>机构端入口</span>
+        </NavLink>
         <div className="text-xs text-gray-400 text-center">
           © 2024 阳光桥在线英语
         </div>
@@ -135,32 +168,46 @@ function Sidebar() {
 
 function App() {
   return (
-    <PasswordProtect>
-      <BrowserRouter>
-        <div className="flex min-h-screen bg-gray-50">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">
-            <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/:id" element={<StudentDetail />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/teacher-payments" element={<TeacherPayments />} />
-            <Route path="/classes" element={<Classes />} />
-            <Route path="/teachers" element={<Teachers />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
-            <Route path="/teacher/share/:token" element={<TeacherShare />} />
-            <Route path="/organizations" element={<Organizations />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/parent" element={<ParentView />} />
-            <Route path="/parent/:studentId" element={<ParentView />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          </main>
-        </div>
-      </BrowserRouter>
-    </PasswordProtect>
+    <BrowserRouter>
+      <Routes>
+        {/* ─── 机构端：独立路由，不经 PasswordProtect/Sidebar ─── */}
+        <Route path="/org-login" element={<OrgLogin />} />
+        <Route path="/portal/:orgId/*" element={<OrgPortal />} />
+
+        {/* ─── 主 CRM 系统路由 ─── */}
+        <Route
+          path="/*"
+          element={
+            <PasswordProtect>
+              <div className="flex min-h-screen bg-gray-50">
+                <Sidebar />
+                <main className="flex-1 overflow-auto">
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/students" element={<Students />} />
+                    <Route path="/students/:id" element={<StudentDetail />} />
+                    <Route path="/payments" element={<Payments />} />
+                    <Route path="/teacher-payments" element={<TeacherPayments />} />
+                    <Route path="/classes" element={<Classes />} />
+                    <Route path="/teachers" element={<Teachers />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/teacher/:teacherId" element={<TeacherPortal />} />
+                    <Route path="/teacher/share/:token" element={<TeacherShare />} />
+                    <Route path="/organizations" element={<Organizations />} />
+                    <Route path="/org-settlements" element={<OrgSettlements />} />
+                    <Route path="/org-packages" element={<OrgPackages />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/parent" element={<ParentView />} />
+                    <Route path="/parent/:studentId" element={<ParentView />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </main>
+              </div>
+            </PasswordProtect>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

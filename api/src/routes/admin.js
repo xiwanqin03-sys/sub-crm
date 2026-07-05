@@ -60,4 +60,24 @@ admin.get('/stats', async (c) => {
   }
 });
 
+// 临时：执行原始 SQL（仅超级管理员）
+admin.post('/exec-sql', async (c) => {
+  const DB = c.env.DB;
+  const body = await c.req.json();
+  
+  if (!body.sql) {
+    return c.json(error('VALIDATION_ERROR', 'sql 字段不能为空'), 400);
+  }
+  
+  try {
+    const result = await DB.prepare(body.sql).all();
+    return c.json(success({ 
+      results: result.results || [],
+      meta: result.meta || {}
+    }));
+  } catch (err) {
+    return c.json(error('SQL_ERROR', err.message), 500);
+  }
+});
+
 export default admin;

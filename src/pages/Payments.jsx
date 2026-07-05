@@ -3,7 +3,7 @@ import { CreditCard, Plus, User, Calendar, Trash2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { studentOps, paymentOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
-import { setSelectedOrg } from '../store/api';
+import { setSelectedOrg, organizationOps } from '../store/api';
 
 // API 增加课时
 const addStudentHours = async (studentId, hours) => {
@@ -24,6 +24,7 @@ export default function Payments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrg, setSelectedOrgState] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [orgs, setOrgs] = useState([]);
   const [formData, setFormData] = useState({
     studentId: '',
     amount: '',
@@ -35,12 +36,17 @@ export default function Payments() {
 
   useEffect(() => {
     loadPayments();
-  }, []);
+    if (orgs.length === 0) {
+      organizationOps.getAll().then(data => setOrgs(data)).catch(() => {});
+    }
+  }, [selectedOrg]);
 
   const loadPayments = async () => {
     try {
+      const payParams = {};
+      if (selectedOrg) payParams.org_id = selectedOrg;
       const [pays, studs] = await Promise.all([
-        paymentOps.getAll(),
+        paymentOps.getAll(payParams),
         studentOps.getAll()
       ]);
       setPayments(Array.isArray(pays) ? pays : []);
@@ -91,6 +97,12 @@ export default function Payments() {
     if (payment.student_name) return payment.student_name;
     const student = students.find(s => s.id === payment.studentId || s.id === payment.student_id);
     return student?.name || '未知学生';
+  };
+
+  const getOrgName = (orgId) => {
+    if (!orgId) return '总部';
+    const org = orgs.find(o => o.id === parseInt(orgId));
+    return org ? org.name : '总部';
   };
 
   const methodLabels = {
@@ -178,9 +190,10 @@ export default function Payments() {
             <tr>
               <th className="text-left px-6 py-4 font-medium text-gray-500">日期</th>
               <th className="text-left px-6 py-4 font-medium text-gray-500">学生</th>
+              <th className="text-left px-6 py-4 font-medium text-gray-500">所属机构</th>
               <th className="text-left px-6 py-4 font-medium text-gray-500">付款方式</th>
               <th className="text-left px-6 py-4 font-medium text-gray-500">课时数</th>
- <th className="text-left px-6 py-4 font-medium text-gray-500">备注</th>
+              <th className="text-left px-6 py-4 font-medium text-gray-500">备注</th>
               <th className="text-right px-6 py-4 font-medium text-gray-500">金额</th>
               <th className="text-right px-6 py-4 font-medium text-gray-500">操作</th>
             </tr>
@@ -200,6 +213,11 @@ export default function Payments() {
                       <User size={16} className="text-gray-400" />
                       {getStudentName(payment)}
                     </Link>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      {getOrgName(payment.organization_id)}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(payment)}`}>
@@ -233,7 +251,7 @@ export default function Payments() {
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
                   {searchTerm ? '未找到匹配的记录' : '暂无收款记录'}
                 </td>
               </tr>

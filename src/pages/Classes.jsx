@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { classOps, studentOps, packageOps } from '../store';
+import { organizationOps } from '../store/api';
 import OrgFilter from '../components/OrgFilter';
 import { setSelectedOrg } from '../store/api';
 
@@ -23,15 +24,28 @@ function Classes() {
     teacher: '',
     notes: ''
   });
+  const [orgs, setOrgs] = useState([]);
 
   useEffect(() => {
     loadData();
-  }, []);
+    if (orgs.length === 0) {
+      organizationOps.getAll().then(data => setOrgs(data)).catch(() => {});
+    }
+  }, [selectedOrg]);
+
+  // orgId → orgName 映射
+  const getOrgName = (orgId) => {
+    if (!orgId) return '总部';
+    const org = orgs.find(o => o.id === parseInt(orgId));
+    return org ? org.name : '总部';
+  };
 
   const loadData = async () => {
     try {
+      const classParams = {};
+      if (selectedOrg) classParams.org_id = selectedOrg;
       const [classesData, studentsData, packagesData] = await Promise.all([
-        classOps.getAll(),
+        classOps.getAll(classParams),
         studentOps.getAll(),
         packageOps.getAll()
       ]);
@@ -57,6 +71,14 @@ function Classes() {
       setClasses(normalizedClasses.sort((a, b) => new Date(b.date) - new Date(a.date)));
       setStudents(normalizedStudents);
       setPackages(Array.isArray(packagesData) ? packagesData : []);
+
+      // 加载机构列表
+      try {
+        const orgsData = await organizationOps.getAll();
+        setOrgs(Array.isArray(orgsData) ? orgsData : []);
+      } catch {
+        setOrgs([]);
+      }
     } catch (err) {
       console.error('Load error:', err);
       setClasses([]);
@@ -243,8 +265,6 @@ function Classes() {
         </div>
         <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
       </div>
-          />
-        </div>
 
         {/* 快捷筛选 */}
         <div className="mt-3 space-y-2">
@@ -314,6 +334,7 @@ function Classes() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">学生</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">课时</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">老师</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">所属机构</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">状态</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">反馈</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">操作</th>
@@ -348,6 +369,11 @@ function Classes() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{cls.teacherName || cls.teacher || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        {getOrgName(cls.organization_id)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[status]}`}>
                         {STATUS_LABELS[status]}

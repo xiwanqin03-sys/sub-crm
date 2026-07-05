@@ -57,10 +57,10 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
 
   // 查询列表
   const sql = `
-    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
+    SELECT id, name, english_name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, organization_id, created_at, updated_at FROM students 
     ${whereClause}
     
-    ORDER BY ${safeSortField} ${sortOrder}
+    ORDER BY ${safeSortField} ${safeSortOrder}
     LIMIT ? OFFSET ?
   `;
 
@@ -69,6 +69,7 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
   const data = results.results?.map(student => ({
     id: student.id,
     name: student.name,
+    english_name: student.english_name,
     phone: student.phone,
     email: student.email,
     age: student.age,
@@ -78,6 +79,7 @@ students.get('/list', validateQuery(studentQuerySchema), async (c) => {
     status: student.status,
     total_hours: student.total_hours || 0,
     used_hours: student.used_hours || 0,
+    organization_id: student.organization_id,
     created_at: student.created_at,
     updated_at: student.updated_at,
     _links: {
@@ -98,7 +100,7 @@ students.get('/:id', validateParams(idParamSchema), async (c) => {
 
   // 查询学生信息
   const student = await DB.prepare(`
-    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
+    SELECT id, name, english_name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
     WHERE id = ?
     
   `).bind(id).first();
@@ -135,6 +137,7 @@ students.get('/:id', validateParams(idParamSchema), async (c) => {
   return c.json(success({
     id: student.id,
     name: student.name,
+    english_name: student.english_name,
     phone: student.phone,
     email: student.email,
     age: student.age,
@@ -176,10 +179,11 @@ students.post('/', validate(studentSchema), async (c) => {
     : (data.organization_id || 1);
 
   const result = await DB.prepare(`
-    INSERT INTO students (name, phone, email, age, grade, parent_name, notes, status, organization_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO students (name, english_name, phone, email, age, grade, parent_name, notes, status, organization_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     data.name,
+    data.english_name || null,
     data.phone || null,
     data.email || null,
     data.age || null,
@@ -193,6 +197,7 @@ students.post('/', validate(studentSchema), async (c) => {
   return c.json(success({
     id: result.meta.last_row_id,
     name: data.name,
+    english_name: data.english_name || null,
     status: data.status || 'active',
     created_at: new Date().toISOString(),
     _links: {
@@ -271,6 +276,18 @@ students.get('/', async (c) => {
   let whereClause = 'WHERE 1=1';
   const params = [];
 
+  // 数据隔离：根据用户角色过滤组织数据
+  const userRole = c.req.header('X-User-Role') || 'org_admin';
+  const userOrgId = c.req.header('X-Organization-Id');
+
+  if (userRole !== 'super_admin' && userOrgId) {
+    whereClause += ' AND organization_id = ?';
+    params.push(parseInt(userOrgId));
+  } else if (c.req.query('org_id')) {
+    whereClause += ' AND organization_id = ?';
+    params.push(parseInt(c.req.query('org_id')));
+  }
+
   if (search) {
     whereClause += ' AND (name LIKE ? OR phone LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
@@ -288,7 +305,7 @@ students.get('/', async (c) => {
   const finalPagination = calculatePagination(page, pageSize, total);
 
   const sql = `
-    SELECT id, name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, created_at, updated_at FROM students 
+    SELECT id, name, english_name, phone, email, age, grade, parent_name, notes, status, total_hours, used_hours, organization_id, created_at, updated_at FROM students 
     ${whereClause}
     
     ORDER BY created_at DESC
@@ -300,6 +317,7 @@ students.get('/', async (c) => {
   const data = results.results?.map(student => ({
     id: student.id,
     name: student.name,
+    english_name: student.english_name,
     phone: student.phone,
     email: student.email,
     age: student.age,
@@ -309,6 +327,7 @@ students.get('/', async (c) => {
     status: student.status,
     total_hours: student.total_hours || 0,
     used_hours: student.used_hours || 0,
+    organization_id: student.organization_id,
     created_at: student.created_at,
     updated_at: student.updated_at,
     _links: {

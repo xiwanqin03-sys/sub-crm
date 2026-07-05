@@ -3,7 +3,7 @@ import { User, Plus, Edit2, Trash2, Phone, Mail, BookOpen, Search, ExternalLink,
 import { Link } from 'react-router-dom';
 import { teacherOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
-import { setSelectedOrg } from '../store/api';
+import { setSelectedOrg, organizationOps } from '../store/api';
 
 export default function Teachers() {
   const [teachers, setTeachers] = useState([]);
@@ -11,6 +11,7 @@ export default function Teachers() {
   const [selectedOrg, setSelectedOrgState] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
+  const [orgs, setOrgs] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -18,16 +19,22 @@ export default function Teachers() {
     subjects: '',
     hourly_rate: '',
     status: 'active',
-    notes: ''
+    notes: '',
+    organization_ids: []
   });
 
   useEffect(() => {
     loadTeachers();
+    if (orgs.length === 0) {
+      organizationOps.getAll().then(data => setOrgs(data)).catch(() => {});
+    }
   }, []);
 
-  const loadTeachers = async () => {
+  const loadTeachers = async (orgId = null) => {
     try {
-      const data = await teacherOps.getAll();
+      const filterOrg = orgId !== null ? orgId : selectedOrg;
+      const params = filterOrg ? { org_id: filterOrg } : {};
+      const data = await teacherOps.getAll(params);
       setTeachers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Load error:', err);
@@ -35,14 +42,37 @@ export default function Teachers() {
     }
   };
 
+  // 机构多选切换
+  const toggleOrg = (orgId) => {
+    const id = parseInt(orgId);
+    setFormData(prev => {
+      const current = prev.organization_ids || [];
+      if (current.includes(id)) {
+        return { ...prev, organization_ids: current.filter(x => x !== id) };
+      } else {
+        return { ...prev, organization_ids: [...current, id] };
+      }
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // 至少选一个机构
+      if (!formData.organization_ids || formData.organization_ids.length === 0) {
+        alert('请至少选择一个所属机构');
+        return;
+      }
+
       const teacherData = {
         ...formData,
         subjects: formData.subjects.split(',').map(s => s.trim()).filter(Boolean),
-        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null
+        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+        organization_ids: formData.organization_ids.map(id => parseInt(id))
       };
+
+      // 如果就一个机构，也设置旧字段兼容
+      teacherData.organization_id = teacherData.organization_ids[0];
 
       if (editingTeacher) {
         await teacherOps.update(editingTeacher.id, teacherData);
@@ -53,13 +83,8 @@ export default function Teachers() {
       setShowModal(false);
       setEditingTeacher(null);
       setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        subjects: '',
-        hourly_rate: '',
-        status: 'active',
-        notes: ''
+        name: '', phone: '', email: '', subjects: '', hourly_rate: '',
+        status: 'active', notes: '', organization_ids: []
       });
       loadTeachers();
     } catch (err) {
@@ -69,6 +94,7 @@ export default function Teachers() {
 
   const handleEdit = (teacher) => {
     setEditingTeacher(teacher);
+    const orgIds = teacher.organization_ids || (teacher.organization_id ? [teacher.organization_id] : []);
     setFormData({
       name: teacher.name,
       phone: teacher.phone || '',
@@ -76,7 +102,8 @@ export default function Teachers() {
       subjects: (teacher.subjects || []).join(', '),
       hourly_rate: teacher.hourly_rate || '',
       status: teacher.status,
-      notes: teacher.notes || ''
+      notes: teacher.notes || '',
+      organization_ids: orgIds.map(id => parseInt(id))
     });
     setShowModal(true);
   };
@@ -108,13 +135,8 @@ export default function Teachers() {
           onClick={() => {
             setEditingTeacher(null);
             setFormData({
-              name: '',
-              phone: '',
-              email: '',
-              subjects: '',
-              hourly_rate: '',
-              status: 'active',
-              notes: ''
+              name: '', phone: '', email: '', subjects: '', hourly_rate: '',
+              status: 'active', notes: '', organization_ids: []
             });
             setShowModal(true);
           }}
@@ -137,7 +159,7 @@ export default function Teachers() {
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
+        <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); loadTeachers(orgId); }} />
       </div>
 
       {/* 在职教师 */}
@@ -145,12 +167,7 @@ export default function Teachers() {
         <h2 className="text-lg font-semibold text-gray-700 mb-3">在职教师 ({activeTeachers.length})</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeTeachers.map(teacher => (
-            <TeacherCard
-              key={teacher.id}
-              teacher={teacher}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <TeacherCard key={teacher.id} teacher={teacher} onEdit={handleEdit} onDelete={handleDelete} orgs={orgs} />
           ))}
         </div>
         {activeTeachers.length === 0 && (
@@ -164,12 +181,7 @@ export default function Teachers() {
           <h2 className="text-lg font-semibold text-gray-400 mb-3">离职教师 ({inactiveTeachers.length})</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
             {inactiveTeachers.map(teacher => (
-              <TeacherCard
-                key={teacher.id}
-                teacher={teacher}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              <TeacherCard key={teacher.id} teacher={teacher} onEdit={handleEdit} onDelete={handleDelete} orgs={orgs} />
             ))}
           </div>
         </div>
@@ -250,6 +262,40 @@ export default function Teachers() {
                 />
               </div>
 
+              {/* 所属机构 — 多选 checkbox */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  所属机构 <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-400 ml-2">（可多选，教师将出现在所选机构的排课中）</span>
+                </label>
+                <div className="flex flex-wrap gap-3 p-3 border rounded-lg bg-gray-50">
+                  {orgs.map(org => {
+                    const checked = formData.organization_ids.includes(parseInt(org.id));
+                    return (
+                      <label
+                        key={org.id}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
+                          checked
+                            ? 'bg-blue-100 border-blue-400 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleOrg(org.id)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                        <span className="text-sm font-medium">{org.name}</span>
+                      </label>
+                    );
+                  })}
+                  {orgs.length === 0 && (
+                    <span className="text-gray-400 text-sm">加载机构中...</span>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -273,7 +319,15 @@ export default function Teachers() {
   );
 }
 
-function TeacherCard({ teacher, onEdit, onDelete }) {
+function TeacherCard({ teacher, onEdit, onDelete, orgs }) {
+  const getOrgNames = () => {
+    const ids = teacher.organization_ids || (teacher.organization_id ? [teacher.organization_id] : [1]);
+    return ids.map(id => {
+      const org = orgs?.find(o => o.id === id || o.id === parseInt(id));
+      return org ? org.name : '总部';
+    });
+  };
+
   const [shareUrl, setShareUrl] = useState(null);
   const API_BASE = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
 
@@ -294,6 +348,8 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
     }
   };
 
+  const orgNames = getOrgNames();
+
   return (
     <div className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-3">
@@ -303,11 +359,18 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
           </div>
           <div>
             <h3 className="font-semibold">{teacher.name}</h3>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              teacher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {teacher.status === 'active' ? '在职' : '离职'}
-            </span>
+            <div className="flex items-center gap-1 flex-wrap mt-0.5">
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                teacher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {teacher.status === 'active' ? '在职' : '离职'}
+              </span>
+              {orgNames.map((name, i) => (
+                <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -320,7 +383,7 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
           >
             <Share2 className="w-4 h-4 text-green-500" />
           </button>
-          
+
           {/* 教师门户链接 */}
           <Link
             to={`/teacher/${teacher.id}`}
@@ -329,7 +392,7 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
           >
             <ExternalLink className="w-4 h-4 text-purple-500" />
           </Link>
-          
+
           {/* 编辑按钮 */}
           <button
             onClick={() => onEdit(teacher)}
@@ -337,7 +400,7 @@ function TeacherCard({ teacher, onEdit, onDelete }) {
           >
             <Edit2 className="w-4 h-4 text-gray-500" />
           </button>
-          
+
           {/* 删除按钮 */}
           <button
             onClick={() => onDelete(teacher.id)}

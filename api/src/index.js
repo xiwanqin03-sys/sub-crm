@@ -23,6 +23,9 @@ import teacherShare from './routes/teacherShare.js';
 import teacherPayments from './routes/teacherPayments.js';
 import hourChanges from './routes/hourChanges.js';
 import leads from './routes/leads.js';
+import authRoute from './routes/auth.js';
+import orgPackages from './routes/org-packages.js';
+import orgSettlements from './routes/org-settlements.js';
 
 const app = new Hono();
 
@@ -80,6 +83,9 @@ app.route('/api/v1/hour-changes', hourChanges);
 app.route('/api/v1/leads', leads);
 
 app.route('/api/v1/organizations', organizations);
+app.route('/api/v1/org-packages', orgPackages);
+app.route('/api/v1/org-settlements', orgSettlements);
+app.route('/api/v1/org', authRoute);
 
 // 404 处理
 app.notFound(notFound);

@@ -3,7 +3,7 @@ import { Search, Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { studentOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
-import { setSelectedOrg } from '../store/api';
+import { setSelectedOrg, organizationOps, getSelectedOrg, getUserRole } from '../store/api';
 
 export default function Students() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,15 +15,32 @@ export default function Students() {
   const [showModal, setShowModal] = useState(searchParams.get('action') === 'add');
   const [editingStudent, setEditingStudent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [orgs, setOrgs] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
+    english_name: '',
     phone: '',
     email: '',
     age: '',
     grade: '',
     parentName: '',
     notes: '',
+    organization_id: '',
   });
+
+  // 加载机构列表（用于新增/编辑弹窗中的机构选择）
+  useEffect(() => {
+    if (orgs.length === 0) {
+      organizationOps.getAll().then(data => setOrgs(data)).catch(() => {});
+    }
+  }, []);
+
+  // orgId → orgName 映射
+  const getOrgName = (orgId) => {
+    if (!orgId) return '总部';
+    const org = orgs.find(o => o.id === parseInt(orgId));
+    return org ? org.name : '总部';
+  };
 
   const loadStudents = useCallback(async () => {
     try {
@@ -51,6 +68,7 @@ export default function Students() {
       setSubmitting(true);
       const apiData = {
         name: formData.name,
+        english_name: formData.english_name || null,
         phone: formData.phone || null,
         email: formData.email || null,
         age: formData.age ? parseInt(formData.age) : null,
@@ -58,6 +76,7 @@ export default function Students() {
         parent_name: formData.parentName || null,
         notes: formData.notes || null,
         status: formData.status || 'active',
+        organization_id: formData.organization_id ? parseInt(formData.organization_id) : (selectedOrg ? parseInt(selectedOrg) : 1),
       };
       
       if (editingStudent) {
@@ -67,7 +86,7 @@ export default function Students() {
       }
       setShowModal(false);
       setEditingStudent(null);
-      setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active' });
+      setFormData({ name: '', english_name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active' });
       loadStudents();
     } catch (error) {
       console.error('保存学生失败:', error);
@@ -81,6 +100,7 @@ export default function Students() {
     setEditingStudent(student);
     setFormData({
       name: student.name || '',
+      english_name: student.english_name || '',
       phone: student.phone || '',
       email: student.email || '',
       age: student.age || '',
@@ -88,6 +108,7 @@ export default function Students() {
       parentName: student.parent_name || student.parentName || '',
       notes: student.notes || '',
       status: student.status || 'active',
+      organization_id: student.organization_id ? String(student.organization_id) : '',
     });
     setShowModal(true);
   };
@@ -164,6 +185,7 @@ export default function Students() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-6 py-4 font-medium text-gray-500">学生信息</th>
+                <th className="text-left px-6 py-4 font-medium text-gray-500">所属机构</th>
                 <th className="text-left px-6 py-4 font-medium text-gray-500">联系方式</th>
                 <th className="text-left px-6 py-4 font-medium text-gray-500">剩余课时</th>
                 <th className="text-left px-6 py-4 font-medium text-gray-500">状态</th>
@@ -185,12 +207,18 @@ export default function Students() {
                           </div>
                           <div>
                             <div className="font-medium text-gray-800">{student.name}</div>
+                            {student.english_name && <div className="text-sm text-gray-400">{student.english_name}</div>}
                             <div className="text-sm text-gray-500">
                               {student.grade && `年级: ${student.grade}`}
                               {student.age && ` | 年龄: ${student.age}`}
                             </div>
                           </div>
                         </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                          {getOrgName(student.organization_id)}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-600">{student.phone}</div>
@@ -236,7 +264,7 @@ export default function Students() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     {searchTerm ? '未找到匹配的学生' : '暂无学生数据'}
                   </td>
                 </tr>
@@ -261,6 +289,17 @@ export default function Students() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">英文名 *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.english_name}
+                  onChange={(e) => setFormData({ ...formData, english_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="如：Alice"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -334,13 +373,29 @@ export default function Students() {
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
+              {/* 所属机构选择 - super_admin 可选，普通用户自动锁定 */}
+              {orgs.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">所属机构</label>
+                  <select
+                    value={formData.organization_id}
+                    onChange={(e) => setFormData({ ...formData, organization_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">请选择机构</option>
+                    {orgs.map(org => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowModal(false);
                     setEditingStudent(null);
-                    setFormData({ name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active' });
+                    setFormData({ name: '', english_name: '', phone: '', email: '', age: '', grade: '', parentName: '', notes: '', status: 'active', organization_id: '' });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={submitting}

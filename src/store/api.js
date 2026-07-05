@@ -1,41 +1,78 @@
 // API 配置
 const API_BASE_URL = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
-const API_KEY = 'sunnybridge-dev-key-2024';
+const API_KEY='sunnyb...2024';
 
 // 当前选中的机构 ID（用于多机构数据隔离）
 let _selectedOrgId = '';
 let _userRole = 'super_admin'; // 默认超管，后续从登录态获取
+
+// 机构端登录 token（localStorage 持久化）
+let _orgToken = localStorage.getItem('org_token') || '';
+let _orgId = localStorage.getItem('org_id') || '';
+let _orgName = localStorage.getItem('org_name') || '';
 
 export function setSelectedOrg(orgId) { _selectedOrgId = orgId; }
 export function getSelectedOrg() { return _selectedOrgId; }
 export function setUserRole(role) { _userRole = role; }
 export function getUserRole() { return _userRole; }
 
+// 机构端登录/登出
+export function setOrgSession(token, orgId, orgName) {
+  _orgToken = token;
+  _orgId = String(orgId);
+  _orgName = orgName;
+  localStorage.setItem('org_token', token);
+  localStorage.setItem('org_id', String(orgId));
+  localStorage.setItem('org_name', orgName);
+  // 机构端：设置角色为 org_admin，锁定 orgId
+  _userRole = 'org_admin';
+  _selectedOrgId = String(orgId);
+}
+export function clearOrgSession() {
+  _orgToken = '';
+  _orgId = '';
+  _orgName = '';
+  localStorage.removeItem('org_token');
+  localStorage.removeItem('org_id');
+  localStorage.removeItem('org_name');
+  // 恢复超管
+  _userRole = 'super_admin';
+  _selectedOrgId = '';
+}
+export function getOrgSession() {
+  return { token: _orgToken, orgId: _orgId, orgName: _orgName };
+}
+export function isOrgLoggedIn() {
+  return !!_orgToken;
+}
+
 // 通用请求函数
-async function request(endpoint, options = {}) {
+export async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  const config = {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': API_KEY,
-      'X-User-Role': _userRole,
-      ...(_selectedOrgId ? { 'X-Organization-Id': _selectedOrgId } : {}),
-      ...options.headers,
-    },
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-API-Key': API_KEY,
+    'X-User-Role': _userRole,
+    ...(_selectedOrgId ? { 'X-Organization-Id': _selectedOrgId } : {}),
+    ...options.headers,
   };
+  // 机构端登录后附加 Authorization
+  if (_orgToken) {
+    headers['Authorization'] = `Bearer ${_orgToken}`;
+  }
+  const config = { ...options, headers };
 
   if (config.body && typeof config.body === 'object') {
     config.body = JSON.stringify(config.body);
   }
 
   const response = await fetch(url, config);
-  
+
   // 处理空响应（204 No Content）
   if (response.status === 204) {
     return null;
   }
-  
+
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.error?.message || `HTTP ${response.status}`);
@@ -230,8 +267,9 @@ export const paymentOps = {
     const result = await request(`/payments/student/${studentId}`);
     return result.data?.data || result.data || [];
   },
-  getAll: async () => {
-    const result = await request('/payments');
+  getAll: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const result = await request(query ? `/payments?${query}` : '/payments');
     return result.data?.data || result.data || [];
   },
   add: async (studentId, payment) => {
@@ -264,8 +302,9 @@ export const hourChangeOps = {
 // 教师相关操作
 // ============================================
 export const teacherOps = {
-  getAll: async () => {
-    const result = await request('/teachers');
+  getAll: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const result = await request(query ? `/teachers?${query}` : '/teachers');
     return result.data?.items || result.data?.data || result.data || [];
   },
   getById: async (id) => {

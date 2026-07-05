@@ -23,10 +23,14 @@ payments.get('/', async (c) => {
   if (userRole !== 'super_admin' && userOrgId) {
     whereClause += ' AND p.organization_id = ?';
     params.push(parseInt(userOrgId));
+  } else if (c.req.query('org_id')) {
+    whereClause += ' AND p.organization_id = ?';
+    params.push(parseInt(c.req.query('org_id')));
   }
 
   // 查询总数
-  const countResult = await DB.prepare('SELECT COUNT(*) as total FROM payments').first();
+  const countSql = `SELECT COUNT(*) as total FROM payments p ${whereClause}`;
+  const countResult = await DB.prepare(countSql).bind(...params).first();
   const total = countResult?.total || 0;
   const pagination = calculatePagination(page, pageSize, total);
 
@@ -53,6 +57,7 @@ payments.get('/', async (c) => {
     date: payment.date,
     notes: payment.notes,
     receipt_number: payment.receipt_number,
+    organization_id: payment.organization_id,
     created_at: payment.created_at
   })) || [];
 
@@ -103,6 +108,7 @@ payments.get('/student/:student_id', async (c) => {
     date: payment.date,
     notes: payment.notes,
     receipt_number: payment.receipt_number,
+    organization_id: payment.organization_id,
     created_at: payment.created_at,
     _links: {
       self: `/api/v1/payments/${payment.id}`,
@@ -154,6 +160,7 @@ payments.get('/:id', validateParams(idParamSchema), async (c) => {
     date: payment.date,
     notes: payment.notes,
     receipt_number: payment.receipt_number,
+    organization_id: payment.organization_id,
     created_at: payment.created_at,
     _links: {
       self: `/api/v1/payments/${payment.id}`,

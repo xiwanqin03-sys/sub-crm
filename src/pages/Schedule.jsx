@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Trash2, CheckCircle, Clock, XCircle, Building2 } from 'lucide-react';
 import { teacherOps, studentOps, classOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
-import { setSelectedOrg } from '../store/api';
+import { setSelectedOrg, organizationOps } from '../store/api';
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const TIME_SLOTS = [
@@ -34,6 +34,7 @@ export default function Schedule() {
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [selectedOrg, setSelectedOrgState] = useState('');
+  const [orgs, setOrgs] = useState([]);
   const [formData, setFormData] = useState({
     student_id: '',
     teacher_id: '',
@@ -41,20 +42,27 @@ export default function Schedule() {
     time: '10:00',
     duration: 60,
     subject: '英语',
-    notes: ''
+    notes: '',
+    organization_id: ''
   });
+
+  // 加载机构列表
+  useEffect(() => {
+    organizationOps.getAll().then(data => setOrgs(data)).catch(() => {});
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
+      const params = selectedOrg ? { org_id: selectedOrg } : {};
       const [teachersData, studentsData] = await Promise.all([
-        teacherOps.getAll(),
-        studentOps.getAll()
+        teacherOps.getAll(params),
+        studentOps.getAll(params)
       ]);
       setTeachers(Array.isArray(teachersData) ? teachersData.filter(t => t.status === 'active') : []);
       setStudents(Array.isArray(studentsData) ? studentsData.filter(s => s.status === 'active') : []);
 
-      const classesData = await classOps.getAll();
+      const classesData = await classOps.getAll(params);
       // 加载所有状态的课程（包括已完成的）
       const allClasses = Array.isArray(classesData) ? classesData : [];
       setSchedules(allClasses);
@@ -113,6 +121,45 @@ export default function Schedule() {
     setCurrentDate(new Date());
   };
 
+  // 根据当前弹窗选择的机构获取学生/教师
+  const getFilteredStudents = () => {
+    if (!formData.organization_id) return [];
+    const orgId = parseInt(formData.organization_id);
+    return students.filter(s => {
+      const sOrg = s.organization_id || s.organization_ids?.[0]
+      return sOrg === orgId
+    });
+  };
+
+  const getFilteredTeachers = () => {
+    if (!formData.organization_id) return [];
+    const orgId = parseInt(formData.organization_id);
+    return teachers.filter(t => {
+      const orgIds = t.organization_ids || (t.organization_id ? [t.organization_id] : []);
+      return orgIds.includes(orgId);
+    });
+  };
+
+  // 排除当前选中的日期/时间段有冲突的老师
+  const getAvailableTeachers = () => {
+    const filtered = getFilteredTeachers();
+    if (!formData.date || !formData.time) return filtered;
+    // 计算结束时间
+    const [h, m] = formData.time.split(':').map(Number);
+    const endH = h + Math.floor(formData.duration / 60);
+    const endM = m + (formData.duration % 60);
+    const endTime = `${String(endH).padStart(2, '0')}:${String(endM % 60).padStart(2, '0')}`;
+    return filtered.filter(t => {
+      const hasConflict = schedules.some(s => {
+        if (editingSchedule && s.id === editingSchedule.id) return false;
+        if (s.teacher_id !== t.id || s.date !== formData.date || s.status === 'cancelled') return false;
+        if (!s.start_time || !s.end_time) return false;
+        return formData.time < s.end_time && endTime > s.start_time;
+      });
+      return !hasConflict;
+    });
+  };
+
   const handleSlotClick = (date, time) => {
     setFormData({
       student_id: '',
@@ -121,7 +168,8 @@ export default function Schedule() {
       time: time,
       duration: 60,
       subject: '英语',
-      notes: ''
+      notes: '',
+      organization_id: ''
     });
     setEditingSchedule(null);
     setShowModal(true);
@@ -129,6 +177,9 @@ export default function Schedule() {
 
   const handleEditSchedule = (schedule) => {
     setEditingSchedule(schedule);
+    // 从课程的学生反查机构
+    const matchedStudent = students.find(s => s.id === schedule.student_id);
+    const orgId = matchedStudent?.organization_id || matchedStudent?.organization_ids?.[0] || '';
     setFormData({
       student_id: schedule.student_id?.toString() || '',
       teacher_id: schedule.teacher_id?.toString() || '',
@@ -136,7 +187,8 @@ export default function Schedule() {
       time: schedule.start_time || '10:00',
       duration: schedule.hours ? schedule.hours * 60 : 60,
       subject: schedule.subject || '英语',
-      notes: schedule.notes || ''
+      notes: schedule.notes || '',
+      organization_id: orgId ? String(orgId) : ''
     });
     setShowModal(true);
   };
@@ -173,6 +225,25 @@ export default function Schedule() {
       const endMinutes = minutes + (formData.duration % 60);
       const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
       
+      // ── 前端老师时间冲突检查（提前拦截，给更好体验）──
+      if (formData.teacher_id) {
+        const teacherId = parseInt(formData.teacher_id);
+        const conflicts = schedules.filter(s => {
+          // 编辑时排除自己
+          if (editingSchedule && s.id === editingSchedule.id) return false;
+          // 同一老师、同一日期、非取消状态
+          if (s.teacher_id !== teacherId || s.date !== formData.date || s.status === 'cancelled') return false;
+          // 时间区间重叠：start < otherEnd && end > otherStart
+          if (!s.start_time || !s.end_time) return false;
+          return formData.time < s.end_time && endTime > s.start_time;
+        });
+        if (conflicts.length > 0) {
+          const conflictNames = conflicts.map(c => getStudentName(c.student_id)).join('、');
+          alert(`⚠️ 教师时间冲突！\n\n该教师 ${formData.date} ${formData.time}-${endTime} 已有课程：\n${conflictNames}\n\n请选择其他时间或教师。`);
+          return;
+        }
+      }
+      
       const scheduleData = {
         student_id: formData.student_id ? parseInt(formData.student_id) : null,
         teacher_id: formData.teacher_id ? parseInt(formData.teacher_id) : null,
@@ -183,7 +254,8 @@ export default function Schedule() {
         hours: formData.duration / 60,
         subject: formData.subject,
         notes: formData.notes,
-        status: 'scheduled'
+        status: 'scheduled',
+        organization_id: formData.organization_id ? parseInt(formData.organization_id) : null
       };
       
       if (editingSchedule) {
@@ -200,7 +272,13 @@ export default function Schedule() {
       setEditingSchedule(null);
       loadData();
     } catch (err) {
-      alert('保存失败：' + err.message);
+      // 后端冲突拦截（409）
+      const msg = err?.message || '';
+      if (msg.includes('TEACHER_CONFLICT') || msg.includes('教师时间冲突')) {
+        alert(msg.replace('TEACHER_CONFLICT: ', '').replace('TEACHER_CONFLICT', ''));
+      } else {
+        alert('保存失败：' + msg);
+      }
     }
   };
 
@@ -221,7 +299,8 @@ export default function Schedule() {
   const getStudentName = (id) => {
     if (!id) return '未知学生';
     const student = students.find(s => s.id === parseInt(id) || s.id === id);
-    return student?.name || '未知学生';
+    if (!student) return '未知学生';
+    return student.english_name ? `${student.name} (${student.english_name})` : student.name;
   };
 
   const getTeacherName = (id) => {
@@ -244,6 +323,7 @@ export default function Schedule() {
           <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
         </div>
         <div className="flex items-center gap-2">
+          greenhouse
           <button
             onClick={handleToday}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
@@ -325,7 +405,7 @@ export default function Schedule() {
                             </div>
                           </div>
                           <div className={`truncate ml-4 ${statusStyle.text.replace('800', '600')}`}>
-                            {getTeacherName(schedule.teacher_id)}
+                            {schedule.teacher_name || getTeacherName(schedule.teacher_id)}
                           </div>
                           <button
                             onClick={(e) => {
@@ -356,6 +436,22 @@ export default function Schedule() {
               {editingSchedule ? '编辑排课' : '添加排课'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* 所属机构 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">所属机构 *</label>
+                <select
+                  value={formData.organization_id}
+                  onChange={(e) => setFormData({ ...formData, organization_id: e.target.value, student_id: '', teacher_id: '' })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  required
+                >
+                  <option value="">选择机构</option>
+                  {orgs.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">学生 *</label>
                 <select
@@ -363,12 +459,16 @@ export default function Schedule() {
                   onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                   required
+                  disabled={!formData.organization_id}
                 >
                   <option value="">选择学生</option>
-                  {students.map(s => (
+                  {getFilteredStudents().map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+                {!formData.organization_id && (
+                  <p className="text-xs text-gray-400 mt-1">请先选择所属机构</p>
+                )}
               </div>
 
               <div>
@@ -378,12 +478,27 @@ export default function Schedule() {
                   onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                   required
+                  disabled={!formData.organization_id}
                 >
                   <option value="">选择教师</option>
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                  {getAvailableTeachers().map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ✓</option>
                   ))}
+                  {/* 有冲突的老师灰色显示，不可选 */}
+                  {formData.date && formData.time && getFilteredTeachers()
+                    .filter(t => !getAvailableTeachers().some(a => a.id === t.id))
+                    .map(t => (
+                      <option key={t.id} value={t.id} disabled className="text-gray-300">
+                        {t.name} ✗冲突
+                      </option>
+                    ))}
                 </select>
+                {!formData.organization_id && (
+                  <p className="text-xs text-gray-400 mt-1">请先选择所属机构</p>
+                )}
+                {formData.date && formData.time && getFilteredTeachers().length > 0 && getAvailableTeachers().length === 0 && (
+                  <p className="text-xs text-orange-500 mt-1">⚠️ 该时间段所有教师都有冲突</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

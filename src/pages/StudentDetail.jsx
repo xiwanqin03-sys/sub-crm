@@ -166,6 +166,7 @@ export default function StudentDetail() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-800">{student.name}</h1>
+              {student.english_name && <div className="text-sm text-gray-400 mt-0.5">{student.english_name}</div>}
               <div className="flex items-center gap-4 mt-2 text-gray-500">
                 {student.phone && (
                   <span className="flex items-center gap-1">

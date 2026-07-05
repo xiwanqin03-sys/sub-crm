@@ -9,7 +9,7 @@ export default function Organizations() {
   const [showModal, setShowModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: ''
+    name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +42,7 @@ export default function Organizations() {
       }
       setShowModal(false);
       setEditingOrg(null);
-      setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '' });
+      setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '' });
       fetchOrgs();
     } catch (e) {
       console.error('保存机构失败:', e);
@@ -57,7 +57,8 @@ export default function Organizations() {
     setFormData({
       name: org.name || '', contact_name: org.contact_name || '',
       contact_phone: org.contact_phone || '', contact_email: org.contact_email || '',
-      address: org.address || '', notes: org.notes || ''
+      address: org.address || '', notes: org.notes || '',
+      login_code: org.login_code || '', password: ''
     });
     setShowModal(true);
   };
@@ -74,7 +75,7 @@ export default function Organizations() {
 
   const handleAdd = () => {
     setEditingOrg(null);
-    setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '' });
+    setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '' });
     setShowModal(true);
   };
 
@@ -167,6 +168,11 @@ export default function Organizations() {
                 <span>学生: {org.student_count || 0}</span>
                 <span>教师: {org.teacher_count || 0}</span>
                 <span>课程: {org.class_count || 0}</span>
+                {org.login_code && (
+                  <span className="ml-auto text-primary-500">
+                    {org.has_password ? '🔑 已设登录' : '⚠️ 未设密码'}
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -240,6 +246,36 @@ export default function Organizations() {
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
+
+              {/* 机构登录 */}
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-400 mb-3">机构端登录设置（可选）</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">登录代码</label>
+                  <input
+                    type="text"
+                    value={formData.login_code}
+                    onChange={e => setFormData({...formData, login_code: e.target.value.toLowerCase().trim()})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="如：sunnybridge"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    密码 {editingOrg && <span className="text-xs text-gray-400">（留空=不修改）</span>}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={e => setFormData({...formData, password: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder={editingOrg ? '输入新密码修改' : '设置登录密码'}
+                  />
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
                   取消

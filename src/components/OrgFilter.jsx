@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Building2, ChevronDown } from 'lucide-react';
-import { organizationOps } from '../store/api';
+import { organizationOps, getUserRole } from '../store/api';
 
 /**
  * 机构筛选下拉组件
- * 超级管理员可以看到并选择机构；普通用户隐藏。
+ * 超级管理员可以看到并选择机构；机构端/普通用户自动隐藏。
  * 
  * Props:
  * - selectedOrg: 当前选中的机构 ID（string）
@@ -30,6 +30,9 @@ export default function OrgFilter({ selectedOrg, onChange, className = '' }) {
     }
   };
 
+  // 机构端或非超管角色：直接隐藏
+  const role = getUserRole();
+  if (role !== 'super_admin') return null;
   if (loading) return null;
   if (orgs.length <= 1) return null; // 只有一个机构时不需要筛选
 
