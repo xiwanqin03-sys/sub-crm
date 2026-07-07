@@ -1,11 +1,10 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import PasswordProtect from './components/PasswordProtect';
-import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, DollarSign, Building2, Receipt, Package } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, Building2, Receipt, Package } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
 import Payments from './pages/Payments';
-import TeacherPayments from './pages/TeacherPayments';
 import SettingsPage from './pages/Settings';
 import ParentView from './pages/ParentView';
 import Classes from './pages/Classes';
@@ -82,17 +81,6 @@ function Sidebar() {
         >
           <GraduationCap size={20} />
           <span>教师管理</span>
-        </NavLink>
-        <NavLink
-          to="/teacher-payments"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
-            }`
-          }
-        >
-          <DollarSign size={20} />
-          <span>教师薪资</span>
         </NavLink>
         <NavLink
           to="/schedule"
@@ -187,7 +175,6 @@ function App() {
                     <Route path="/students" element={<Students />} />
                     <Route path="/students/:id" element={<StudentDetail />} />
                     <Route path="/payments" element={<Payments />} />
-                    <Route path="/teacher-payments" element={<TeacherPayments />} />
                     <Route path="/classes" element={<Classes />} />
                     <Route path="/teachers" element={<Teachers />} />
                     <Route path="/schedule" element={<Schedule />} />

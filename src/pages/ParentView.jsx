@@ -216,14 +216,14 @@ function ParentStudentView() {
                       )}
                     </div>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      pkg.remaining < 5 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      pkg.remaining < 3 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
                     }`}>
                       {pkg.remaining} 节剩余
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
-                      className={`h-2 rounded-full ${pkg.remaining < 5 ? 'bg-red-400' : 'bg-orange-500'}`}
+                      className={`h-2 rounded-full ${pkg.remaining < 3 ? 'bg-red-400' : 'bg-orange-500'}`}
                       style={{ width: `${(pkg.remaining / pkg.total) * 100}%` }}
                     />
                   </div>

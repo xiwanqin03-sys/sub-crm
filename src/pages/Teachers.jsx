@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { User, Plus, Edit2, Trash2, Phone, Mail, BookOpen, Search, ExternalLink, Share2 } from 'lucide-react';
+import { User, Plus, Edit2, Trash2, Phone, Mail, BookOpen, Search, ExternalLink, Share2, Lock, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { teacherOps } from '../store';
+import { teacherPaymentOps } from '../store/api';
 import OrgFilter from '../components/OrgFilter';
 import { setSelectedOrg, organizationOps } from '../store/api';
+import TeacherPayments from './TeacherPayments';
 
 export default function Teachers() {
   const [teachers, setTeachers] = useState([]);
@@ -12,6 +14,11 @@ export default function Teachers() {
   const [showModal, setShowModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [orgs, setOrgs] = useState([]);
+  const [activeTab, setActiveTab] = useState('list');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordVerified, setPasswordVerified] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -127,8 +134,75 @@ export default function Teachers() {
   const activeTeachers = filteredTeachers.filter(t => t.status === 'active');
   const inactiveTeachers = filteredTeachers.filter(t => t.status === 'inactive');
 
+
+  const handleTabChange = (tab) => {
+    if (tab === 'payments' && !passwordVerified) {
+      setShowPasswordModal(true);
+    }
+    setActiveTab(tab);
+  };
+
+  const verifyPassword = async () => {
+    try {
+      const API_BASE = 'https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1';
+      const res = await fetch(`${API_BASE}/settings/verify-teacher-payment-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (data.success || data.data?.valid) {
+        setPasswordVerified(true);
+        setShowPasswordModal(false);
+        setPassword('');
+        setPasswordError('');
+      } else {
+        setPasswordError('密码错误，请重试');
+      }
+    } catch (err) {
+      setPasswordError('验证失败：' + err.message);
+    }
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPassword('');
+    setPasswordError('');
+    if (activeTab === 'payments') {
+      setActiveTab('list');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-4">
+        <button
+          onClick={() => setActiveTab('list')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'list'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          教师列表
+        </button>
+        <button
+          onClick={() => handleTabChange('payments')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
+            activeTab === 'payments'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <DollarSign className="w-4 h-4"/>
+          薪资结算
+          {passwordVerified && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">已解锁</span>}
+        </button>
+      </div>
+
+      {activeTab === 'list' ? (
+        <>
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">教师管理</h1>
         <button
@@ -188,6 +262,52 @@ export default function Teachers() {
       )}
 
       {/* 添加/编辑弹窗 */}
+        </>
+      ) : (
+        <TeacherPayments />
+      )}
+
+      {/* 密码验证弹窗 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-bold">输入密码</h2>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">
+              查看薪资结算需要密码验证
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && verifyPassword()}
+              placeholder="请输入密码"
+              className="w-full px-4 py-2 border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-red-500 text-sm mb-3">{passwordError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleClosePasswordModal}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={verifyPassword}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                验证
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto">
@@ -228,16 +348,6 @@ export default function Teachers() {
                   value={formData.subjects}
                   onChange={(e) => setFormData({ ...formData, subjects: e.target.value })}
                   placeholder="例如: 英语, 数学, 物理"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">时薪（₱/小时）</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -428,11 +538,6 @@ function TeacherCard({ teacher, onEdit, onDelete, orgs }) {
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             <span>{teacher.subjects.join(', ')}</span>
-          </div>
-        )}
-        {teacher.hourly_rate && (
-          <div className="text-green-600 font-medium">
-            ₱{teacher.hourly_rate}/小时
           </div>
         )}
       </div>

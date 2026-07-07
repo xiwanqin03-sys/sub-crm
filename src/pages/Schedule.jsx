@@ -4,6 +4,13 @@ import { teacherOps, studentOps, classOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
 import { setSelectedOrg, organizationOps } from '../store/api';
 
+// 时长(分钟) → 课时数 映射：25分钟=0.5课时, 50分钟=1课时
+function durationToHours(duration) {
+  if (duration === 25) return 0.5;
+  if (duration === 50) return 1.0;
+  return duration / 60;
+}
+
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const TIME_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -40,7 +47,7 @@ export default function Schedule() {
     teacher_id: '',
     date: '',
     time: '10:00',
-    duration: 60,
+    duration: 50,
     subject: '英语',
     notes: '',
     organization_id: ''
@@ -93,7 +100,10 @@ export default function Schedule() {
   };
 
   const formatDateKey = (date) => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatDisplayDate = (date) => {
@@ -166,7 +176,7 @@ export default function Schedule() {
       teacher_id: '',
       date: formatDateKey(date),
       time: time,
-      duration: 60,
+      duration: 50,
       subject: '英语',
       notes: '',
       organization_id: ''
@@ -211,7 +221,7 @@ export default function Schedule() {
       if (formData.student_id && !editingSchedule) {
         const studentData = await studentOps.getById(formData.student_id);
         const totalHours = studentData?.total_hours ?? 0; const usedHours = studentData?.used_hours ?? 0; const totalRemaining = totalHours - usedHours;
-        const hoursNeeded = formData.duration / 60;
+        const hoursNeeded = durationToHours(formData.duration);
         
         if (totalRemaining < hoursNeeded) {
           alert(`课时不足！该学生剩余 ${totalRemaining} 节，需要 ${hoursNeeded} 节。请先购买课时。`);
@@ -251,7 +261,7 @@ export default function Schedule() {
         date: formData.date,
         start_time: formData.time,
         end_time: endTime,
-        hours: formData.duration / 60,
+        hours: durationToHours(formData.duration),
         subject: formData.subject,
         notes: formData.notes,
         status: 'scheduled',
@@ -531,11 +541,9 @@ export default function Schedule() {
                     onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value={30}>30分钟</option>
-                    <option value={40}>40分钟</option>
+                    <option value={25}>25分钟 (0.5课时)</option>
+                    <option value={50}>50分钟 (1课时)</option>
                     <option value={60}>60分钟</option>
-                    
-                    
                   </select>
                 </div>
                 <div>

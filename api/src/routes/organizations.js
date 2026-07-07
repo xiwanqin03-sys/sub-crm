@@ -34,29 +34,36 @@ organizations.get('/', async (c) => {
     LIMIT ? OFFSET ?
   `).bind(...params, parseInt(pageSize), offset).all();
 
-  const data = results.results?.map(org => ({
-    id: org.id,
-    name: org.name,
-    login_code: org.login_code,
-    has_password: !!org.password_hash,
-    contact_name: org.contact_name,
-    contact_phone: org.contact_phone,
-    contact_email: org.contact_email,
-    address: org.address,
-    notes: org.notes,
-    unit_price_cny: org.unit_price_cny,
-    settlement_day: org.settlement_day,
-    credit_limit_cny: org.credit_limit_cny,
-    status: org.status,
-    created_at: org.created_at,
-    updated_at: org.updated_at,
-    _links: {
-      self: `/api/v1/organizations/${org.id}`,
-      students: `/api/v1/organizations/${org.id}/students`,
-      teachers: `/api/v1/organizations/${org.id}/teachers`,
-      classes: `/api/v1/organizations/${org.id}/classes`
-    }
-  })) || [];
+  const orgs = results.results || [];
+  const data = await Promise.all(orgs.map(async org => {
+    const stats = await getOrgStats(DB, org.id);
+    return {
+      id: org.id,
+      name: org.name,
+      login_code: org.login_code,
+      has_password: !!org.password_hash,
+      contact_name: org.contact_name,
+      contact_phone: org.contact_phone,
+      contact_email: org.contact_email,
+      address: org.address,
+      notes: org.notes,
+      unit_price_cny: org.unit_price_cny,
+      settlement_day: org.settlement_day,
+      credit_limit_cny: org.credit_limit_cny,
+      status: org.status,
+      student_count: stats.student_count,
+      teacher_count: stats.teacher_count,
+      class_count: stats.class_count,
+      created_at: org.created_at,
+      updated_at: org.updated_at,
+      _links: {
+        self: `/api/v1/organizations/${org.id}`,
+        students: `/api/v1/organizations/${org.id}/students`,
+        teachers: `/api/v1/organizations/${org.id}/teachers`,
+        classes: `/api/v1/organizations/${org.id}/classes`
+      }
+    };
+  }));
 
   return c.json(success({
     data,
@@ -245,16 +252,17 @@ organizations.get('/:id/teachers', async (c) => {
 
 // 辅助函数：获取机构统计数据
 async function getOrgStats(DB, orgId) {
-  const [studentCount, teacherCount, classCount] = await Promise.all([
-    DB.prepare('SELECT COUNT(*) as count FROM students WHERE organization_id = ?').bind(orgId).first(),
-    DB.prepare('SELECT COUNT(*) as count FROM teachers WHERE organization_id = ?').bind(orgId).first(),
-    DB.prepare('SELECT COUNT(*) as count FROM classes WHERE organization_id = ?').bind(orgId).first()
-  ]);
+  const studentResult = await DB.prepare('SELECT COUNT(*) as count FROM students WHERE organization_id = ?').bind(orgId).first();
+  const classResult = await DB.prepare('SELECT COUNT(*) as count FROM classes WHERE organization_id = ?').bind(orgId).first();
+  
+  // teachers 用 organization_ids JSON 数组，用 LIKE 匹配
+  const likePattern = `%${orgId}%`;
+  const teacherResult = await DB.prepare(`SELECT COUNT(*) as count FROM teachers WHERE organization_ids LIKE '${likePattern}'`).first();
 
   return {
-    student_count: studentCount?.count || 0,
-    teacher_count: teacherCount?.count || 0,
-    class_count: classCount?.count || 0
+    student_count: studentResult?.count || 0,
+    teacher_count: teacherResult?.count || 0,
+    class_count: classResult?.count || 0
   };
 }
 

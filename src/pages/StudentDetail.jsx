@@ -198,7 +198,7 @@ export default function StudentDetail() {
         </div>
 
         {/* 课时不足警告 */}
-        {totalRemaining > 0 && totalRemaining < 5 && (
+        {totalRemaining > 0 && totalRemaining < 3 && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
             <AlertTriangle size={18} />
             <span className="text-sm font-medium">课时不足！剩余 {totalRemaining} 节，请提醒家长续费</span>
@@ -212,7 +212,11 @@ export default function StudentDetail() {
         )}
 
         {/* 快速统计 */}
-        <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div className="grid grid-cols-5 gap-4 mt-6 pt-6 border-t border-gray-100">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-800">{student?.total_hours ?? student?.package_summary?.total_hours ?? 0}</div>
+            <div className="text-sm text-gray-500">总课时</div>
+          </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-primary-600">{totalRemaining}</div>
             <div className="text-sm text-gray-500">剩余课时</div>
@@ -280,7 +284,7 @@ export default function StudentDetail() {
                 ))}
               </div>
             )}
-            {totalRemaining < 5 && (
+            {totalRemaining < 3 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 课时不足，请提醒家长续费
               </div>

@@ -229,7 +229,7 @@ export default function Students() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`font-semibold ${
-                          remaining < 5 ? 'text-red-500' : remaining < 10 ? 'text-orange-500' : 'text-green-500'
+                          remaining < 3 ? 'text-red-500' : remaining < 10 ? 'text-orange-500' : 'text-green-500'
                         }`}>
                           {remaining} 节
                         </span>

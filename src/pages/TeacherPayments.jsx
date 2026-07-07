@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Calendar, CheckCircle, XCircle, Plus, RefreshCw, Trash2, CreditCard } from 'lucide-react';
+import { DollarSign, Calendar, CheckCircle, XCircle, Plus, RefreshCw, Trash2, CreditCard, Edit2, ChevronDown, ChevronUp, Filter, Clock } from 'lucide-react';
 import { teacherOps, teacherPaymentOps } from '../store';
 
 
@@ -12,6 +12,16 @@ export default function TeacherPayments() {
   const [payMethod, setPayMethod] = useState('gcash');
   const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [editingRateTeacher, setEditingRateTeacher] = useState(null);
+  const [rateValue, setRateValue] = useState('');
+  const [showRateSection, setShowRateSection] = useState(false);
+  
+  // 筛选状态
+  const [filterTeacher, setFilterTeacher] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  
   const [formData, setFormData] = useState({
     teacher_id: '',
     period_start: '',
@@ -42,6 +52,49 @@ export default function TeacherPayments() {
     }
   };
 
+  const handleEditRate = (teacher) => {
+    setEditingRateTeacher(teacher);
+    setRateValue(teacher.hourly_rate || '');
+    setShowRateModal(true);
+  };
+
+  const handleSaveRate = async () => {
+    if (!editingRateTeacher) return;
+    try {
+      await teacherOps.update(editingRateTeacher.id, {
+        ...editingRateTeacher,
+        hourly_rate: rateValue ? parseFloat(rateValue) : null
+      });
+      setShowRateModal(false);
+      loadTeachers();
+    } catch (err) {
+      alert('保存失败：' + err.message);
+    }
+  };
+
+  // 统计数据
+  const getFilteredPayments = () => {
+    return payments.filter(p => {
+      if (filterTeacher && p.teacher_id !== parseInt(filterTeacher)) return false;
+      if (filterMonth && !p.period_start.startsWith(filterMonth)) return false;
+      if (filterStatus && p.status !== filterStatus) return false;
+      return true;
+    });
+  };
+
+  const filteredPayments = getFilteredPayments();
+
+  const stats = {
+    pending: payments.filter(p => p.status === 'pending'),
+    paidThisMonth: payments.filter(p => {
+      if (p.status !== 'paid') return false;
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      return p.period_start.startsWith(currentMonth);
+    }),
+    total: payments
+  };
+
   const getThisWeek = () => {
     const now = new Date();
     const dayOfWeek = now.getDay();
@@ -65,6 +118,30 @@ export default function TeacherPayments() {
       start: lastStart.toISOString().split('T')[0],
       end: lastEnd.toISOString().split('T')[0]
     };
+  };
+
+  // 选择教师后自动填充开始日期
+  const handleTeacherChange = (teacherId) => {
+    let periodStart = '';
+    
+    if (teacherId) {
+      const teacherPayments = payments.filter(p => p.teacher_id === parseInt(teacherId));
+      if (teacherPayments.length > 0) {
+        const lastPayment = teacherPayments.sort((a, b) => 
+          new Date(b.period_end) - new Date(a.period_end)
+        )[0];
+        const lastEnd = lastPayment.period_end;
+        const nextDay = new Date(lastEnd);
+        nextDay.setDate(nextDay.getDate() + 1);
+        periodStart = nextDay.toISOString().split('T')[0];
+      }
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      teacher_id: teacherId,
+      period_start: periodStart
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -116,7 +193,7 @@ export default function TeacherPayments() {
       await teacherPaymentOps.delete(id);
       loadPayments();
     } catch (err) {
-      alert('删除失败: ' + err.message);
+      alert('删除失败：' + err.message);
     }
   };
 
@@ -140,124 +217,262 @@ export default function TeacherPayments() {
   const paymentMethodLabels = {
     gcash: 'GCash',
     bank: '银行转账',
-    cash: '现金',
+ cash: '现金',
     other: '其他'
   };
 
+  const activeTeachers = teachers.filter(t => t.status === 'active');
+
   return (
-    <div className="p-6">
+    <div className="p-6 relative min-h-screen">
+      {/* 标题 */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">教师薪资结算</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-        >
-          <Plus size={20} />
-          新建结算
-        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">教师</th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">结算周期</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">课时数</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">总时长</th>
-              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">时薪 (₱)</th>
-              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">应付金额 (₱)</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">状态/支付信息</th>
-              <th className="px-6 py-3 text-center text-sm font-medium text-gray-500">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {payments.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
-                  暂无薪资记录
-                </td>
-              </tr>
-            ) : (
-              payments.map(payment => (
-                <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">{payment.teacher_name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-gray-400" />
-                      {payment.period_start} ~ {payment.period_end}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">{payment.total_classes}</td>
-                  <td className="px-6 py-4 text-center">{payment.total_hours} 小时</td>
-                  <td className="px-6 py-4 text-right">₱{payment.hourly_rate}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-green-600">
-                    ₱{payment.total_amount?.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
+      {/* 📊 统计卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-5 border border-yellow-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">待支付</p>
+              <p className="text-2xl font-bold text-gray-800">
+                ₱{stats.pending.reduce((sum, p) => sum + p.total_amount, 0).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">{stats.pending.length} 笔记录</p>
+            </div>
+            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+              <Clock size={24} className="text-yellow-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">本月已付</p>
+              <p className="text-2xl font-bold text-gray-800">
+                ₱{stats.paidThisMonth.reduce((sum, p) => sum + p.total_amount, 0).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">{stats.paidThisMonth.length} 笔记录</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle size={24} className="text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl p-5 border border-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">总计记录</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.total.length}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                ₱{stats.total.reduce((sum, p) => sum + p.total_amount, 0).toFixed(2)} 总金额
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <DollarSign size={24} className="text-blue-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🔍 筛选栏 */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Filter size={18} className="text-gray-400" />
+          <select
+            value={filterTeacher}
+            onChange={(e) => setFilterTeacher(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全部教师</option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <input
+            type="month"
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">全部状态</option>
+            <option value="pending">待支付</option>
+            <option value="paid">已支付</option>
+            <option value="cancelled">已取消</option>
+          </select>
+          <button
+            onClick={() => { setFilterTeacher(''); setFilterMonth(''); setFilterStatus(''); }}
+            className="text-sm text-gray-400 hover:text-gray-600"
+          >
+            清除筛选
+          </button>
+        </div>
+      </div>
+
+      {/* 💳 结算记录卡片列表 */}
+      <div className="space-y-4 mb-8">
+        {filteredPayments.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+            <DollarSign size={48} className="mx-auto mb-3 text-gray-300" />
+            <p>暂无薪资记录</p>
+          </div>
+        ) : (
+          filteredPayments.map(payment => (
+            <div key={payment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  {/* 第一行：教师 + 状态 */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-semibold text-gray-800">{payment.teacher_name}</h3>
                     {payment.status === 'paid' ? (
-                      <div className="text-xs">
-                        <div className="font-medium text-green-600">{statusLabels[payment.status]}</div>
-                        <div className="text-gray-500">{payment.paid_at?.split(' ')[0]}</div>
-                        {payment.payment_method && (
-                          <div className="text-gray-400">{paymentMethodLabels[payment.payment_method]}</div>
-                        )}
-                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">
+                        已支付
+                      </span>
                     ) : (
-                      <span className={`px-2 py-1 rounded-full text-xs ${statusColors[payment.status]}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[payment.status]}`}>
                         {statusLabels[payment.status]}
                       </span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {(payment.status === 'pending' || payment.status === 'cancelled') && (
-                      <div className="flex justify-center gap-2">
-                        {payment.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handlePay(payment.id)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
-                              title="标记已支付"
-                            >
-                              <CheckCircle size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleCancel(payment.id)}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
-                              title="取消"
-                            >
-                              <XCircle size={18} />
-                            </button>
-                          </>
+                  </div>
+
+                  {/* 第二行：周期 */}
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                    <Calendar size={14} />
+                    {payment.period_start} ~ {payment.period_end}
+                  </div>
+
+                  {/* 第三行：详细数据 */}
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-600">
+                      <span className="font-medium">{payment.total_classes}</span> 课时
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-600">
+                      <span className="font-medium">{payment.total_hours}</span> 小时
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-600">
+                      时薪 ₱<span className="font-medium">{payment.hourly_rate}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* 金额 + 操作 */}
+                <div className="text-right flex flex-col items-end">
+                  <p className="text-xl font-bold text-green-600 mb-2">
+                    ₱{payment.total_amount?.toFixed(2)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {payment.status === 'paid' ? (
+                      <div className="text-xs text-gray-400">
+                        <div>{payment.paid_at?.split(' ')[0]}</div>
+                        {payment.payment_method && (
+                          <div>{paymentMethodLabels[payment.payment_method]}</div>
                         )}
+                      </div>
+                    ) : payment.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => handlePay(payment.id)}
+                          className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 font-medium"
+                        >
+                          支付
+                        </button>
+                        <button
+                          onClick={() => handleCancel(payment.id)}
+                          className="px-3 py-1.5 text-gray-400 hover:text-red-600 rounded-lg text-sm"
+                        >
+                          取消
+                        </button>
                         <button
                           onClick={() => handleDelete(payment.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                          title="删除"
+                          className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={14} />
                         </button>
-                      </div>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleDelete(payment.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      {/* ⚙️ 教师时薪设置（底部折叠区域） */}
+      <div className="border-t border-gray-200 pt-6">
+        <button
+          onClick={() => setShowRateSection(!showRateSection)}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          {showRateSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <span>教师时薪设置</span>
+        </button>
+        
+        {showRateSection && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {activeTeachers.map(teacher => (
+                <div key={teacher.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div>
+                    <span className="text-sm font-medium">{teacher.name}</span>
+                    <div className={`text-xs ${teacher.hourly_rate ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
+                      {teacher.hourly_rate ? `₱${teacher.hourly_rate}/小时` : '未设置'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleEditRate(teacher)}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    title="编辑时薪"
+                  >
+                    <Edit2 size={14} className="text-gray-500" />
+                  </button>
+                </div>
+              ))}
+              {activeTeachers.length === 0 && (
+                <p className="text-gray-400 text-sm col-span-full">暂无在职教师</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 🔘 浮动按钮 */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center transition-transform hover:scale-105 z-40"
+        title="新建结算"
+      >
+        <Plus size={24} />
+      </button>
 
       {/* 新建结算弹窗 */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-bold mb-4">新建薪资结算</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">教师</label>
                 <select
                   value={formData.teacher_id}
-                  onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
+                  onChange={(e) => handleTeacherChange(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg"
                   required
                 >
@@ -331,7 +546,7 @@ export default function TeacherPayments() {
       {/* 支付确认弹窗 */}
       {showPayModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <CreditCard size={20} />
               确认支付
@@ -373,6 +588,41 @@ export default function TeacherPayments() {
                   确认已支付
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑时薪弹窗 */}
+      {showRateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+            <h2 className="text-xl font-bold mb-4">编辑教师时薪</h2>
+            <p className="text-gray-600 mb-4">教师：<span className="font-medium">{editingRateTeacher?.name}</span></p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">时薪（₱/小时）</label>
+              <input
+                type="number"
+                step="0.01"
+                value={rateValue}
+                onChange={(e) => setRateValue(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setShowRateModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveRate}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                保存
+              </button>
             </div>
           </div>
         </div>

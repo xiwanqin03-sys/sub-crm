@@ -75,4 +75,22 @@ settings.patch('/', async (c) => {
   return c.json(success(data));
 });
 
+// 验证教师薪资密码
+settings.post('/verify-teacher-payment-password', async (c) => {
+  const DB = c.env.DB;
+  const { password } = await c.req.json();
+
+  const setting = await DB.prepare('SELECT value FROM settings WHERE key = ?').bind('teacher_payment_password').first();
+
+  if (!setting) {
+    return c.json(error('NOT_CONFIGURED', '密码未配置'), 500);
+  }
+
+  if (password === setting.value) {
+    return c.json(success({ valid: true }));
+  } else {
+    return c.json(error('INVALID_PASSWORD', '密码错误'), 401);
+  }
+});
+
 export default settings;

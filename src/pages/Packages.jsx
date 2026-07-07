@@ -137,14 +137,14 @@ export default function Packages() {
                 <div className="mb-3">
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-500">进度</span>
-                    <span className={pkg.remaining < 5 ? 'text-red-500 font-medium' : 'text-gray-700'}>
+                    <span className={pkg.remaining < 3 ? 'text-red-500 font-medium' : 'text-gray-700'}>
                       {pkg.remaining}/{pkg.total}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
-                        pkg.remaining < 5 ? 'bg-red-500' : 'bg-primary-500'
+                        pkg.remaining < 3 ? 'bg-red-500' : 'bg-primary-500'
                       }`}
                       style={{ width: `${Math.max((pkg.remaining / pkg.total) * 100, 0)}%` }}
                     ></div>
@@ -163,7 +163,7 @@ export default function Packages() {
                   )}
                 </div>
 
-                {pkg.remaining < 5 && pkg.remaining > 0 && (
+                {pkg.remaining < 3 && pkg.remaining > 0 && (
                   <div className="mt-3 px-2 py-1 bg-red-50 text-red-600 text-xs rounded">
                     课时不足，请提醒续费
                   </div>

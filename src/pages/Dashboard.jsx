@@ -160,7 +160,7 @@ export default function Dashboard() {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-800">课时预警</h2>
-            <p className="text-sm text-gray-500">剩余课时不足 5 节的学生</p>
+            <p className="text-sm text-gray-500">剩余课时不足 3 节的学生</p>
           </div>
           {stats?.warningStudents > 0 && (
             <span className="ml-auto bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">

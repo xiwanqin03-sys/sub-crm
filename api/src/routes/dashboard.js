@@ -48,7 +48,7 @@ dashboard.get('/stats', async (c) => {
     SELECT s.id, s.name, s.phone,
            (s.total_hours - s.used_hours) as remaining_hours
     FROM students s
-    WHERE (s.total_hours - s.used_hours) <= 5
+    WHERE (s.total_hours - s.used_hours) <= 3
       AND (s.total_hours - s.used_hours) > 0
     ORDER BY (s.total_hours - s.used_hours) ASC
     LIMIT 10
