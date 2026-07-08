@@ -1,4 +1,4 @@
-name = "sunnybridge-crm-api"
+name = "sub-crm"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
 account_id = "5a225d0bf11ade96374b59a3743dacd0"
