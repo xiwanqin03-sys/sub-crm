@@ -1,0 +1,26 @@
+# Root wrangler.toml - for CF Pages auto-deploy to reference the existing "sub-crm" Worker
+# The actual API code lives in api/src/index.js (deployed separately from api/wrangler.toml)
+name = "sub-crm"
+main = "api/src/index.js"
+compatibility_date = "2024-01-01"
+account_id = "5a225d0bf11ade96374b59a3743dacd0"
+
+workers_dev = true
+
+[vars]
+API_VERSION = "v1"
+DEBUG = "false"
+RESEND_API_KEY = "re_7ZfLM9p9_27LogrTCeuFi37jHdPDKhNEV"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sunnybridge-crm"
+database_id = "ec11b207-8e7f-4796-9875-45ccb4cb1ef5"
+
+# Development environment
+[env.dev]
+vars = { DEBUG = "true" }
+
+# Production environment
+[env.production]
+vars = { DEBUG = "false" }
