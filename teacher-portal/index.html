@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SunnyBridge Teacher Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #9333ea; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div id="app">
+  <!-- Top Navigation -->
+  <div class="bg-white shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+            <i data-lucide="user" class="w-6 h-6 text-purple-600"></i>
+          </div>
+          <div>
+            <h1 id="teacher-name" class="text-xl font-bold text-gray-900">Loading...</h1>
+            <p id="teacher-subjects" class="text-sm text-gray-500"></p>
+          </div>
+        </div>
+        <div id="today-date" class="text-sm text-gray-500"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <!-- Today's Classes -->
+    <section>
+      <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <i data-lucide="calendar" class="w-5 h-5 text-purple-600"></i>
+        Today's Classes (<span id="today-count">0</span>)
+      </h2>
+      <div id="today-classes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="col-span-full text-center py-8 text-gray-500">
+          <div class="spinner mx-auto mb-3"></div>
+          Loading...
+        </div>
+      </div>
+    </section>
+
+    <!-- Upcoming -->
+    <section id="upcoming-section" class="hidden">
+      <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+        Upcoming (<span id="upcoming-count">0</span>)
+      </h2>
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Time</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Student</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Subject</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+            </tr>
+          </thead>
+          <tbody id="upcoming-body" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section id="history-section" class="hidden">
+      <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <i data-lucide="clock" class="w-5 h-5 text-gray-600"></i>
+        History <span id="history-count" class="text-sm font-normal text-gray-500"></span>
+      </h2>
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Time</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Student</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Subject</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Feedback</th>
+            </tr>
+          </thead>
+          <tbody id="history-body" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+      <div id="history-pagination" class="flex items-center justify-between mt-3 text-sm text-gray-600"></div>
+    </section>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div id="view-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="if(event.target===this)closeViewModal()">
+ <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+<h3 class="text-lg font-semibold mb-4">Feedback Details</h3>
+ <div id="view-class-info" class="bg-blue-50 rounded-lg p-3 mb-4 text-sm"></div>
+ <div class="mb-2"><b>Class Content:</b><div id="view-content" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
+  <div class="mb-2"><b>Homework:</b><div id="view-homework" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
+  <div class="mb-2"><b>Notes:</b><div id="view-notes" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
+  <div class="flex gap-3 mt-4">
+    <button onclick="editFromView()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Edit</button>
+    <button onclick="closeViewModal()" class="px-4 py-2 bg-gray-200 rounded">Close</button>
+  </div>
+ </div>
+</div>
+</div>
+
+<!-- Feedback Modal -->
+<div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+ <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+  <h2 class="text-xl font-bold mb-4">Submit Feedback</h2>
+  <div id="class-info" class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600"></div>
+  <form id="feedback-form" class="space-y-4">
+  <div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">Class Content</label>
+  <textarea id="input-content" rows="3" placeholder="What was taught in this class..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  </div>
+  <div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">Homework</label>
+  <textarea id="input-homework" rows="2" placeholder="Homework assigned..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  </div>
+  <div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+  <textarea id="input-notes" rows="2" placeholder="Student performance, areas for improvement..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  </div>
+  <div id="status-field">
+  <label class="block text-sm font-medium text-gray-700 mb-1">Class Status</label>
+  <select id="input-status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500">
+  <option value="completed" selected>Completed (deduct hours)</option>
+  <option value="absent">Student Absent (no deduction)</option>
+  <option value="cancelled">Cancelled (no deduction)</option>
+  </select>
+  </div>
+  <div class="flex gap-3 pt-4">
+  <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+  <button type="submit" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Submit</button>
+  </div>
+ </form>
+ </div>
+</div>
+
+<script>
+// ===== Escape HTML to prevent XSS while preserving whitespace =====
+function escapeHtml(text) {
+  if (!text) return '';
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ===== Global Variables =====
+var STATUS_LABELS = { scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', absent: 'Absent' };
+var STATUS_COLORS = { scheduled: 'bg-yellow-100 text-yellow-800', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-100 text-gray-800', absent: 'bg-red-100 text-red-800' };
+var API_BASE = 'https://api.qsct.dpdns.org/api/v1';
+var API_KEY = 'sunnybridge-dev-key-2024';
+var SALT = 'sunnybridge2024';
+var TOKEN_KEY = 'sb_teacher_key_v1';
+var currentTeacherId = null;
+var selectedClass = null;
+var window_todayClasses = [];
+var window_historyClasses = [];
+var window_allPastClasses = [];
+var window_historyPage = 1;
+var window_historyPageSize = 20;
+
+// ===== XOR Encryption =====
+function xorEncode(str, key) {
+  var result = '';
+  for (var i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return btoa(result);
+}
+
+function xorDecode(str, key) {
+  try {
+    var decoded = atob(str);
+    var result = '';
+    for (var i = 0; i < decoded.length; i++) {
+      result += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return result;
+  } catch (e) {
+    return null;
+  }
+}
+
+function encodeTeacherToken(teacherId) {
+  var data = SALT + ':' + teacherId;
+  return xorEncode(data, TOKEN_KEY);
+}
+
+function decodeTeacherToken(token) {
+  var decoded = xorDecode(token, TOKEN_KEY);
+  if (!decoded) return null;
+  var parts = decoded.split(':');
+  if (parts.length !== 2 || parts[0] !== SALT) return null;
+  return parts[1];
+}
+
+// ===== Utility Functions =====
+function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+function setCookie(name, value, days) {
+    var expires = '';
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = '; expires=' + date.toUTCString();
+    }
+    document.cookie = name + '=' + (value || '') + expires + '; path=/';
+}
+
+function isAuthenticated() {
+    return getCookie('sb_teacher_auth') === 'SunnyBridge2024';
+}
+
+function getTeacherId() {
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('token');
+  if (token) {
+    var decodedId = decodeTeacherToken(token);
+    if (decodedId) {
+      setCookie('sb_teacher_auth', 'SunnyBridge2024', 7);
+      return decodedId;
+    }
+  }
+  // No valid token, redirect to login
+  window.location.href = './login.html';
+  return null;
+}
+
+function formatTime(time) {
+ return time ? time.substring(0, 5) : '';
+}
+
+// ===== Class Link Edit =====
+function editClassLink(idx) {
+ var inputDiv = document.getElementById('class-link-input-' + idx);
+ if (inputDiv) {
+ inputDiv.classList.toggle('hidden');
+ }
+}
+
+async function saveClassLink(idx, classId) {
+ var input = document.getElementById('class-link-value-' + idx);
+ if (!input) return;
+ 
+ var classLink = input.value.trim();
+ if (!classLink) {
+  alert('Please enter meeting link/info');
+  return;
+ }
+ 
+ try {
+  var res = await fetch(API_BASE + '/classes/' + classId, {
+   method: 'PATCH',
+   headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': API_KEY
+   },
+   body: JSON.stringify({ class_link: classLink })
+  });
+  
+  if (!res.ok) throw new Error('Save failed');
+  
+  alert('Meeting link saved');
+  loadTeacherData(); // 刷新页面数据
+ } catch (err) {
+  alert('Save failed: ' + err.message);
+ }
+}
+
+function getLocalDate() {
+  // Use local date instead of UTC to avoid timezone issues
+  var d = new Date();
+  var year = d.getFullYear();
+  var month = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+// ===== API Requests =====
+async function apiGet(endpoint) {
+  var res = await fetch(API_BASE + endpoint, { headers: { 'X-API-Key': API_KEY } });
+  return res.json();
+}
+
+async function apiPatch(endpoint, data) {
+  var res = await fetch(API_BASE + endpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+// ===== View Feedback Modal =====
+var currentViewClass = null;
+
+function showViewFeedback(idx) {
+  var cls = window_historyClasses[idx];
+  if (!cls) return;
+  currentViewClass = cls;
+  document.getElementById('view-class-info').innerHTML = '<b>' + (cls.student_name || '') + '</b> - ' + cls.date;
+  document.getElementById('view-content').innerHTML = escapeHtml(cls.content) || 'N/A';
+  document.getElementById('view-homework').innerHTML = escapeHtml(cls.homework) || 'N/A';
+  document.getElementById('view-notes').innerHTML = escapeHtml(cls.notes) || 'N/A';
+  document.getElementById('view-modal').classList.remove('hidden');
+  document.getElementById('view-modal').classList.add('flex');
+}
+
+function editFromView() {
+  if (!currentViewClass) return;
+  closeViewModal();
+  openFeedback(currentViewClass);
+}
+
+function closeViewModal() {
+  document.getElementById('view-modal').classList.add('hidden');
+  document.getElementById('view-modal').classList.remove('flex');
+}
+
+// ===== Load Teacher Data =====
+async function loadTeacherData() {
+  var teacherId = getTeacherId();
+  currentTeacherId = teacherId;
+
+  try {
+    // Get teacher info
+    var response = await apiGet('/teachers/' + teacherId);
+    console.log('teacher API raw:', JSON.stringify(response).substring(0, 300));
+    var teacher = response.data || response;
+    document.getElementById('teacher-name').textContent = teacher.name + "'s Portal";
+    if (teacher.subjects && teacher.subjects.length > 0) {
+      document.getElementById('teacher-subjects').textContent = 'Subjects: ' + teacher.subjects.join(', ');
+    }
+
+    // Step 2: Get all classes
+    var classesResponse;
+    try {
+      classesResponse = await apiGet('/classes?page_size=200');
+    } catch(apiErr) {
+      throw new Error('Classes API fetch failed: ' + apiErr.message);
+    }
+    var classesData = classesResponse.data && classesResponse.data.data ? classesResponse.data.data
+                    : classesResponse.data ? classesResponse.data
+                    : classesResponse;
+    if (!Array.isArray(classesData)) {
+      throw new Error('Classes data is not array. type=' + typeof classesData + ' keys=' + (classesData ? Object.keys(classesData).join(',') : 'null'));
+    }
+    var teacherClasses = classesData.filter(function(c) { return c.teacher_id === parseInt(teacherId); });
+
+    // Get all students (page_size=200 to get all)
+    var studentsResponse = await apiGet('/students?page_size=200');
+    console.log('students API raw keys:', Object.keys(studentsResponse));
+    var studentsData = studentsResponse.data && studentsResponse.data.data ? studentsResponse.data.data
+                     : studentsResponse.data ? studentsResponse.data
+                     : studentsResponse;
+    if (!Array.isArray(studentsData)) studentsData = [];
+
+    var studentMap = {};
+    studentsData.forEach(function(s) { studentMap[s.id] = s.name; });
+
+// Add student names to classes
+ teacherClasses.forEach(function(c) {
+  if (!c.student_name || c.student_name === 'Unknown Student') {
+   c.student_name = studentMap[c.student_id] || 'Unknown Student';
+  }
+ });
+
+    // Classify classes - use local date
+    var today = getLocalDate();
+    var todayClasses = teacherClasses.filter(function(c) { return c.date === today && c.status === 'scheduled'; });
+    var upcoming = teacherClasses.filter(function(c) { return c.date > today && c.status === 'scheduled'; });
+    var past = teacherClasses.filter(function(c) { return c.date < today || c.status !== 'scheduled'; });
+
+    // Sort
+    todayClasses.sort(function(a, b) { return (a.start_time || '').localeCompare(b.start_time || ''); });
+    upcoming.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    past.sort(function(a, b) { return b.date.localeCompare(a.date); });
+
+    renderTodayClasses(todayClasses);
+    renderUpcoming(upcoming.slice(0, 10));
+
+    // Save all past data
+    window_allPastClasses = past;
+    window_historyPage = 1;
+    renderHistory();
+
+} catch (err) {
+ console.error('Load failed:', err);
+ alert('Load failed: ' + err.message);
+ document.getElementById('today-classes').innerHTML = '<div class="col-span-full text-center py-8 text-red-500">Load failed: ' + err.message + '</div>';
+}
+}
+
+// ===== Render Today's Classes =====
+function renderTodayClasses(classes) {
+  window_todayClasses = classes;
+  document.getElementById('today-count').textContent = classes.length;
+
+  if (classes.length === 0) {
+    document.getElementById('today-classes').innerHTML = '<div class="col-span-full text-center py-8 text-gray-500 bg-white rounded-lg">No classes scheduled for today</div>';
+    return;
+  }
+
+var html = '';
+for (var i = 0; i < classes.length; i++) {
+var c = classes[i];
+html += '<div class="bg-white rounded-lg shadow p-4">';
+html += '<div class="flex items-center justify-between mb-3">';
+html += '<div class="flex items-center gap-2">';
+html += '<i data-lucide="clock" class="w-4 h-4 text-gray-400"></i>';
+html += '<span class="font-medium">' + formatTime(c.start_time) + ' - ' + formatTime(c.end_time) + '</span>';
+html += '</div>';
+html += '<span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span>';
+html += '</div>';
+html += '<div class="space-y-1 text-sm">';
+html += '<div class="flex items-center gap-2">';
+html += '<i data-lucide="user" class="w-4 h-4 text-gray-400"></i>';
+html += '<span class="font-medium">' + (c.student_name || '') + '</span>';
+html += '</div>';
+html += '<div class="flex items-center gap-2">';
+html += '<i data-lucide="book-open" class="w-4 h-4 text-gray-400"></i>';
+html += '<span>' + (c.subject || 'English') + '</span>';
+html += '</div>';
+// Meeting Link / Conference Info
+html += '<div class="mt-3 pt-3 border-t border-gray-100">';
+html += '<label class="block text-xs text-gray-500 mb-1">Meeting Link / Conference Info</label>';
+if (c.class_link) {
+ html += '<div class="flex items-start gap-2">';
+ html += '<div class="flex-1 text-sm text-gray-700 bg-gray-50 p-2 rounded whitespace-pre-wrap">' + c.class_link + '</div>';
+ html += '<button onclick="editClassLink(' + i + ')" class="text-gray-400 hover:text-gray-600 shrink-0"><i data-lucide="edit-2" class="w-4 h-4"></i></button>';
+ html += '</div>';
+ html += '<div id="class-link-input-' + i + '" class="hidden mt-2">';
+ html += '<textarea id="class-link-value-' + i + '" class="w-full px-2 py-1 text-sm border rounded" rows="3" placeholder="Enter meeting link or conference info">' + (c.class_link || '') + '</textarea>';
+ html += '<div class="flex justify-end gap-2 mt-2">';
+ html += '<button onclick="saveClassLink(' + i + ', ' + c.id + ')" class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700">Save</button>';
+ html += '</div>';
+ html += '</div>';
+} else {
+ html += '<button onclick="editClassLink(' + i + ')" class="text-gray-400 hover:text-purple-600 text-sm flex items-center gap-1"><i data-lucide="link" class="w-4 h-4"></i> Add Meeting Link</button>';
+ html += '<div id="class-link-input-' + i + '" class="hidden mt-2">';
+ html += '<textarea id="class-link-value-' + i + '" class="w-full px-2 py-1 text-sm border rounded" rows="3" placeholder="Enter meeting link or conference info"></textarea>';
+ html += '<div class="flex justify-end gap-2 mt-2">';
+ html += '<button onclick="saveClassLink(' + i + ', ' + c.id + ')" class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700">Save</button>';
+ html += '</div>';
+ html += '</div>';
+}
+html += '</div>';
+html += '</div>';
+html += '<button onclick="openTodayFeedback(' + i + ')" class="mt-4 w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Submit Feedback</button>';
+html += '</div>';
+}
+
+  document.getElementById('today-classes').innerHTML = html;
+  lucide.createIcons();
+}
+
+function openTodayFeedback(idx) {
+  var cls = window_todayClasses[idx];
+  if (cls) openFeedback(cls);
+}
+
+function getDayOfWeek(dateStr) {
+  var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var d = new Date(dateStr + 'T00:00:00');
+  return days[d.getDay()];
+}
+
+// ===== Render Upcoming =====
+function renderUpcoming(classes) {
+  if (classes.length === 0) {
+    document.getElementById('upcoming-section').classList.add('hidden');
+    return;
+  }
+  document.getElementById('upcoming-count').textContent = classes.length;
+
+  var html = '';
+  for (var i = 0; i < classes.length; i++) {
+    var c = classes[i];
+    html += '<tr>';
+    html += '<td class="px-4 py-3 text-sm">' + c.date + ' <span class="text-purple-500 font-medium">' + getDayOfWeek(c.date) + '</span></td>';
+    html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
+    html += '<td class="px-4 py-3 text-sm font-medium">' + (c.student_name || '') + '</td>';
+    html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
+    html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
+    html += '</tr>';
+  }
+
+  document.getElementById('upcoming-body').innerHTML = html;
+  document.getElementById('upcoming-section').classList.remove('hidden');
+}
+
+// ===== Render History (Paginated) =====
+function renderHistory() {
+  var all = window_allPastClasses || [];
+  window_historyClasses = all;
+
+  if (all.length === 0) {
+    document.getElementById('history-section').classList.add('hidden');
+    return;
+  }
+
+  var page = window_historyPage || 1;
+  var size = window_historyPageSize || 20;
+  var totalPages = Math.ceil(all.length / size);
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+  window_historyPage = page;
+
+  var start = (page - 1) * size;
+  var end = start + size;
+  var pageData = all.slice(start, end);
+
+  document.getElementById('history-count').textContent = '(' + all.length + ' records)';
+
+  var html = '';
+  for (var i = 0; i < pageData.length; i++) {
+    var c = pageData[i];
+    var globalIdx = start + i;
+    html += '<tr class="hover:bg-gray-50">';
+    html += '<td class="px-4 py-3 text-sm">' + c.date + '</td>';
+    html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
+    html += '<td class="px-4 py-3 text-sm font-medium">' + (c.student_name || '') + '</td>';
+    html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
+    html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
+
+    if (c.status !== 'scheduled') {
+      // 已提交的显示View按钮
+      html += '<td class="px-4 py-3"><button onclick="showViewFeedback(' + globalIdx + '); return false;" class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">View</button></td>';
+    } else {
+      // 未提交的显示填写按钮
+      html += '<td class="px-4 py-3"><button onclick="openFeedbackFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">Submit</button></td>';
+    }
+
+    html += '</tr>';
+  }
+
+  document.getElementById('history-body').innerHTML = html;
+  document.getElementById('history-section').classList.remove('hidden');
+
+  // Pagination
+  var pagHtml = '<span>' + (start + 1) + '-' + Math.min(end, all.length) + ' / ' + all.length + '</span>';
+  pagHtml += '<div class="flex gap-2">';
+  pagHtml += '<button onclick="goHistoryPage(1)" class="px-3 py-1 border rounded hover:bg-gray-50 ' + (page === 1 ? 'opacity-50 cursor-not-allowed' : '') + '">First</button>';
+  pagHtml += '<button onclick="goHistoryPage(' + (page - 1) + ')" class="px-3 py-1 border rounded hover:bg-gray-50 ' + (page === 1 ? 'opacity-50 cursor-not-allowed' : '') + '">Prev</button>';
+  pagHtml += '<span class="px-3 py-1">Page ' + page + ' / ' + totalPages + '</span>';
+  pagHtml += '<button onclick="goHistoryPage(' + (page + 1) + ')" class="px-3 py-1 border rounded hover:bg-gray-50 ' + (page === totalPages ? 'opacity-50 cursor-not-allowed' : '') + '">Next</button>';
+  pagHtml += '<button onclick="goHistoryPage(' + totalPages + ')" class="px-3 py-1 border rounded hover:bg-gray-50 ' + (page === totalPages ? 'opacity-50 cursor-not-allowed' : '') + '">Last</button>';
+  pagHtml += '</div>';
+
+  document.getElementById('history-pagination').innerHTML = pagHtml;
+  lucide.createIcons();
+}
+
+function goHistoryPage(p) {
+  var all = window_allPastClasses || [];
+  var totalPages = Math.ceil(all.length / (window_historyPageSize || 20));
+  if (p < 1 || p > totalPages) return;
+  window_historyPage = p;
+  renderHistory();
+  document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== Open Feedback Modal =====
+function openFeedback(cls) {
+  selectedClass = cls;
+  
+  // 根据状态更新标题
+  var modalTitle = cls.status !== 'scheduled' ? 'Edit Feedback' : 'Submit Feedback';
+  document.querySelector('#feedback-modal h2').textContent = modalTitle;
+  
+  // 编辑模式隐藏状态选择（避免误扣课时）
+  var statusField = document.getElementById('status-field');
+  if (cls.status !== 'scheduled') {
+    statusField.style.display = 'none';
+  } else {
+    statusField.style.display = 'block';
+  }
+  
+  var info = '';
+info += '<div><span class="font-medium">Student:</span>' + (cls.student_name || '') + '</div>';
+ info += '<div><span class="font-medium">Date:</span>' + cls.date + '</div>';
+ info += '<div><span class="font-medium">Time:</span>' + formatTime(cls.start_time) + '</div>';
+ info += '<div><span class="font-medium">Subject:</span>' + (cls.subject || 'English') + '</div>';
+ info += '<div><span class="font-medium">Hours:</span>' + (cls.hours || 1) + '</div>';
+  document.getElementById('class-info').innerHTML = info;
+  document.getElementById('input-content').value = cls.content || '';
+  document.getElementById('input-homework').value = cls.homework || '';
+  document.getElementById('input-notes').value = cls.notes || '';
+  // 新课程(scheduled)默认Completed，已存在课程保持原状态
+  var statusValue = cls.status === 'scheduled' ? 'completed' : (cls.status || 'completed');
+  document.getElementById('input-status').value = statusValue;
+  document.getElementById('feedback-modal').classList.remove('hidden');
+  document.getElementById('feedback-modal').classList.add('flex');
+}
+
+
+// ===== Submit Feedback from History =====
+function openFeedbackFromHistory(idx) {
+var cls = window_allPastClasses[idx];
+if (cls) openFeedback(cls);
+}
+
+function closeModal() {
+  document.getElementById('feedback-modal').classList.add('hidden');
+  document.getElementById('feedback-modal').classList.remove('flex');
+  selectedClass = null;
+}
+
+// ===== Submit Feedback =====
+document.getElementById('feedback-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  if (!selectedClass) return;
+
+  // New submission: require Class Status
+  if (selectedClass.status === 'scheduled') {
+    var status = document.getElementById('input-status').value;
+    if (!status) {
+      alert('Please select Class Status');
+      return;
+    }
+  }
+
+  var data = {
+    content: document.getElementById('input-content').value,
+    homework: document.getElementById('input-homework').value,
+    notes: document.getElementById('input-notes').value,
+    status: document.getElementById('input-status').value
+  };
+
+  try {
+    // Update class record
+    await apiPatch('/classes/' + selectedClass.id, data);
+
+    // Only deduct hours for NEW submissions (scheduled -> completed)
+    // Editing existing feedback should NOT deduct hours
+    if (data.status === 'completed' && selectedClass.student_id && selectedClass.status === 'scheduled') {
+      var hoursToDeduct = selectedClass.hours || 1;
+      await apiPatch('/students/' + selectedClass.student_id + '/use-hours', { hours: hoursToDeduct });
+    }
+
+    closeModal();
+    loadTeacherData();
+    alert('Feedback submitted successfully!');
+  } catch (err) {
+    alert('Failed to submit: ' + err.message);
+  }
+});
+
+// ===== Initialize =====
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-CN', {
+  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+});
+lucide.createIcons();
+loadTeacherData();
+</script>
+</body>
+</html>

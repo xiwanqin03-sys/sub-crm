@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunnyBridge Teacher Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .teacher-card {
+            transition: all 0.2s ease;
+        }
+        .teacher-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 4.477 9.246 4 7.5 4S4.168 4.477 3 5.253v13C4.168 17.477 5.754 17 7.5 17s3.332.477 4.5 1.253m0-13C13.168 4.477 14.754 4 16.5 4c1.747 0 3.332.477 4.5 1.253v13C19.832 17.477 18.247 17 16.5 17c-1.746 0-3.332.477-4.5 1.253"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">SunnyBridge Teacher Portal</h1>
+            <p class="text-gray-500 mt-2">Please select your account to login</p>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto"></div>
+            <p class="text-gray-500 mt-4">Loading...</p>
+        </div>
+
+        <!-- Password Section -->
+        <div id="password-section" class="hidden">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">请输入密码</label>
+                <input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="Password" autocomplete="off">
+            </div>
+            <button onclick="verifyPassword()" class="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">确认</button>
+            <p id="password-error" class="hidden mt-2 text-red-500 text-sm text-center">密码错误，请重试</p>
+        </div>
+
+        <!-- Teacher List -->
+        <div id="teacher-list" class="space-y-3 hidden">
+            <!-- Teachers will be loaded here -->
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="hidden text-center py-8">
+            <div class="text-red-500 mb-4">
+                <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <p class="text-gray-600">Failed to load, please refresh</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-sm text-gray-400">
+            <p>SunnyBridge English · Teacher Management System</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.qsct.dpdns.org/api/v1';
+        const API_KEY = 'sunnybridge-dev-key-2024';
+        const SALT = 'sunnybridge2024';
+        const KEY = 'sb_teacher_key_v1';
+
+        function xorEncode(str, key) {
+            let result = '';
+            for (let i = 0; i < str.length; i++) {
+                result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return btoa(result);
+        }
+
+        function xorDecode(str, key) {
+            try {
+                let decoded = atob(str);
+                let result = '';
+                for (let i = 0; i < decoded.length; i++) {
+                    result += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+                }
+                return result;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function encodeTeacherToken(teacherId) {
+            const data = SALT + ':' + teacherId;
+            return xorEncode(data, KEY);
+        }
+
+        function decodeTeacherToken(token) {
+            const decoded = xorDecode(token, KEY);
+            if (!decoded) return null;
+            const parts = decoded.split(':');
+            if (parts.length !== 2 || parts[0] !== SALT) return null;
+            return parts[1];
+        }
+
+        // Generate teacher link with encrypted token
+        function generateTeacherLink(teacherId) {
+            const token = encodeTeacherToken(teacherId);
+            return './index.html?token=' + token;
+        }
+
+        // Password check with cookie support
+        function getCookie(name) {
+            var value = '; ' + document.cookie;
+            var parts = value.split('; ' + name + '=');
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        function setCookie(name, value, days) {
+            var expires = '';
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = '; expires=' + date.toUTCString();
+            }
+            document.cookie = name + '=' + (value || '') + expires + '; path=/';
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
+        }
+
+        function isAuthenticated() {
+            return getCookie('sb_teacher_auth') === 'SunnyBridge2024';
+        }
+
+        function setAuthenticated() {
+            setCookie('sb_teacher_auth', 'SunnyBridge2024', 7);
+        }
+
+        function showPasswordForm() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('password-section').classList.remove('hidden');
+            document.getElementById('password-input').focus();
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById('password-input').value.trim();
+            if (input === 'SunnyBridge2024') {
+                setAuthenticated();
+                document.getElementById('password-section').classList.add('hidden');
+                document.getElementById('loading').classList.remove('hidden');
+                loadTeachers();
+            } else {
+                const errorMsg = document.getElementById('password-error');
+                errorMsg.textContent = '密码错误，请重试';
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('password-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') verifyPassword();
+        });
+
+        async function loadTeachers() {
+            try {
+                const res = await fetch(`${API_BASE}/teachers`, {
+                    headers: { 'X-API-Key': API_KEY }
+                });
+                const json = await res.json();
+                const teachers = json.data?.items || json.data?.data || json.data || json;
+
+                if (!Array.isArray(teachers) || teachers.length === 0) {
+                    throw new Error('No teachers found');
+                }
+
+                // Filter active teachers
+                const activeTeachers = teachers.filter(t => t.status === 'active');
+
+                renderTeachers(activeTeachers);
+            } catch (err) {
+                console.error('Load failed:', err);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error').classList.remove('hidden');
+            }
+        }
+
+        function renderTeachers(teachers) {
+            const list = document.getElementById('teacher-list');
+            list.innerHTML = '';
+
+            teachers.forEach(teacher => {
+                const card = document.createElement('a');
+                card.href = generateTeacherLink(teacher.id);
+                card.className = 'teacher-card block bg-gray-50 rounded-xl p-4 hover:bg-purple-50';
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900">${teacher.name}</h3>
+                            ${teacher.subjects?.length > 0 
+                                ? `<p class="text-sm text-gray-500">${teacher.subjects.join(', ')}</p>` 
+                                : ''}
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            document.getElementById('loading').classList.add('hidden');
+            list.classList.remove('hidden');
+        }
+
+        // Start: check if already authenticated via cookie
+        if (isAuthenticated()) {
+            loadTeachers();
+        } else {
+            showPasswordForm();
+        }
+    </script>
+</body>
+</html>
