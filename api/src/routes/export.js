@@ -23,6 +23,12 @@ exportRoute.get('/', async (c) => {
     const settings = await DB.prepare('SELECT * FROM settings').all();
     const hourChanges = await DB.prepare('SELECT * FROM hour_changes ORDER BY created_at DESC').all();
     const teacherPayments = await DB.prepare('SELECT * FROM teacher_payments ORDER BY created_at DESC').all();
+    const leads = await DB.prepare('SELECT * FROM leads ORDER BY created_at DESC').all();
+    const organizations = await DB.prepare('SELECT * FROM organizations ORDER BY created_at DESC').all();
+    const orgPackages = await DB.prepare('SELECT * FROM org_packages ORDER BY created_at DESC').all();
+    const orgHourAllocations = await DB.prepare('SELECT * FROM org_hour_allocations ORDER BY created_at DESC').all();
+    const orgSettlements = await DB.prepare('SELECT * FROM org_settlements ORDER BY generated_at DESC').all();
+    const orgSettlementItems = await DB.prepare('SELECT * FROM org_settlement_items ORDER BY class_date DESC').all();
     
     const data = {
       students: students.results || [],
@@ -34,8 +40,14 @@ exportRoute.get('/', async (c) => {
       settings: settings.results || [],
       hour_changes: hourChanges.results || [],
       teacher_payments: teacherPayments.results || [],
+      leads: leads.results || [],
+      organizations: organizations.results || [],
+      org_packages: orgPackages.results || [],
+      org_hour_allocations: orgHourAllocations.results || [],
+      org_settlements: orgSettlements.results || [],
+      org_settlement_items: orgSettlementItems.results || [],
       exportedAt: new Date().toISOString(),
-      version: '1.0.1'
+      version: '1.1.0'
     };
     
     if (format === 'json') {
@@ -52,7 +64,13 @@ exportRoute.get('/', async (c) => {
             teachers: data.teachers.length,
             courses: data.courses.length,
             hour_changes: data.hour_changes.length,
-            teacher_payments: data.teacher_payments.length
+            teacher_payments: data.teacher_payments.length,
+            leads: data.leads.length,
+            organizations: data.organizations.length,
+            org_packages: data.org_packages.length,
+            org_hour_allocations: data.org_hour_allocations.length,
+            org_settlements: data.org_settlements.length,
+            org_settlement_items: data.org_settlement_items.length
           }
         }
       });

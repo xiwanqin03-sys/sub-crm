@@ -29,18 +29,24 @@ importRoute.post('/', async (c) => {
       settings: { imported: 0, skipped: 0 }
     };
     
-    // 如果模式是 'replace'，先清空数据
+    // 如果模式是 'replace'，先清空数据（注意外键依赖顺序：先子表后父表）
     if (mode === 'replace') {
+      await DB.prepare('DELETE FROM org_settlement_items').run();
+      await DB.prepare('DELETE FROM org_settlements').run();
+      await DB.prepare('DELETE FROM org_hour_allocations').run();
+      await DB.prepare('DELETE FROM org_packages').run();
       await DB.prepare('DELETE FROM classes').run();
       await DB.prepare('DELETE FROM payments').run();
       await DB.prepare('DELETE FROM packages').run();
+      await DB.prepare('DELETE FROM hour_changes').run();
+      await DB.prepare('DELETE FROM teacher_payments').run();
+      await DB.prepare('DELETE FROM leads').run();
       await DB.prepare('DELETE FROM students').run();
       await DB.prepare('DELETE FROM teachers').run();
       await DB.prepare('DELETE FROM courses').run();
+      await DB.prepare('DELETE FROM organizations').run();
       await DB.prepare('DELETE FROM settings').run();
-      await DB.prepare('DELETE FROM hour_changes').run();
-      await DB.prepare('DELETE FROM teacher_payments').run();
-      await DB.prepare("DELETE FROM sqlite_sequence WHERE name IN ('classes', 'payments', 'packages', 'students', 'teachers', 'courses', 'settings', 'hour_changes', 'teacher_payments')").run();
+      await DB.prepare("DELETE FROM sqlite_sequence WHERE name IN ('classes', 'payments', 'packages', 'students', 'teachers', 'courses', 'settings', 'hour_changes', 'teacher_payments', 'leads', 'organizations', 'org_packages', 'org_hour_allocations', 'org_settlements', 'org_settlement_items')").run();
     }
     
     // 导入学生
@@ -341,6 +347,144 @@ importRoute.post('/', async (c) => {
           ).run();
         } catch (err) {
           console.error('Import teacher_payments error:', err);
+        }
+      }
+    }
+    
+    // 导入 leads
+    if (data.leads && Array.isArray(data.leads)) {
+      for (const lead of data.leads) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM leads WHERE id = ?').bind(lead.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO leads (id, name, phone, email, age, course, source, message, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            lead.id, lead.name, lead.phone || null, lead.email || '',
+            lead.age || '', lead.course || '', lead.source || 'website',
+            lead.message || '', lead.created_at || new Date().toISOString()
+          ).run();
+        } catch (err) {
+          console.error('Import leads error:', err);
+        }
+      }
+    }
+
+    // 导入 organizations
+    if (data.organizations && Array.isArray(data.organizations)) {
+      for (const org of data.organizations) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM organizations WHERE id = ?').bind(org.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO organizations (id, name, contact_name, contact_phone, contact_email, address, notes, status, login_code, password_hash, unit_price_cny, settlement_day, credit_limit_cny, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            org.id, org.name, org.contact_name || null, org.contact_phone || null,
+            org.contact_email || null, org.address || null, org.notes || null, org.status || 'active',
+            org.login_code || null, org.password_hash || null, org.unit_price_cny || 80,
+            org.settlement_day || 'monday', org.credit_limit_cny || 0,
+            org.created_at || new Date().toISOString(), org.updated_at || new Date().toISOString()
+          ).run();
+        } catch (err) {
+          console.error('Import organizations error:', err);
+        }
+      }
+    }
+
+    // 导入 org_packages
+    if (data.org_packages && Array.isArray(data.org_packages)) {
+      for (const pkg of data.org_packages) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM org_packages WHERE id = ?').bind(pkg.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO org_packages (id, org_id, total_hours, used_hours, unit_price_cny, amount_cny, paid_amount_cny, status, notes, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            pkg.id, pkg.org_id, pkg.total_hours || 0, pkg.used_hours || 0,
+            pkg.unit_price_cny || 0, pkg.amount_cny || pkg.total_hours * pkg.unit_price_cny || 0,
+            pkg.paid_amount_cny || 0, pkg.status || 'pending',
+            pkg.notes || null, pkg.created_at || new Date().toISOString(), pkg.updated_at || new Date().toISOString()
+          ).run();
+        } catch (err) {
+          console.error('Import org_packages error:', err);
+        }
+      }
+    }
+
+    // 导入 org_hour_allocations
+    if (data.org_hour_allocations && Array.isArray(data.org_hour_allocations)) {
+      for (const alloc of data.org_hour_allocations) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM org_hour_allocations WHERE id = ?').bind(alloc.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO org_hour_allocations (id, org_id, package_id, student_id, hours, notes, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            alloc.id, alloc.org_id, alloc.package_id || null, alloc.student_id || null,
+            alloc.hours || 0, alloc.notes || null,
+            alloc.created_by || 'super_admin', alloc.created_at || new Date().toISOString()
+          ).run();
+        } catch (err) {
+          console.error('Import org_hour_allocations error:', err);
+        }
+      }
+    }
+
+    // 导入 org_settlements
+    if (data.org_settlements && Array.isArray(data.org_settlements)) {
+      for (const st of data.org_settlements) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM org_settlements WHERE id = ?').bind(st.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO org_settlements (id, org_id, period_start, period_end, total_classes, total_hours, unit_price_cny, amount_due_cny, status, paid_at, payment_ref, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            st.id, st.org_id, st.period_start || null, st.period_end || null,
+            st.total_classes || 0, st.total_hours || 0,
+            st.unit_price_cny || 0, st.amount_due_cny || st.total_hours * st.unit_price_cny || 0,
+            st.status || 'pending', st.paid_at || null,
+            st.payment_ref || null, st.generated_at || new Date().toISOString()
+          ).run();
+        } catch (err) {
+          console.error('Import org_settlements error:', err);
+        }
+      }
+    }
+
+    // 导入 org_settlement_items
+    if (data.org_settlement_items && Array.isArray(data.org_settlement_items)) {
+      for (const item of data.org_settlement_items) {
+        try {
+          if (mode === 'merge') {
+            const existing = await DB.prepare('SELECT id FROM org_settlement_items WHERE id = ?').bind(item.id).first();
+            if (existing) continue;
+          }
+          await DB.prepare(`
+            INSERT INTO org_settlement_items (id, settlement_id, class_id, student_id, student_name, teacher_name, class_date, hours, unit_price_cny, subtotal_cny)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            item.id, item.settlement_id, item.class_id || null,
+            item.student_id || null, item.student_name || null, item.teacher_name || null,
+            item.class_date || null, item.hours || 0,
+            item.unit_price_cny || 0, item.subtotal_cny || item.hours * item.unit_price_cny || 0
+          ).run();
+        } catch (err) {
+          console.error('Import org_settlement_items error:', err);
         }
       }
     }
