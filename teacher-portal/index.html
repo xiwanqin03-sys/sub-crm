@@ -245,6 +245,13 @@ function formatTime(time) {
  return time ? time.substring(0, 5) : '';
 }
 
+function formatStudentName(c) {
+  var name = c.student_name || '';
+  var en = c.student_english_name || '';
+  if (en) return name + ' (' + en + ')';
+  return name;
+}
+
 // ===== Class Link Edit =====
 function editClassLink(idx) {
  var inputDiv = document.getElementById('class-link-input-' + idx);
@@ -313,7 +320,7 @@ function showViewFeedback(idx) {
   var cls = window_historyClasses[idx];
   if (!cls) return;
   currentViewClass = cls;
-  document.getElementById('view-class-info').innerHTML = '<b>' + (cls.student_name || '') + '</b> - ' + cls.date;
+  document.getElementById('view-class-info').innerHTML = '<b>' + formatStudentName(cls) + '</b> - ' + cls.date;
   document.getElementById('view-content').innerHTML = escapeHtml(cls.content) || 'N/A';
   document.getElementById('view-homework').innerHTML = escapeHtml(cls.homework) || 'N/A';
   document.getElementById('view-notes').innerHTML = escapeHtml(cls.notes) || 'N/A';
@@ -371,13 +378,15 @@ async function loadTeacherData() {
     if (!Array.isArray(studentsData)) studentsData = [];
 
     var studentMap = {};
-    studentsData.forEach(function(s) { studentMap[s.id] = s.name; });
+    var studentEnMap = {};
+    studentsData.forEach(function(s) { studentMap[s.id] = s.name; studentEnMap[s.id] = s.english_name || ''; });
 
 // Add student names to classes
  teacherClasses.forEach(function(c) {
   if (!c.student_name || c.student_name === 'Unknown Student') {
    c.student_name = studentMap[c.student_id] || 'Unknown Student';
   }
+  c.student_english_name = studentEnMap[c.student_id] || '';
  });
 
     // Classify classes - use local date
@@ -430,7 +439,7 @@ html += '</div>';
 html += '<div class="space-y-1 text-sm">';
 html += '<div class="flex items-center gap-2">';
 html += '<i data-lucide="user" class="w-4 h-4 text-gray-400"></i>';
-html += '<span class="font-medium">' + (c.student_name || '') + '</span>';
+html += '<span class="font-medium">' + formatStudentName(c) + '</span>';
 html += '</div>';
 html += '<div class="flex items-center gap-2">';
 html += '<i data-lucide="book-open" class="w-4 h-4 text-gray-400"></i>';
@@ -494,7 +503,7 @@ function renderUpcoming(classes) {
     html += '<tr>';
     html += '<td class="px-4 py-3 text-sm">' + c.date + ' <span class="text-purple-500 font-medium">' + getDayOfWeek(c.date) + '</span></td>';
     html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
-    html += '<td class="px-4 py-3 text-sm font-medium">' + (c.student_name || '') + '</td>';
+    html += '<td class="px-4 py-3 text-sm font-medium">' + formatStudentName(c) + '</td>';
     html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
     html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
     html += '</tr>';
@@ -534,7 +543,7 @@ function renderHistory() {
     html += '<tr class="hover:bg-gray-50">';
     html += '<td class="px-4 py-3 text-sm">' + c.date + '</td>';
     html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
-    html += '<td class="px-4 py-3 text-sm font-medium">' + (c.student_name || '') + '</td>';
+    html += '<td class="px-4 py-3 text-sm font-medium">' + formatStudentName(c) + '</td>';
     html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
     html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
 
@@ -592,7 +601,7 @@ function openFeedback(cls) {
   }
   
   var info = '';
-info += '<div><span class="font-medium">Student:</span>' + (cls.student_name || '') + '</div>';
+info += '<div><span class="font-medium">Student:</span>' + formatStudentName(cls) + '</div>';
  info += '<div><span class="font-medium">Date:</span>' + cls.date + '</div>';
  info += '<div><span class="font-medium">Time:</span>' + formatTime(cls.start_time) + '</div>';
  info += '<div><span class="font-medium">Subject:</span>' + (cls.subject || 'English') + '</div>';
