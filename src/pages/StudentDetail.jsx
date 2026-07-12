@@ -36,13 +36,66 @@ export default function StudentDetail() {
             setClasses(Array.isArray(classesData) ? classesData : []);
             setPayments(Array.isArray(paymentsData) ? paymentsData : []);
             
-            // 加载课时变动记录
+            // 加载课时变动记录（来源1: API hour_changes 表）
+            let hcFromApi = [];
             try {
               const hcResult = await hourChangeOps.getByStudent(id);
-              setHourChanges(Array.isArray(hcResult) ? hcResult : []);
+              hcFromApi = Array.isArray(hcResult) ? hcResult : [];
             } catch (err) {
               console.error('Load hour changes error:', err);
             }
+
+            // 补全课时变动（来源2+3: 从 classes 和 payments 动态合成，补齐缺失记录）
+            // 用 related_id + type 做去重键，避免和 API 返回的重复
+            const seenKeys = new Set(hcFromApi.map(hc => `${hc.type}-${hc.related_id}`));
+            const synthesized = [];
+            // 从 classes 合成上课消耗（completed 状态才有课时变动）
+            (Array.isArray(classesData) ? classesData : []).forEach(cls => {
+              if (cls.status === 'completed' || cls.status === 'absent') {
+                const key = `class-${cls.id}`;
+                if (!seenKeys.has(key)) {
+                  const sign = cls.status === 'absent' ? 0 : -1;
+                  const amount = cls.status === 'absent' ? 0 : -(cls.hours || 1);
+                  synthesized.push({
+                    id: `cls-${cls.id}`,
+                    type: 'class',
+                    amount,
+                    related_id: cls.id,
+                    description: cls.status === 'absent'
+                      ? `缺席 ${cls.date || ''} ${cls.subject || ''}`
+                      : `上课消耗 ${cls.date || ''} ${cls.subject || ''}`,
+                    detail_text: `${cls.date || ''} ${cls.subject || cls.teacher || ''}`,
+                    created_at: cls.created_at || (cls.date ? cls.date + ' 00:00:00' : null),
+                  });
+                }
+              }
+            });
+            // 从 payments 合成购买课时
+            (Array.isArray(paymentsData) ? paymentsData : []).forEach(p => {
+              const key = `payment-${p.id}`;
+              if (!seenKeys.has(key)) {
+                // 金额 / 估单价 = 课时数，或用 hours 字段
+                const hours = p.hours || p.class_count || (p.amount ? Math.round(p.amount / 118) : 0);
+                synthesized.push({
+                  id: `pay-${p.id}`,
+                  type: 'payment',
+                  amount: hours,
+                  related_id: p.id,
+                  description: `购买课时 ${p.description || ''}`,
+                  detail_text: p.description || `付款 ¥${(p.amount || 0).toLocaleString()}`,
+                  created_at: p.created_at || (p.date ? p.date + ' 00:00:00' : null),
+                });
+              }
+            });
+
+            const merged = [...hcFromApi, ...synthesized];
+            // 按 created_at 降序
+            merged.sort((a, b) => {
+              const ta = a.created_at || '';
+              const tb = b.created_at || '';
+              return tb.localeCompare(ta);
+            });
+            setHourChanges(merged);
           }
         } catch (err) {
           console.error('Load student error:', err);
