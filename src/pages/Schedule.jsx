@@ -473,7 +473,7 @@ export default function Schedule() {
                 >
                   <option value="">选择学生</option>
                   {getFilteredStudents().map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                    <option key={s.id} value={s.id}>{s.english_name ? `${s.name} (${s.english_name})` : s.name}</option>
                   ))}
                 </select>
                 {!formData.organization_id && (
