@@ -233,7 +233,7 @@ async function loadStudentData() {
     var studentResp = await apiGet('/students/' + studentId);
     var student = studentResp.data || studentResp;
     document.getElementById('student-name').textContent = student.name + ' 的学习情况';
-    document.getElementById('student-info').textContent = '年级: ' + (student.grade || '-') + ' · 剩余 ' + ((student.total_hours || 0) - (student.used_hours || 0)) + ' 课时';
+    document.getElementById('student-info').textContent = (student.english_name ? '英文名: ' + student.english_name + ' · ' : '') + '年级: ' + (student.grade || '-') + ' · 剩余 ' + ((student.total_hours || 0) - (student.used_hours || 0)) + ' 课时';
 
     // 学生卡片详情
     document.getElementById('remaining-hours').textContent = (student.total_hours || 0) - (student.used_hours || 0);
