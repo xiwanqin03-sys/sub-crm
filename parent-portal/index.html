@@ -642,26 +642,104 @@
 
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
+      .sb-header {
+        top: 8px; margin: 8px 12px; height: auto; min-height: 52px;
+        padding: 8px 10px 8px 14px; flex-wrap: nowrap;
+      }
+      .sb-header__avatar { width: 36px; height: 36px; font-size: 13px; }
+      .sb-header__info h1 { font-size: 15px; }
+      .sb-header__info p { font-size: 11px; }
+      .sb-header__back { padding: 6px 12px; font-size: 12px; }
+
+      .container { padding: 0 16px 48px; }
+
+      .stats-card { padding: 28px 20px; border-radius: 24px; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-      .today-grid { grid-template-columns: 1fr; }
+      .stat-block__value { font-size: 28px; }
+      .stat-block__label { font-size: 12px; }
+
+      .section { margin-top: 28px; }
+      .section__title { font-size: 18px; }
+      .section__label { font-size: 10px; letter-spacing: 2px; padding: 4px 12px; }
+
+      .today-grid { grid-template-columns: 1fr; gap: 14px; }
+      .class-card { padding: 20px 18px; border-radius: 18px; }
+
+      .table-card { border-radius: 20px; }
       .sb-table thead { display: none; }
-      .sb-table, .sb-table tbody, .sb-table tr, .sb-table td { display: block; }
+      .sb-table, .sb-table tbody, .sb-table tr, .sb-table td { display: block; width: 100%; }
       .sb-table tr {
         border-bottom: 1px solid rgba(28,36,75,0.06);
-        padding: 12px 0;
+        padding: 14px 18px;
       }
+      .sb-table tbody tr:last-child { border-bottom: none; }
       .sb-table td {
-        padding: 4px 20px;
+        padding: 4px 0;
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
       }
       .sb-table td::before {
         content: attr(data-label);
         font-weight: 600;
         color: var(--sb-muted);
         font-size: 12px;
+        min-width: 50px;
       }
+      .sb-table .tooltip-cell { display: none; }
+
       .pagination { flex-direction: column; gap: 12px; }
+      .page-btn { padding: 7px 14px; font-size: 12px; }
+
+      /* Modal */
+      .modal-card { padding: 28px 22px; border-radius: 24px; margin: 12px; }
+      .modal-title { font-size: 18px; margin-bottom: 18px; }
+      .modal-info { padding: 14px 14px; }
+      .modal-info__row { font-size: 13px; }
+      .modal-feedback__box { font-size: 13px; padding: 12px 14px; }
+      .modal-close { padding: 12px 24px; font-size: 14px; }
+    }
+    @media (max-width: 480px) {
+      .sb-header { margin: 6px 8px; padding: 6px 8px 6px 12px; }
+      .sb-header__avatar { width: 32px; height: 32px; font-size: 12px; }
+      .sb-header__info h1 { font-size: 14px; }
+      .sb-header__info p { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+      .sb-header__back { padding: 5px 10px; font-size: 11px; }
+
+      .container { padding: 0 12px 40px; }
+
+      .stats-card { padding: 22px 16px; border-radius: 20px; }
+      .stats-grid { gap: 16px; }
+      .stat-block__value { font-size: 24px; }
+      .stat-block__label { font-size: 11px; }
+
+      .section { margin-top: 24px; }
+      .section__header { margin-bottom: 14px; gap: 8px; }
+      .section__label { font-size: 9px; letter-spacing: 1.5px; padding: 3px 10px; }
+      .section__count { font-size: 12px; }
+
+      .class-card { padding: 18px 14px; border-radius: 16px; }
+      .class-card__time { font-size: 14px; }
+      .class-card__row { font-size: 13px; }
+      .class-card__link-box { font-size: 12px; padding: 8px 12px; }
+
+      .sb-table tr { padding: 12px 14px; }
+      .sb-table td { font-size: 13px; }
+
+      .page-btn { padding: 6px 12px; font-size: 11px; }
+
+      .modal-card { padding: 22px 18px; }
+      .modal-title { font-size: 17px; }
+      .modal-info__row { font-size: 12px; margin-bottom: 4px; }
+      .modal-feedback__group label { font-size: 12px; }
+      .modal-feedback__box { font-size: 12px; padding: 10px 12px; }
+    }
+    @media (max-width: 360px) {
+      .stats-grid { grid-template-columns: 1fr; gap: 14px; }
+      .stat-block { display: flex; align-items: center; justify-content: space-between; }
+      .stat-block__label { margin-bottom: 0; }
+      .stat-block__value { font-size: 22px; }
     }
   </style>
 </head>
@@ -990,11 +1068,11 @@ function renderUpcoming(classes) {
     var statusCss = STATUS_CSS[c.status] || '';
     var statusLabel = STATUS_LABELS[c.status] || c.status;
     html += '<tr>';
-    html += '<td>' + c.date + ' <span class="day-of-week">' + getDayOfWeek(c.date) + '</span></td>';
-    html += '<td>' + formatTime(c.start_time) + '</td>';
-    html += '<td>' + (c.subject || '英语') + '</td>';
-    html += '<td>' + (c.teacher_name || '未知老师') + '</td>';
-    html += '<td><span class="status-badge ' + statusCss + '">' + statusLabel + '</span></td>';
+    html += '<td data-label="日期">' + c.date + ' <span class="day-of-week">' + getDayOfWeek(c.date) + '</span></td>';
+    html += '<td data-label="时间">' + formatTime(c.start_time) + '</td>';
+    html += '<td data-label="科目">' + (c.subject || '英语') + '</td>';
+    html += '<td data-label="老师">' + (c.teacher_name || '未知老师') + '</td>';
+    html += '<td data-label="状态"><span class="status-badge ' + statusCss + '">' + statusLabel + '</span></td>';
     html += '</tr>';
   }
   document.getElementById('upcoming-body').innerHTML = html;
@@ -1025,14 +1103,14 @@ function renderHistory() {
     var c = pageData[i];
     var globalIdx = start + i;
     html += '<tr>';
-    html += '<td>' + c.date + '</td>';
-    html += '<td>' + formatTime(c.start_time) + '</td>';
-    html += '<td>' + (c.subject || '英语') + '</td>';
-    html += '<td>' + (c.teacher_name || '未知老师') + '</td>';
+    html += '<td data-label="日期">' + c.date + '</td>';
+    html += '<td data-label="时间">' + formatTime(c.start_time) + '</td>';
+    html += '<td data-label="科目">' + (c.subject || '英语') + '</td>';
+    html += '<td data-label="老师">' + (c.teacher_name || '未知老师') + '</td>';
     if (c.status !== 'scheduled') {
-      html += '<td><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
+      html += '<td data-label="反馈"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
     } else {
-      html += '<td class="no-feedback">未提交</td>';
+      html += '<td data-label="反馈" class="no-feedback">未提交</td>';
     }
     html += '</tr>';
   }
