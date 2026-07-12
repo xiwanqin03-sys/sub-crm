@@ -289,8 +289,8 @@ students.get('/', async (c) => {
   }
 
   if (search) {
-    whereClause += ' AND (name LIKE ? OR phone LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`);
+    whereClause += ' AND (name LIKE ? OR english_name LIKE ? OR phone LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
   if (status) {
