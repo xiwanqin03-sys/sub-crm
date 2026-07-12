@@ -324,14 +324,21 @@ export default function Students() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">年级</label>
-                  <input
-                    type="text"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">等级</label>
+                  <select
                     value={formData.grade}
                     onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="如：三年级"
-                  />
+                  >
+                    <option value="">请选择等级</option>
+                    <option value="Pre-A1">Pre-A1</option>
+                    <option value="A1">A1</option>
+                    <option value="A2">A2</option>
+                    <option value="B1">B1</option>
+                    <option value="B2">B2</option>
+                    <option value="C1">C1</option>
+                    <option value="C2">C2</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>

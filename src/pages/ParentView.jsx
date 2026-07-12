@@ -152,7 +152,7 @@ function ParentStudentView() {
               <h1 className="text-2xl font-bold">{student.name}</h1>
               <div className="text-white/80 text-sm mt-1">
                 {student.age && `年龄: ${student.age}岁 · `}
-                {student.grade && `年级: ${student.grade}`}
+                {student.grade && `等级: ${student.grade}`}
               </div>
             </div>
           </div>

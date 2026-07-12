@@ -786,7 +786,7 @@
         <div class="stat-block__value" id="total-hours">-</div>
       </div>
       <div class="stat-block">
-        <div class="stat-block__label">年级</div>
+        <div class="stat-block__label">等级</div>
         <div class="stat-block__value stat-block__value--blue" id="grade">-</div>
       </div>
     </div>
@@ -982,7 +982,7 @@ async function loadStudentData() {
     var studentResp = await apiGet('/students/' + studentId);
     var student = studentResp.data || studentResp;
     document.getElementById('student-name').textContent = student.name + ' 的学习情况';
-    document.getElementById('student-info').textContent = (student.english_name ? '英文名: ' + student.english_name : (student.grade ? '年级: ' + student.grade : ''));
+    document.getElementById('student-info').textContent = (student.english_name ? '英文名: ' + student.english_name : (student.grade ? '等级: ' + student.grade : ''));
 
     // Header avatar initials
     var initials = (student.name || 'SB').substring(0, 2);

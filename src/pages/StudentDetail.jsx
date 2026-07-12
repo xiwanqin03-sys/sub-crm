@@ -235,7 +235,7 @@ export default function StudentDetail() {
                 )}
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
-                {student.grade && <span>年级: {student.grade}</span>}
+                {student.grade && <span>等级: {student.grade}</span>}
                 {student.age && <span>年龄: {student.age}</span>}
                 {student.parentName && <span>家长: {student.parentName}</span>}
               </div>
