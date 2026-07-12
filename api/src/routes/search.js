@@ -31,11 +31,11 @@ search.get('/', async (c) => {
   // 搜索学生
   if (type === 'all' || type === 'student') {
     const students = await DB.prepare(`
-      SELECT id, name, phone, status FROM students
-      WHERE name LIKE ? OR phone LIKE ? OR parent_name LIKE ?
+      SELECT id, name, english_name, phone, status FROM students
+      WHERE name LIKE ? OR english_name LIKE ? OR phone LIKE ? OR parent_name LIKE ?
       ORDER BY name ASC
       LIMIT 20
-    `).bind(searchPattern, searchPattern, searchPattern).all();
+    `).bind(searchPattern, searchPattern, searchPattern, searchPattern).all();
 
     results.students = students.results?.map(s => ({
       id: s.id,
