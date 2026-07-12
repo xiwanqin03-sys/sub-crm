@@ -118,6 +118,15 @@
       background: rgba(75,159,224,0.12);
       color: var(--sb-blue-dark);
     }
+    .sb-header__date {
+      font-family: var(--font-en);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sb-muted);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
 
     /* ===== Container ===== */
     .container {
@@ -651,6 +660,7 @@
       .sb-header__info h1 { font-size: 15px; }
       .sb-header__info p { font-size: 11px; }
       .sb-header__back { padding: 6px 12px; font-size: 12px; }
+      .sb-header__date { font-size: 11px; }
 
       .container { padding: 0 16px 48px; }
 
@@ -707,6 +717,7 @@
       .sb-header__info h1 { font-size: 14px; }
       .sb-header__info p { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
       .sb-header__back { padding: 5px 10px; font-size: 11px; }
+      .sb-header__date { display: none; }
 
       .container { padding: 0 12px 40px; }
 
@@ -755,7 +766,7 @@
       <p id="student-info"></p>
     </div>
   </div>
-
+  <div id="today-date" class="sb-header__date"></div>
 </header>
 
 <div class="container">
@@ -971,7 +982,7 @@ async function loadStudentData() {
     var studentResp = await apiGet('/students/' + studentId);
     var student = studentResp.data || studentResp;
     document.getElementById('student-name').textContent = student.name + ' 的学习情况';
-    document.getElementById('student-info').textContent = (student.english_name ? '英文名: ' + student.english_name + ' · ' : '') + '年级: ' + (student.grade || '-') + ' · 剩余 ' + ((student.total_hours || 0) - (student.used_hours || 0)) + ' 课时';
+    document.getElementById('student-info').textContent = (student.english_name ? '英文名: ' + student.english_name : (student.grade ? '年级: ' + student.grade : ''));
 
     // Header avatar initials
     var initials = (student.name || 'SB').substring(0, 2);
@@ -1158,6 +1169,11 @@ function closeFeedbackModal() {
 // Close modal on overlay click
 document.getElementById('feedback-modal').addEventListener('click', function(e) {
   if (e.target === this) closeFeedbackModal();
+});
+
+// ===== Date in Header =====
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-CN', {
+  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
 });
 
 // ===== 初始化 =====
