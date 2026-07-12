@@ -3,10 +3,20 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [master]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'parent-portal/**'
+      - 'teacher-portal/**'
+      - 'org-portal/**'
+      - 'package.json'
+      - 'tailwind.config.js'
+      - 'vite.config.js'
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-crm:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,14 +32,38 @@ jobs:
 
       - run: npm run build
 
-      - name: Create Pages project if not exists
-        run: npx wrangler pages project create sunnybridge-crm --production-branch=master || true
+      - name: Deploy CRM to Pages
+        run: npx wrangler pages deploy dist --project-name=sunnybridge-crm --branch=master
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy to Pages
-        run: npx wrangler pages deploy dist --project-name=sunnybridge-crm --branch=master
+  deploy-portals:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy Parent Portal to Pages
+        run: npx wrangler pages deploy parent-portal --project-name=parent-portal --branch=master
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Teacher Portal to Pages
+        run: npx wrangler pages deploy teacher-portal --project-name=teacher-portal --branch=master
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Org Portal to Pages
+        run: npx wrangler pages deploy org-portal --project-name=org-portal --branch=master
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
