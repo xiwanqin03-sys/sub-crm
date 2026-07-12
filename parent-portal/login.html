@@ -4,109 +4,457 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SunnyBridge 家长端</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --sb-blue: #4B9FE0;
+      --sb-blue-light: #6DB9F0;
+      --sb-blue-dark: #2E7AC4;
+      --sb-accent: #F5A623;
+      --sb-accent-dark: #E08C00;
+      --sb-orange: #E26B31;
+      --sb-orange-light: #F0825C;
+      --sb-text: #0b3a53;
+      --sb-muted: #6b7f8f;
+      --sb-dark: #1C244B;
+      --sb-deep: #0F1535;
+      --sb-light-blue: #C7EAF0;
+      --sb-bg-light: #F7FAFC;
+      --sb-bg-warm: #FFFAF5;
+      --sb-bg-white: #FFFFFF;
+      --sb-green: #2E8B4A;
+      --sb-green-light: #E8F8EE;
+      --sb-radius: 12px;
+      --sb-radius-lg: 24px;
+      --sb-radius-xl: 32px;
+      --sb-radius-full: 100px;
+      --sb-shadow-sm: 0 1px 3px rgba(28,36,75,0.04), 0 1px 2px rgba(28,36,75,0.02);
+      --sb-shadow: 0 4px 24px rgba(28,36,75,0.06), 0 1px 4px rgba(28,36,75,0.03);
+      --sb-shadow-lg: 0 12px 48px rgba(28,36,75,0.08), 0 4px 12px rgba(28,36,75,0.04);
+      --sb-shadow-xl: 0 20px 60px rgba(28,36,75,0.12), 0 8px 20px rgba(28,36,75,0.06);
+      --sb-transition: 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+      --sb-transition-fast: 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+      --sb-transition-spring: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --font-serif: 'Noto Serif SC', serif;
+      --font-en: 'Inter', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
+      font-family: var(--font-sans);
+      color: var(--sb-text);
+      line-height: 1.7;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
       min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(135deg, var(--sb-accent) 0%, var(--sb-orange) 100%);
+      position: relative;
     }
-    .student-card {
-      transition: all 0.2s ease;
+
+    /* Decorative glow blobs */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -10%; right: -5%;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      filter: blur(60px);
+      pointer-events: none;
     }
-    .student-card:hover {
+    body::after {
+      content: '';
+      position: absolute;
+      bottom: -10%; left: -5%;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: rgba(28,36,75,0.08);
+      filter: blur(60px);
+      pointer-events: none;
+    }
+
+    /* ===== Card Container ===== */
+    .portal-card {
+      background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
+      border-radius: var(--sb-radius-xl);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow:
+        0 1px 2px rgba(28,36,75,0.04),
+        0 16px 48px rgba(28,36,75,0.12),
+        0 8px 20px rgba(28,36,75,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+      border: 1px solid rgba(28,36,75,0.06);
+      position: relative;
+      z-index: 1;
+    }
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: calc(var(--sb-radius-xl) - 4px);
+      border: 1px solid rgba(98,168,229,0.06);
+      pointer-events: none;
+    }
+
+    /* ===== Logo Section ===== */
+    .logo-section {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .logo-circle {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(245,166,35,0.12), rgba(226,107,49,0.08));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 4px 20px rgba(226,107,49,0.12);
+    }
+    .logo-circle svg {
+      width: 40px; height: 40px;
+      color: var(--sb-orange);
+    }
+    .logo-title {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--sb-dark);
+      letter-spacing: 0.01em;
+    }
+    .logo-subtitle {
+      font-size: 14px;
+      color: var(--sb-muted);
+      margin-top: 8px;
+    }
+
+    /* ===== Form Elements ===== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 14px 20px;
+      border: 1.5px solid rgba(28,36,75,0.08);
+      border-radius: var(--sb-radius-full);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      color: var(--sb-text);
+      background: var(--sb-bg-light);
+      transition: all var(--sb-transition-fast);
+      outline: none;
+    }
+    .form-input::placeholder {
+      color: #a0b0bc;
+    }
+    .form-input:focus {
+      border-color: var(--sb-blue);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(75,159,224,0.08);
+    }
+
+    /* ===== Buttons ===== */
+    .btn-portal {
+      width: 100%;
+      padding: 14px 28px;
+      border-radius: var(--sb-radius-full);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all var(--sb-transition);
+      position: relative;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-portal:active {
+      transform: scale(0.97);
+    }
+    .btn-portal--primary {
+      background: linear-gradient(135deg, var(--sb-accent), var(--sb-orange));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(226,107,49,0.25);
+    }
+    .btn-portal--primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 8px 30px rgba(226,107,49,0.35), 0 0 0 4px rgba(226,107,49,0.06);
+    }
+    .btn-portal:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ===== Mode Toggle ===== */
+    .mode-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      background: rgba(28,36,75,0.04);
+      border-radius: var(--sb-radius-full);
+      padding: 4px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: var(--sb-radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      border: none;
+      cursor: pointer;
+      transition: all var(--sb-transition-fast);
+      background: transparent;
+      color: var(--sb-muted);
+    }
+    .mode-btn--active {
+      background: linear-gradient(135deg, var(--sb-accent), var(--sb-orange));
+      color: #fff;
+      box-shadow: 0 3px 12px rgba(226,107,49,0.2);
+    }
+
+    /* ===== Error Message ===== */
+    .error-msg {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      color: #DC2626;
+      font-size: 14px;
+      margin-bottom: 16px;
+      padding: 12px 18px;
+      background: #FEF2F2;
+      border-radius: var(--sb-radius);
+      border: 1px solid rgba(220,38,38,0.08);
+    }
+    .error-msg svg { flex-shrink: 0; }
+
+    /* ===== Search Results ===== */
+    .results-section {
+      display: none;
+      margin-top: 24px;
+    }
+    .results-label {
+      font-size: 13px;
+      color: var(--sb-muted);
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+    .student-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .student-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--sb-bg-light);
+      border-radius: var(--sb-radius-lg);
+      text-decoration: none;
+      color: inherit;
+      transition: all var(--sb-transition);
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .student-item::before {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: calc(var(--sb-radius-lg) - 3px);
+      border: 1px solid rgba(98,168,229,0.04);
+      pointer-events: none;
+    }
+    .student-item:hover {
+      transform: translateY(-3px);
+      background: rgba(245,166,35,0.04);
+      border-color: rgba(98,168,229,0.12);
+      box-shadow: 0 8px 24px rgba(28,36,75,0.06);
+    }
+    .student-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(245,166,35,0.12), rgba(226,107,49,0.08));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .student-avatar svg {
+      width: 24px; height: 24px;
+      color: var(--sb-orange);
+    }
+    .student-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .student-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--sb-dark);
+    }
+    .student-meta {
+      font-size: 13px;
+      color: var(--sb-muted);
+      margin-top: 2px;
+    }
+    .student-arrow {
+      width: 20px; height: 20px;
+      color: #c0ccd6;
+      flex-shrink: 0;
+      transition: transform var(--sb-transition-fast);
+    }
+    .student-item:hover .student-arrow {
+      transform: translateX(4px);
+      color: var(--sb-accent);
+    }
+
+    /* ===== Loading ===== */
+    .loading-section {
+      display: none;
+      text-align: center;
+      padding: 24px 0;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(245,166,35,0.15);
+      border-top: 3px solid var(--sb-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* ===== Hint Text ===== */
+    .hint-text {
+      font-size: 12px;
+      color: #a0b0bc;
+      margin-top: 8px;
+    }
+
+    /* ===== Footer ===== */
+    .portal-footer {
+      text-align: center;
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(28,36,75,0.04);
+    }
+    .footer-text {
+      font-family: var(--font-en);
+      font-size: 12px;
+      font-weight: 500;
+      color: #a0b0bc;
+      letter-spacing: 1px;
+    }
+    .footer-text .sb {
+      color: var(--sb-accent);
+      font-weight: 700;
+    }
+
+    /* ===== Password Error ===== */
+    .password-error {
+      display: none;
+      text-align: center;
+      color: #DC2626;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 480px) {
+      body { padding: 16px; }
+      .portal-card { padding: 36px 24px; }
+      .logo-title { font-size: 22px; }
     }
   </style>
 </head>
-<body class="flex items-center justify-center p-4">
-<div id="password-screen" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-  <div class="text-center mb-6">
-    <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <svg class="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<body>
+
+<!-- ===== Password Screen ===== -->
+<div id="password-screen" class="portal-card">
+  <div class="logo-section">
+    <div class="logo-circle">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 4.477 9.246 4 7.5 4S4.168 4.477 3 5.253v13C4.168 17.477 5.754 17 7.5 17s3.332.477 4.5 1.253m0-13C13.168 4.477 14.754 4 16.5 4c1.747 0 3.332.477 4.5 1.253v13C19.832 17.477 18.247 17 16.5 17c-1.746 0-3.332.477-4.5 1.253"></path>
       </svg>
     </div>
-    <h1 class="text-2xl font-bold text-gray-900">SunnyBridge 家长端</h1>
-    <p class="text-gray-500 mt-2">请输入访问密码</p>
+    <h1 class="logo-title">SunnyBridge 家长端</h1>
+    <p class="logo-subtitle">请输入访问密码</p>
   </div>
 
-  <div class="space-y-4">
-    <div>
-      <input type="password" id="password-input" placeholder="请输入密码" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" onkeydown="if(event.key==='Enter')checkPassword()">
+  <div class="form-group">
+    <input type="password" id="password-input" class="form-input" placeholder="请输入密码" onkeydown="if(event.key==='Enter')checkPassword()">
+  </div>
+  <div id="password-error" class="password-error">密码错误，请重试</div>
+  <button onclick="checkPassword()" class="btn-portal btn-portal--primary" style="margin-top: 8px;">进入</button>
+</div>
+
+<!-- ===== Main Content (Search) ===== -->
+<div id="main-content" class="portal-card" style="display: none;">
+  <div class="logo-section">
+    <div class="logo-circle">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 4.477 9.246 4 7.5 4S4.168 4.477 3 5.253v13C4.168 17.477 5.754 17 7.5 17s3.332.477 4.5 1.253m0-13C13.168 4.477 14.754 4 16.5 4c1.747 0 3.332.477 4.5 1.253v13C19.832 17.477 18.247 17 16.5 17c-1.746 0-3.332.477-4.5 1.253"></path>
+      </svg>
     </div>
-    <div id="password-error" class="hidden text-red-500 text-sm text-center">密码错误，请重试</div>
-    <button onclick="checkPassword()" class="w-full py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors">进入</button>
+    <h1 class="logo-title">SunnyBridge 家长端</h1>
+    <p class="logo-subtitle">查看孩子的学习进度与上课记录</p>
   </div>
 
-  <div class="mt-6 text-center text-sm text-gray-400">
-    <p>SunnyBridge English · 家长端</p>
+  <!-- Mode Toggle -->
+  <div class="mode-toggle">
+    <button id="btn-name" onclick="switchMode('name')" class="mode-btn mode-btn--active">学生姓名</button>
+    <button id="btn-phone" onclick="switchMode('phone')" class="mode-btn">手机号</button>
+  </div>
+
+  <!-- Search Form -->
+  <form onsubmit="handleSearch(event)">
+    <div class="form-group">
+      <input id="search-input" type="text" class="form-input" placeholder="请输入学生姓名或英文名" autocomplete="off">
+      <p id="search-hint" class="hint-text">输入孩子姓名或英文名进行查询</p>
+    </div>
+
+    <div id="error" class="error-msg">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <span id="error-text"></span>
+    </div>
+
+    <button type="submit" id="search-btn" class="btn-portal btn-portal--primary">查询</button>
+  </form>
+
+  <!-- Loading -->
+  <div id="loading" class="loading-section">
+    <div class="spinner"></div>
+    <p style="color: var(--sb-muted); font-size: 14px;">查询中...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="results-section">
+    <p class="results-label">找到以下学生：</p>
+    <div id="student-list" class="student-list"></div>
+  </div>
+
+  <div class="portal-footer">
+    <p class="footer-text"><span class="sb">SunnyBridge</span> English · 家长端</p>
   </div>
 </div>
 
-<div id="main-content" class="hidden w-full">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-auto">
-    <!-- Logo -->
-    <div class="text-center mb-8">
-      <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 4.477 9.246 4 7.5 4S4.168 4.477 3 5.253v13C4.168 17.477 5.754 17 7.5 17s3.332.477 4.5 1.253m0-13C13.168 4.477 14.754 4 16.5 4c1.747 0 3.332.477 4.5 1.253v13C19.832 17.477 18.247 17 16.5 17c-1.746 0-3.332.477-4.5 1.253"></path>
-        </svg>
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900">SunnyBridge 家长端</h1>
-      <p class="text-gray-500 mt-2">查看孩子的学习进度与上课记录</p>
-    </div>
-
-    <!-- 搜索方式切换 -->
-    <div class="flex gap-2 mb-4">
-      <button id="btn-name" onclick="switchMode('name')" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-orange-500 text-white">
-        学生姓名
-      </button>
-      <button id="btn-phone" onclick="switchMode('phone')" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200">
-        手机号
-      </button>
-    </div>
-
-    <!-- 搜索输入 -->
-    <form onsubmit="handleSearch(event)" class="space-y-4">
-      <div>
-        <input id="search-input" type="text" placeholder="请输入学生姓名或英文名" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" autocomplete="off">
-        <p id="search-hint" class="text-xs text-gray-400 mt-1">输入孩子姓名或英文名进行查询</p>
-      </div>
-
-      <!-- 错误提示 -->
-      <div id="error" class="hidden flex items-center gap-2 text-red-500 text-sm">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-        </svg>
-        <span id="error-text"></span>
-      </div>
-
-      <button type="submit" id="search-btn" class="w-full py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors">
-        查询
-      </button>
-    </form>
-
-    <!-- 搜索结果 -->
-    <div id="results" class="hidden mt-4 space-y-3">
-      <p class="text-sm text-gray-500 mb-2">找到以下学生：</p>
-      <div id="student-list" class="space-y-3"></div>
-    </div>
-
-    <!-- Loading -->
-    <div id="loading" class="hidden text-center py-4">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
-      <p class="text-gray-500 mt-2 text-sm">查询中...</p>
-    </div>
-
-    <!-- Footer -->
-    <div class="mt-8 text-center text-sm text-gray-400">
-      <p>SunnyBridge English · 家长端</p>
-    </div>
-  </div>
-
-  <script>
+<script>
     var API_BASE = 'https://api.qsct.dpdns.org/api/v1';
     var API_KEY = 'sunnyb...2024';
     var currentMode = 'name';
@@ -137,13 +485,13 @@ function switchMode(mode) {
       var hint = document.getElementById('search-hint');
 
       if (mode === 'name') {
-        btnName.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-orange-500 text-white';
-        btnPhone.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+        btnName.classList.add('mode-btn--active');
+        btnPhone.classList.remove('mode-btn--active');
         input.placeholder = '请输入学生姓名';
         hint.textContent = '输入孩子姓名进行查询';
       } else {
-        btnPhone.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-orange-500 text-white';
-        btnName.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200';
+        btnPhone.classList.add('mode-btn--active');
+        btnName.classList.remove('mode-btn--active');
         input.placeholder = '请输入手机号';
         hint.textContent = '输入登记的手机号进行查询';
       }
@@ -154,15 +502,15 @@ function switchMode(mode) {
 
     function showError(msg) {
       document.getElementById('error-text').textContent = msg;
-      document.getElementById('error').classList.remove('hidden');
+      document.getElementById('error').style.display = 'flex';
     }
 
     function hideError() {
-      document.getElementById('error').classList.add('hidden');
+      document.getElementById('error').style.display = 'none';
     }
 
     function hideResults() {
-      document.getElementById('results').classList.add('hidden');
+      document.getElementById('results').style.display = 'none';
     }
 
     async function apiGet(endpoint) {
@@ -181,14 +529,13 @@ function switchMode(mode) {
         return;
       }
 
-      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('loading').style.display = 'block';
       document.getElementById('search-btn').disabled = true;
 
       try {
         var searchParam = currentMode === 'name' ? 'search=' + encodeURIComponent(value) : 'search=' + encodeURIComponent(value);
         var response = await apiGet('/students?page_size=200&' + searchParam);
 
-        // 处理API返回格式
         var students = [];
         if (response.data && response.data.data && Array.isArray(response.data.data)) {
           students = response.data.data;
@@ -198,7 +545,6 @@ function switchMode(mode) {
           students = response.data;
         }
 
-        // 如果是手机号搜索，进一步精确匹配
         if (currentMode === 'phone') {
           students = students.filter(function(s) { return s.phone === value; });
         }
@@ -206,18 +552,16 @@ function switchMode(mode) {
         if (students.length === 0) {
           showError('未找到该学生信息，请检查输入是否正确');
         } else if (students.length === 1) {
-          // 只有一个结果，直接跳转
           var token = encodeStudentToken(students[0].id);
           window.location.href = './index.html?token=' + token;
         } else {
-          // 多个结果，显示列表
           renderStudentList(students);
         }
       } catch (err) {
         console.error('查询失败:', err);
         showError('查询失败，请稍后重试');
       } finally {
-        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('loading').style.display = 'none';
         document.getElementById('search-btn').disabled = false;
       }
     }
@@ -231,27 +575,26 @@ function switchMode(mode) {
         var card = document.createElement('a');
         var token = encodeStudentToken(student.id);
         card.href = './index.html?token=' + token;
-        card.className = 'student-card block bg-gray-50 rounded-xl p-4 hover:bg-orange-50';
-        card.innerHTML = '<div class="flex items-center gap-4">' +
-          '<div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">' +
-            '<svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+        card.className = 'student-item';
+        card.innerHTML =
+          '<div class="student-avatar">' +
+            '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
               '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>' +
             '</svg>' +
           '</div>' +
-          '<div class="flex-1">' +
-            '<h3 class="font-semibold text-gray-900">' + student.name + '</h3>' +
-            '<p class="text-sm text-gray-500">剩余 ' + remaining + ' 课时' +
+          '<div class="student-info">' +
+            '<div class="student-name">' + student.name + '</div>' +
+            '<div class="student-meta">剩余 ' + remaining + ' 课时' +
               (student.grade ? ' · ' + student.grade : '') +
-            '</p>' +
+            '</div>' +
           '</div>' +
-          '<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+          '<svg class="student-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
             '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>' +
-          '</svg>' +
-        '</div>';
+          '</svg>';
         list.appendChild(card);
       });
 
-      document.getElementById('results').classList.remove('hidden');
+      document.getElementById('results').style.display = 'block';
     }
   </script>
 </div>
@@ -281,8 +624,8 @@ function getCookie(name) {
 }
 
 function showMainContent() {
-    document.getElementById('password-screen').classList.add('hidden');
-    document.getElementById('main-content').classList.remove('hidden');
+    document.getElementById('password-screen').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
 }
 
 // Auto-login from cookie on page load
@@ -307,7 +650,7 @@ function checkPassword() {
         setCookie('parent_auth', btoa(expected), 7);
         showMainContent();
     } else {
-        document.getElementById('password-error').classList.remove('hidden');
+        document.getElementById('password-error').style.display = 'block';
     }
 }
 </script>
