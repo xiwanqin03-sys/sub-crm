@@ -411,7 +411,7 @@ export default function Schedule() {
                           }}
                           className={`${statusStyle.bg} ${statusStyle.text} text-xs p-1 rounded mb-1 hover:opacity-80 group relative ${schedule.is_trial ? 'ring-2 ring-orange-400' : ''}`}
                         >
-                          {schedule.is_trial && <span className="absolute -top-1 -right-1 text-[9px] bg-orange-500 text-white rounded-full px-1 leading-tight">🎁</span>}
+                          {schedule.is_trial === 1 && <span className="absolute -top-1 -right-1 text-[9px] bg-orange-500 text-white rounded-full px-1 leading-tight">🎁</span>}
                           <div className="flex items-center gap-1">
                             {statusStyle.icon}
                             <div className="font-medium truncate">
