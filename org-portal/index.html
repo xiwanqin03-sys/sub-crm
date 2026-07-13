@@ -846,7 +846,11 @@ async function renderSchedule(main) {
 
 function buildScheduleHTML(date) {
   const DAYS = ['周日','周一','周二','周三','周四','周五','周六'];
-  const SLOTS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+  const SLOTS = [];
+  for(let h=8; h<=21; h++) {
+    SLOTS.push(String(h).padStart(2,'0')+':00');
+    if(h<21) SLOTS.push(String(h).padStart(2,'0')+':30');
+  }
   let weeks=[];
   for(let w=0;w<2;w++){ let wk=[]; let sw=new Date(date); sw.setDate(sw.getDate()-sw.getDay()+w*7);
     for(let d=0;d<7;d++){ let dt=new Date(sw); dt.setDate(sw.getDate()+d); wk.push(dt); } weeks.push(wk); }
@@ -864,20 +868,20 @@ function buildScheduleHTML(date) {
       <button onclick="shiftWeek(7)" class="p-2 hover:bg-gray-100 rounded-lg"><i class="ri-arrow-right-s-line text-xl"></i></button>
       <span class="text-gray-600 font-medium">${start} - ${end}</span>
     </div></div>
-    <div class="bg-white rounded-lg shadow overflow-x-auto"><div class="min-w-[1400px]"><div class="grid grid-cols-[80px_repeat(14,minmax(90px,1fr))] border-b">
+    <div class="bg-white rounded-lg shadow overflow-x-auto"><div class="min-w-[2100px]"><div class="grid grid-cols-[60px_repeat(27,minmax(72px,1fr))] border-b">
     <div class="p-3 text-center text-gray-500 font-medium border-r bg-gray-50">时间</div>`;
 
   weeks.forEach(wk => wk.forEach(d => {
-    h += `<div class="p-3 text-center border-r ${isToday(d)?'bg-orange-50':''}"><div class="text-xs text-gray-500">${DAYS[d.getDay()]}</div><div class="font-semibold text-lg ${isToday(d)?'text-orange-600':'text-gray-700'}">${d.getDate()}</div></div>`;
+    h += `<div class="p-2 text-center border-r ${isToday(d)?'bg-orange-50':''}"><div class="text-xs text-gray-500">${DAYS[d.getDay()]}</div><div class="font-semibold text-base ${isToday(d)?'text-orange-600':'text-gray-700'}">${d.getDate()}</div></div>`;
   }));
   h += `</div>`;
 
   SLOTS.forEach(time => {
-    h += `<div class="grid grid-cols-[80px_repeat(14,minmax(90px,1fr))] border-b hover:bg-gray-50"><div class="p-3 text-center text-sm text-gray-600 font-medium border-r bg-gray-50">${time}</div>`;
+    h += `<div class="grid grid-cols-[60px_repeat(27,minmax(72px,1fr))] border-b hover:bg-gray-50"><div class="p-2 text-center text-xs text-gray-600 font-medium border-r bg-gray-50">${time}</div>`;
     weeks.forEach(wk => wk.forEach(d => {
       const dk = fmt(d);
       const items = scheduleData.classes.filter(c => c.date===dk && c.start_time===time && c.status!=='cancelled');
-      h += `<div class="min-h-[70px] p-1.5 border-r cursor-pointer ${isToday(d)?'bg-orange-50/30':''}" onclick="openScheduleModal('${dk}','${time}')">`;
+      h += `<div class="min-h-[52px] p-1 border-r cursor-pointer ${isToday(d)?'bg-orange-50/30':''}" onclick="openScheduleModal('${dk}','${time}')">`;
       items.forEach(c => {
         const s = scheduleData.students.find(x=>x.id===c.student_id);
         const t = scheduleData.teachers.find(x=>x.id===c.teacher_id);
