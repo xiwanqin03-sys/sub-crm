@@ -19,6 +19,7 @@ export default function StudentDetail() {
   const [loading, setLoading] = useState(true);
   const [hourChanges, setHourChanges] = useState([]);
   const [assessments, setAssessments] = useState([]);
+  const [showAssessmentFeedback, setShowAssessmentFeedback] = useState(null);
   const [classForm, setClassForm] = useState({ date: '', hours: 1, notes: '' });
 
   useEffect(() => {
@@ -382,9 +383,13 @@ export default function StudentDetail() {
                         </div>
                       </div>
                     </div>
-                    {(cls.content || cls.homework) && (
-                      <button onClick={() => setShowFeedbackModal(cls)} className="text-primary-600 hover:text-primary-700" title="查看反馈">
-                        <MessageSquare size={16} />
+                    {(cls.content || cls.homework || (cls.is_trial && assessments.some(a => a.class_id === cls.id))) && (
+                      <button onClick={() => cls.is_trial && assessments.some(a => a.class_id === cls.id)
+                        ? setShowAssessmentFeedback(assessments.find(a => a.class_id === cls.id))
+                        : setShowFeedbackModal(cls)} className="text-primary-600 hover:text-primary-700" title={cls.is_trial ? "查看评估报告" : "查看反馈"}>
+                        {cls.is_trial && assessments.some(a => a.class_id === cls.id)
+                          ? <FileText size={16} />
+                          : <MessageSquare size={16} />}
                       </button>
                     )}
                   </div>
@@ -429,9 +434,13 @@ export default function StudentDetail() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(cls.content || cls.homework) && (
-                      <button onClick={() => setShowFeedbackModal(cls)} className="p-2 text-primary-600 hover:text-primary-700" title="查看反馈">
-                        <MessageSquare size={18} />
+                    {(cls.content || cls.homework || (cls.is_trial && assessments.some(a => a.class_id === cls.id))) && (
+                      <button onClick={() => cls.is_trial && assessments.some(a => a.class_id === cls.id)
+                        ? setShowAssessmentFeedback(assessments.find(a => a.class_id === cls.id))
+                        : setShowFeedbackModal(cls)} className="p-2 text-primary-600 hover:text-primary-700" title={cls.is_trial ? "查看评估报告" : "查看反馈"}>
+                        {cls.is_trial && assessments.some(a => a.class_id === cls.id)
+                          ? <FileText size={18} />
+                          : <MessageSquare size={18} />}
                       </button>
                     )}
                     <button onClick={() => handleDeleteClass(cls.id)} className="p-2 text-gray-400 hover:text-red-600">
@@ -688,6 +697,72 @@ export default function StudentDetail() {
         </div>
       )}
 
+      {/* 评估报告弹窗（上课记录中体验课查看） */}
+      {showAssessmentFeedback && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">📝 体验课评估报告</h2>
+              <span className="text-sm text-orange-600 font-medium">🎁 体验课</span>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-gray-500">学生：</span><span className="font-medium text-gray-800">{showAssessmentFeedback.student_name || student.name}{showAssessmentFeedback.student_english_name ? ` (${showAssessmentFeedback.student_english_name})` : ''}</span></div>
+                <div><span className="text-gray-500">教师：</span><span className="font-medium text-gray-800">{showAssessmentFeedback.teacher_name || '-'}</span></div>
+                <div><span className="text-gray-500">日期：</span><span className="font-medium text-gray-800">{showAssessmentFeedback.class_date} {(showAssessmentFeedback.start_time||'').substring(0,5)}-{(showAssessmentFeedback.end_time||'').substring(0,5)}</span></div>
+                <div><span className="text-gray-500">科目：</span><span className="font-medium text-gray-800">{showAssessmentFeedback.subject || '英语'}</span></div>
+              </div>
+            </div>
+            {(() => {
+              const a = showAssessmentFeedback;
+              const StarRow = ({ score }) => (
+                <span className="text-lg tracking-tight">
+                  {[1,2,3,4,5].map(i => <span key={i} className={i <= (a[score]||0) ? 'text-orange-400' : 'text-gray-300'}>★</span>)}
+                </span>
+              );
+              const dims = [
+                {title:'🎧 听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comment:'listening_comments'},
+                {title:'🗣️ 口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comment:'speaking_comments'},
+                {title:'📖 阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comment:'reading_comments'},
+                {title:'✍️ 写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comment:'writing_comments'},
+                {title:'🌟 课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comment:'classroom_comments'},
+              ];
+              return (
+                <div className="space-y-3">
+                  {dims.map(dim => (
+                    <div key={dim.title} className="border border-gray-200 rounded-lg p-3">
+                      <div className="font-medium text-gray-700 text-sm mb-2">{dim.title}</div>
+                      {dim.items.map(item => (
+                        <div key={item[0]} className="flex items-center justify-between py-1">
+                          <span className="text-sm text-gray-600">{item[1]}</span>
+                          <StarRow score={item[0]} />
+                        </div>
+                      ))}
+                      {a[dim.comment] && (
+                        <div className="mt-2 p-2 bg-orange-50 border-l-2 border-orange-300 rounded text-sm text-gray-600 whitespace-pre-wrap">{a[dim.comment]}</div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="border border-gray-200 rounded-lg p-3 bg-orange-50">
+                    <div className="font-medium text-gray-700 text-sm mb-2">📋 综合评估</div>
+                    {a.strengths && <div className="mb-2"><span className="text-sm font-medium text-gray-700">💪 强项</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.strengths}</div></div>}
+                    {a.improvements && <div className="mb-2"><span className="text-sm font-medium text-gray-700">📈 待提升</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.improvements}</div></div>}
+                    {a.recommended_level && <div className="mb-2"><span className="text-sm font-medium text-gray-700">🎓 建议级别</span><span className="ml-2 text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{a.recommended_level}</span></div>}
+                    {a.teacher_message && <div className="mt-3 p-3 bg-blue-50 rounded-lg"><span className="text-sm font-medium text-gray-700">💌 教师寄语</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.teacher_message}</div></div>}
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="flex justify-between mt-6">
+              <button onClick={() => openAssessmentReport(showAssessmentFeedback)} className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm flex items-center gap-1">
+                <FileText size={16} /> 导出 PDF
+              </button>
+              <button onClick={() => setShowAssessmentFeedback(null)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 调整课时弹窗 */}
       {showAdjustModal && student && (
         <AdjustHoursModal
@@ -791,15 +866,15 @@ export default function StudentDetail() {
       .stars-readonly { display: inline-flex; gap: 2px; }
       .stars-readonly .star { font-size: 18px; color: #d1d5db; }
       .stars-readonly .star.active { color: #F5A623; }
-      .dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFAF5; border-left: 3px solid #F5A623; border-radius: 4px; font-size: 14px; color: #475569; line-height: 1.6; }
+      .dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFAF5; border-left: 3px solid #F5A623; border-radius: 4px; font-size: 14px; color: #475569; line-height: 1.6; white-space: pre-wrap; }
       .overall-section { margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 10px; }
       .overall-item { margin-bottom: 12px; }
       .overall-item:last-child { margin-bottom: 0; }
       .overall-label { display: inline-block; font-size: 14px; font-weight: 600; color: #1C244B; margin-bottom: 4px; }
-      .overall-text { font-size: 14px; color: #475569; line-height: 1.6; padding-left: 16px; }
+      .overall-text { font-size: 14px; color: #475569; line-height: 1.6; padding-left: 16px; white-space: pre-wrap; }
       .message-section { margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #E8F4FD, #FFFAF5); border-radius: 12px; border: 1px solid #E0F2FE; }
       .message-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 10px; }
-      .message-text { font-size: 15px; color: #475569; line-height: 1.8; }
+      .message-text { font-size: 15px; color: #475569; line-height: 1.8; white-space: pre-wrap; }
       .report-footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e8edf2; font-size: 12px; color: #94a3b8; }
       .report-footer .date { margin-top: 4px; }
       .print-btn-area { text-align: center; margin-top: 24px; }
