@@ -924,7 +924,7 @@ function bindScheduleEvents(date) {
           <input type="hidden" name="date" value="${dk}">
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-sm font-medium mb-1">开始时间 *</label><input type="time" name="start_time" value="${time}" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"></div>
-            <div><label class="block text-sm font-medium mb-1">时长</label><select name="hours" class="w-full px-3 py-2 border rounded-lg"><option value="0.5">30分钟</option><option value="0.67">40分钟</option><option value="1" selected>60分钟</option></select></div>
+            <div><label class="block text-sm font-medium mb-1">时长（分钟）</label><select name="duration" class="w-full px-3 py-2 border rounded-lg"><option value="25">25分钟 (0.5课时)</option><option value="50" selected>50分钟 (1课时)</option><option value="60">60分钟</option></select></div>
           </div>
           <div><label class="block text-sm font-medium mb-1">科目</label><input name="subject" value="英语" class="w-full px-3 py-2 border rounded-lg"></div>
           <div><label class="block text-sm font-medium mb-1">备注</label><textarea name="notes" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea></div>
@@ -935,15 +935,18 @@ function bindScheduleEvents(date) {
     modal.querySelector('form').addEventListener('submit', async e => {
       e.preventDefault(); const fd = new FormData(e.target); const data = Object.fromEntries(fd);
       data.student_id = parseInt(data.student_id); data.teacher_id = parseInt(data.teacher_id);
-      data.hours = parseFloat(data.hours); data.status = 'scheduled';
+      const duration = parseInt(data.duration) || 50;
+      // 时长(分钟) → 课时数：25分钟=0.5课时, 50分钟=1课时, 60分钟=1课时
+      data.hours = duration === 25 ? 0.5 : duration === 50 ? 1.0 : duration / 60;
+      data.status = 'scheduled';
+      delete data.duration;
       data.organization_id = parseInt(orgId);
       const teacher = scheduleData.teachers.find(t=>t.id===data.teacher_id);
       data.teacher = teacher?.name||'';
       // 自动计算 end_time
       const [hh, mm] = (data.start_time||'10:00').split(':').map(Number);
-      const durMin = Math.round(data.hours * 60);
-      const endH = hh + Math.floor(durMin / 60);
-      const endM = mm + (durMin % 60);
+      const endH = hh + Math.floor(duration / 60);
+      const endM = mm + (duration % 60);
       data.end_time = `${String(endH).padStart(2,'0')}:${String(endM % 60).padStart(2,'0')}`;
       try {
         await api(`/classes/student/${data.student_id}`, { method: 'POST', body: JSON.stringify(data) });
