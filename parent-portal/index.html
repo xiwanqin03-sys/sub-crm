@@ -375,9 +375,68 @@
       border-radius: var(--sb-radius);
     }
     .meeting-id-box strong {
+       color: var(--sb-text);
+       font-weight: 700;
+       letter-spacing: 1px;
+     }
+    /* ===== Assessment Report Cards ===== */
+    .assessment-card {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+      background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFF 100%);
+      border-radius: var(--sb-radius-lg);
+      border: 1px solid rgba(28,36,75,0.06);
+      box-shadow: 0 1px 3px rgba(28,36,75,0.04);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .assessment-card:hover {
+      box-shadow: 0 4px 16px rgba(28,36,75,0.08);
+      transform: translateY(-1px);
+    }
+    .assessment-card__time {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--sb-blue);
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 120px;
+    }
+    .assessment-card__body {
+      flex: 1;
+      min-width: 0;
+    }
+    .assessment-card__title {
+      font-weight: 600;
+      font-size: 15px;
       color: var(--sb-text);
-      font-weight: 700;
-      letter-spacing: 1px;
+    }
+    .assessment-card__teacher {
+      font-size: 13px;
+      color: var(--sb-muted);
+      margin-top: 2px;
+    }
+    .assessment-card__message {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #6b7f8f;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .assessment-card__level {
+      margin-top: 6px;
+    }
+    .assessment-card__arrow {
+      display: flex;
+      align-items: center;
+      color: var(--sb-blue);
+      font-size: 13px;
+      font-weight: 600;
+      gap: 2px;
+      flex-shrink: 0;
     }
 
     /* ===== Status Badges ===== */
@@ -788,13 +847,6 @@
       }
       /* Trial badge */
       .trial-badge { display: inline-block; font-size: 11px; background: #F5A623; color: white; padding: 1px 8px; border-radius: 100px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
-      /* Report star styles (used in new window) */
-      .class-card { display: flex; gap: 16px; align-items: center; padding: 16px 20px; background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(28,36,75,0.04); border: 1px solid rgba(28,36,75,0.05); transition: all 0.4s cubic-bezier(0.32,0.72,0,1); }
-      .class-card:hover { box-shadow: 0 4px 24px rgba(28,36,75,0.08); transform: translateY(-1px); }
-      .class-card__time { font-size: 14px; font-weight: 600; color: var(--sb-blue); white-space: nowrap; flex-shrink: 0; }
-      .class-card__body { flex: 1; min-width: 0; }
-      .class-card__subject { font-weight: 600; font-size: 15px; color: var(--sb-text); }
-      .class-card__teacher { font-size: 13px; color: var(--sb-muted); margin-top: 2px; }
       </style>
 </head>
 <body>
@@ -899,7 +951,7 @@
       <span class="section__label section__label--accent">Assessment Reports</span>
       <span class="section__count" id="assessments-count">0</span>
     </div>
-    <div id="assessments-list" class="today-grid"></div>
+    <div id="assessments-list" style="display:flex;flex-direction:column;gap:12px;"></div>
   </section>
 </div>
 
@@ -1318,18 +1370,19 @@ function renderAssessments(list) {
   list.forEach(function(a) {
     var trialBadge = a.is_trial === 1 ? '<span class="trial-badge">🎁 体验课</span>' : '';
     var levelBadge = a.recommended_level ? '<span style="display:inline-block;font-size:12px;background:#C7EAF0;color:#0b3a53;padding:2px 10px;border-radius:100px;font-weight:600;">🎓 ' + escapeHtml(a.recommended_level) + '</span>' : '';
-    html += '<div class="class-card" style="cursor:pointer;" onclick="viewAssessmentReport(' + a.id + ')">';
-    html += '<div class="class-card__time">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '</div>';
-    html += '<div class="class-card__body">';
-    html += '<div class="class-card__subject">' + escapeHtml(a.subject || '英语') + ' ' + trialBadge + '</div>';
-    html += '<div class="class-card__teacher">' + escapeHtml(a.teacher_name || '') + '</div>';
+    html += '<div class="assessment-card" onclick="viewAssessmentReport(' + a.id + ')">';
+    html += '<div class="assessment-card__time">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '</div>';
+    html += '<div class="assessment-card__body">';
+    html += '<div class="assessment-card__title">' + escapeHtml(a.subject || '英语') + ' ' + trialBadge + '</div>';
+    html += '<div class="assessment-card__teacher">' + escapeHtml(a.teacher_name || '') + '</div>';
     if (a.teacher_message) {
-      html += '<div style="margin-top:6px;font-size:13px;color:#6b7f8f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">💌 ' + escapeHtml(a.teacher_message) + '</div>';
+      html += '<div class="assessment-card__message">💌 ' + escapeHtml(a.teacher_message) + '</div>';
     }
     if (a.recommended_level) {
-      html += '<div style="margin-top:6px;">' + levelBadge + '</div>';
+      html += '<div class="assessment-card__level">' + levelBadge + '</div>';
     }
-    html += '</div><div style="display:flex;align-items:center;color:#4B9FE0;font-size:13px;font-weight:600;gap:2px;flex-shrink:0;">查看报告 →</div>';
+    html += '</div>';
+    html += '<div class="assessment-card__arrow">查看报告 →</div>';
     html += '</div>';
   });
   container.innerHTML = html;
