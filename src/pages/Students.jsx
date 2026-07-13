@@ -209,7 +209,7 @@ export default function Students() {
                             <div className="font-medium text-gray-800">{student.name}</div>
                             {student.english_name && <div className="text-sm text-gray-400">{student.english_name}</div>}
                             <div className="text-sm text-gray-500">
-                              {student.grade && `年级: ${student.grade}`}
+                              {student.grade && `等级: ${student.grade}`}
                               {student.age && ` | 年龄: ${student.age}`}
                             </div>
                           </div>
