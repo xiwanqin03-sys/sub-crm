@@ -337,7 +337,6 @@ export default function Schedule() {
           <OrgFilter selectedOrg={selectedOrg} onChange={(orgId) => { setSelectedOrgState(orgId); setSelectedOrg(orgId); }} />
         </div>
         <div className="flex items-center gap-2">
-          greenhouse
           <button
             onClick={handleToday}
             className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"

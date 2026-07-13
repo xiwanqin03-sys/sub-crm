@@ -94,9 +94,15 @@ export default function Payments() {
   };
 
   const getStudentName = (payment) => {
-    if (payment.student_name) return payment.student_name;
+    if (payment.student_name) {
+      // 如果API返回了student_name，尝试找到对应学生补充英文名
+      const student = students.find(s => s.id === payment.studentId || s.id === payment.student_id);
+      if (student?.english_name) return `${payment.student_name} (${student.english_name})`;
+      return payment.student_name;
+    }
     const student = students.find(s => s.id === payment.studentId || s.id === payment.student_id);
-    return student?.name || '未知学生';
+    if (!student) return '未知学生';
+    return student.english_name ? `${student.name} (${student.english_name})` : student.name;
   };
 
   const getOrgName = (orgId) => {

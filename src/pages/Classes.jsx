@@ -343,7 +343,14 @@ function Classes() {
             <tbody className="divide-y divide-gray-100">
               {paginatedClasses.map(cls => {
                 const student = students.find(s => s.id === cls.studentId);
-                const displayName = cls.studentName || student?.name || '未知';
+                let displayName = '未知';
+                if (cls.studentName && student?.english_name) {
+                  displayName = `${cls.studentName} (${student.english_name})`;
+                } else if (cls.studentName) {
+                  displayName = cls.studentName;
+                } else if (student) {
+                  displayName = student.english_name ? `${student.name} (${student.english_name})` : student.name;
+                }
                 const status = cls.status || 'pending';
 
                 return (
