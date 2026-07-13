@@ -918,8 +918,27 @@ var STATUS_LABELS = { scheduled: 'Scheduled', completed: 'Completed', cancelled:
 var STATUS_CSS = { scheduled: 'status-scheduled', completed: 'status-completed', cancelled: 'status-cancelled', absent: 'status-absent' };
 
 // ===== Simple URL Token Encryption =====
-const SALT = 'sunnybridge2024';
-const KEY = 'sb_parent_key_v1';
+// Token 来源可能有两套加密参数，尝试解码
+const SALT_KEY_PAIRS = [
+  { salt: 'sunnybridge2024', key: 'sb_parent_key_v1' },
+  { salt: 'sunnybridge', key: 'SBridgeParent2024!@' },
+];
+
+function tryAllDecode(token, pair) {
+  const decoded = xorDecode(token, pair.key);
+  if (!decoded) return null;
+  const parts = decoded.split(':');
+  if (parts.length !== 2 || parts[0] !== pair.salt) return null;
+  return parts[1];
+}
+
+function decodeStudentToken(token) {
+  for (var i = 0; i < SALT_KEY_PAIRS.length; i++) {
+    var id = tryAllDecode(token, SALT_KEY_PAIRS[i]);
+    if (id) return id;
+  }
+  return null;
+}
 
 function xorEncode(str, key) {
   let result = '';
@@ -943,16 +962,9 @@ function xorDecode(str, key) {
 }
 
 function encodeStudentToken(studentId) {
-  const data = SALT + ':' + studentId;
-  return xorEncode(data, KEY);
-}
-
-function decodeStudentToken(token) {
-  const decoded = xorDecode(token, KEY);
-  if (!decoded) return null;
-  const parts = decoded.split(':');
-  if (parts.length !== 2 || parts[0] !== SALT) return null;
-  return parts[1];
+  // 用第一套参数生成 token
+  const data = SALT_KEY_PAIRS[0].salt + ':' + studentId;
+  return xorEncode(data, SALT_KEY_PAIRS[0].key);
 }
 
 function getStudentId() {
