@@ -110,6 +110,7 @@ assessments.post('/', validate(assessmentSchema), async (c) => {
   const DB = c.env.DB;
   const data = c.req.validated;
 
+  try {
   // 检查课程是否存在
   const cls = await DB.prepare('SELECT id, student_id, teacher_id, organization_id, is_trial FROM classes WHERE id = ?').bind(data.class_id).first();
   if (!cls) {
@@ -140,7 +141,7 @@ assessments.post('/', validate(assessmentSchema), async (c) => {
       classroom_participation, classroom_focus, classroom_interaction, classroom_comments,
       strengths, improvements, recommended_level, teacher_message,
       status, organization_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     data.class_id,
     cls.student_id,
@@ -179,6 +180,10 @@ assessments.post('/', validate(assessmentSchema), async (c) => {
     status: data.status || 'draft',
     created_at: new Date().toISOString()
   }), 201);
+  } catch(dbErr) {
+    console.error('Assessment INSERT error:', dbErr);
+    return c.json(error('INTERNAL_ERROR', '创建评估报告失败: ' + dbErr.message), 500);
+  }
 });
 
 // 更新评估报告

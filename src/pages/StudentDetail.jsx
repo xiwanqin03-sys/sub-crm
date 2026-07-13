@@ -102,8 +102,9 @@ export default function StudentDetail() {
           
           // 加载评估报告
           try {
-            const assessmentsData = await request('/assessments?student_id=' + id);
-            setAssessments(assessmentsData?.data || []);
+            const assessmentsData = await request('/assessments?student_id=' + id + '&page_size=50');
+            const aData = assessmentsData?.data?.data || assessmentsData?.data || [];
+            setAssessments(Array.isArray(aData) ? aData : []);
           } catch(e) { console.error('Load assessments:', e); }
           
         } catch (err) {
