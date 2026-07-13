@@ -104,6 +104,7 @@ const data = results.results?.map(cls => ({
   notes: cls.notes,
   status: cls.status,
   class_link: cls.class_link,
+  is_trial: cls.is_trial || 0,
   organization_id: cls.organization_id,
   created_at: cls.created_at,
   updated_at: cls.updated_at
@@ -200,6 +201,7 @@ return c.json(success({
   homework: cls.homework,
   notes: cls.notes,
   class_link: cls.class_link,
+  is_trial: cls.is_trial || 0,
   status: cls.status,
   organization_id: cls.organization_id,
   created_at: cls.created_at,
@@ -260,8 +262,8 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
   }
 
   const result = await DB.prepare(`
-    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id, is_trial)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     studentId,
     data.package_id || null,
@@ -276,7 +278,8 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     data.homework || null,
     data.notes || null,
     data.status || 'completed',
-    organizationId
+    organizationId,
+    data.is_trial || 0
   ).run();
 
   const classId = result.meta.last_row_id;
@@ -335,6 +338,7 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     homework: data.homework || null,
     notes: data.notes || null,
     status: classStatus,
+    is_trial: data.is_trial || 0,
     created_at: new Date().toISOString()
   }), 201);
 });
@@ -468,6 +472,7 @@ return c.json(success({
   notes: cls.notes,
   status: cls.status,
   class_link: cls.class_link,
+  is_trial: cls.is_trial || 0,
   updated_at: cls.updated_at
  }));
 });

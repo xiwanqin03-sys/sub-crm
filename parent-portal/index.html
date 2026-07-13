@@ -752,8 +752,17 @@
       .stat-block { display: flex; align-items: center; justify-content: space-between; }
       .stat-block__label { margin-bottom: 0; }
       .stat-block__value { font-size: 22px; }
-    }
-  </style>
+      }
+      /* Trial badge */
+      .trial-badge { display: inline-block; font-size: 11px; background: #F5A623; color: white; padding: 1px 8px; border-radius: 100px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
+      /* Report star styles (used in new window) */
+      .class-card { display: flex; gap: 16px; align-items: center; padding: 16px 20px; background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(28,36,75,0.04); border: 1px solid rgba(28,36,75,0.05); transition: all 0.4s cubic-bezier(0.32,0.72,0,1); }
+      .class-card:hover { box-shadow: 0 4px 24px rgba(28,36,75,0.08); transform: translateY(-1px); }
+      .class-card__time { font-size: 14px; font-weight: 600; color: var(--sb-blue); white-space: nowrap; flex-shrink: 0; }
+      .class-card__body { flex: 1; min-width: 0; }
+      .class-card__subject { font-weight: 600; font-size: 15px; color: var(--sb-text); }
+      .class-card__teacher { font-size: 13px; color: var(--sb-muted); margin-top: 2px; }
+      </style>
 </head>
 <body>
 
@@ -849,6 +858,15 @@
       </table>
     </div>
     <div id="history-pagination" class="pagination"></div>
+  </section>
+
+  <!-- ===== Assessment Reports (体验课评估报告) ===== -->
+  <section id="assessments-section" class="section" style="display: none;">
+    <div class="section__header">
+      <span class="section__label section__label--accent">Assessment Reports</span>
+      <span class="section__count" id="assessments-count">0</span>
+    </div>
+    <div id="assessments-list" class="today-grid"></div>
   </section>
 </div>
 
@@ -1022,6 +1040,9 @@ async function loadStudentData() {
     window_allPastClasses = past;
     window_historyPage = 1;
     renderHistory();
+    
+    // 加载评估报告
+    loadAssessments(studentId);
 
   } catch (err) {
     console.error('加载失败:', err);
@@ -1178,6 +1199,158 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 
 // ===== 初始化 =====
 loadStudentData();
+
+// ===== Assessment Reports (体验课评估报告) =====
+async function loadAssessments(studentId) {
+  try {
+    var resp = await apiGet('/assessments?student_id=' + studentId + '&status=published&page_size=50');
+    var data = resp.data && resp.data.data ? resp.data.data : (resp.data || []);
+    renderAssessments(data);
+  } catch(e) { console.error('Assessments load error:', e); }
+}
+
+function renderAssessments(list) {
+  var section = document.getElementById('assessments-section');
+  var container = document.getElementById('assessments-list');
+  document.getElementById('assessments-count').textContent = list.length;
+  
+  if (list.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  
+  var html = '';
+  list.forEach(function(a) {
+    var trialBadge = a.is_trial === 1 ? '<span class="trial-badge">🎁 体验课</span>' : '';
+    var levelBadge = a.recommended_level ? '<span style="display:inline-block;font-size:12px;background:#C7EAF0;color:#0b3a53;padding:2px 10px;border-radius:100px;font-weight:600;">🎓 ' + escapeHtml(a.recommended_level) + '</span>' : '';
+    html += '<div class="class-card" style="cursor:pointer;" onclick="viewAssessmentReport(' + a.id + ')">';
+    html += '<div class="class-card__time">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '</div>';
+    html += '<div class="class-card__body">';
+    html += '<div class="class-card__subject">' + escapeHtml(a.subject || '英语') + ' ' + trialBadge + '</div>';
+    html += '<div class="class-card__teacher">' + escapeHtml(a.teacher_name || '') + '</div>';
+    if (a.teacher_message) {
+      html += '<div style="margin-top:6px;font-size:13px;color:#6b7f8f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">💌 ' + escapeHtml(a.teacher_message) + '</div>';
+    }
+    if (a.recommended_level) {
+      html += '<div style="margin-top:6px;">' + levelBadge + '</div>';
+    }
+    html += '</div><div style="display:flex;align-items:center;color:#4B9FE0;font-size:13px;font-weight:600;gap:2px;flex-shrink:0;">查看报告 →</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function viewAssessmentReport(assessmentId) {
+  var w = window.open('', '_blank', 'width=800,height=900');
+  w.document.write('<html><head><meta charset="UTF-8"><title>评估报告</title><style>' + getReportPrintCSS() + '</style></head><body><div style="text-align:center;padding:60px;color:#94a3b8;">加载中...</div></body></html>');
+  w.document.close();
+  
+  apiGet('/assessments/' + assessmentId).then(function(resp) {
+    var a = resp.data || resp;
+    if (!a || !a.id) { w.document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#94a3b8;">暂无报告</div>'; return; }
+    w.document.body.innerHTML = buildReportHTML(a);
+  }).catch(function() {
+    w.document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#c00;">加载失败</div>';
+  });
+}
+
+function buildReportHTML(a) {
+  function starHTML(val) {
+    var h = '<span class="stars-readonly">';
+    for (var i = 1; i <= 5; i++) h += '<span class="star ' + (i <= val ? 'active' : '') + '">★</span>';
+    return h + '</span>';
+  }
+  
+  var sName = a.student_name || '';
+  var enName = a.student_english_name || '';
+  
+  var h = '<div class="report-page">';
+  h += '<div class="report-header"><div class="logo">SunnyBridge</div><h1>体验课评估报告</h1><div class="subtitle">Trial Class Assessment Report</div></div>';
+  h += '<div class="info-section">';
+  h += '<div class="info-item"><span class="label">学生姓名</span><span class="value">' + escapeHtml(sName) + (enName ? ' (' + escapeHtml(enName) + ')' : '') + '</span></div>';
+  h += '<div class="info-item"><span class="label">授课教师</span><span class="value">' + escapeHtml(a.teacher_name || '-') + '</span></div>';
+  h += '<div class="info-item"><span class="label">上课日期</span><span class="value">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '-' + formatTime(a.end_time) + '</span></div>';
+  h += '<div class="info-item"><span class="label">课程科目</span><span class="value">' + escapeHtml(a.subject || '英语') + '</span></div>';
+  h += '</div>';
+  
+  var dims = [
+    {icon:'🎧',title:'听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comments:a.listening_comments},
+    {icon:'🗣️',title:'口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comments:a.speaking_comments},
+    {icon:'📖',title:'阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comments:a.reading_comments},
+    {icon:'✍️',title:'写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comments:a.writing_comments},
+    {icon:'🌟',title:'课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comments:a.classroom_comments}
+  ];
+  dims.forEach(function(dim) {
+    h += '<div class="dim-section"><div class="dim-header">' + dim.icon + ' ' + dim.title + '</div>';
+    dim.items.forEach(function(item) {
+      var val = a[item[0]] || 0;
+      h += '<div class="dim-item"><span class="dim-label">' + item[1] + '</span>' + starHTML(val) + '</div>';
+    });
+    if (dim.comments) h += '<div class="dim-comments">评语：' + escapeHtml(dim.comments) + '</div>';
+    h += '</div>';
+  });
+  
+  h += '<div class="overall-section"><div class="dim-header">📋 综合评估</div>';
+  if (a.strengths) h += '<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">' + escapeHtml(a.strengths) + '</div></div>';
+  if (a.improvements) h += '<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">' + escapeHtml(a.improvements) + '</div></div>';
+  if (a.recommended_level) h += '<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">' + escapeHtml(a.recommended_level) + '</div></div>';
+  h += '</div>';
+  
+  if (a.teacher_message) {
+    h += '<div class="message-section"><div class="message-header">💌 教师寄语</div><div class="message-text">' + escapeHtml(a.teacher_message) + '</div></div>';
+  }
+  
+  h += '<div class="report-footer"><div>SunnyBridge 少儿英语 · Bridging Smiles, Building Futures</div><div class="date">' + new Date().toLocaleDateString('zh-CN') + '</div></div>';
+  h += '<div class="print-btn-area"><button onclick="window.print()" class="print-btn">🖨️ 导出 / 打印 PDF</button></div>';
+  h += '</div>';
+  return h;
+}
+
+function getReportPrintCSS() {
+  var css = '';
+  css += '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap");';
+  css += 'body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f0f0;padding:20px;margin:0;color:#1a1a2e;}';
+  css += '.report-page{max-width:760px;margin:0 auto;background:white;padding:48px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);}';
+  css += '.report-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #4B9FE0;}';
+  css += '.report-header .logo{font-size:18px;font-weight:700;color:#4B9FE0;letter-spacing:2px;margin-bottom:8px;}';
+  css += '.report-header h1{font-size:26px;color:#1C244B;margin:0 0 6px;}';
+  css += '.report-header .subtitle{font-size:14px;color:#94a3b8;letter-spacing:1px;}';
+  css += '.info-section{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:28px;padding:20px;background:#F7FAFC;border-radius:12px;}';
+  css += '.info-item{display:flex;flex-direction:column;gap:2px;}';
+  css += '.info-item .label{font-size:12px;color:#6b7f8f;font-weight:500;}';
+  css += '.info-item .value{font-size:15px;color:#1C244B;font-weight:600;}';
+  css += '.dim-section{margin-bottom:20px;padding:16px 20px;border:1px solid #e8edf2;border-radius:10px;}';
+  css += '.dim-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f4f8;}';
+  css += '.dim-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}';
+  css += '.dim-label{font-size:14px;color:#475569;}';
+  css += '.stars-readonly{display:inline-flex;gap:2px;}';
+  css += '.stars-readonly .star{font-size:18px;color:#d1d5db;}';
+  css += '.stars-readonly .star.active{color:#F5A623;}';
+  css += '.dim-comments{margin-top:10px;padding:10px 14px;background:#FFFAF5;border-left:3px solid #F5A623;border-radius:4px;font-size:14px;color:#475569;line-height:1.6;}';
+  css += '.overall-section{margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:10px;}';
+  css += '.overall-item{margin-bottom:12px;}';
+  css += '.overall-item:last-child{margin-bottom:0;}';
+  css += '.overall-label{display:inline-block;font-size:14px;font-weight:600;color:#1C244B;margin-bottom:4px;}';
+  css += '.overall-text{font-size:14px;color:#475569;line-height:1.6;padding-left:16px;}';
+  css += '.message-section{margin-bottom:24px;padding:20px;background:linear-gradient(135deg,#E8F4FD,#FFFAF5);border-radius:12px;border:1px solid #E0F2FE;}';
+  css += '.message-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:10px;}';
+  css += '.message-text{font-size:15px;color:#475569;line-height:1.8;}';
+  css += '.report-footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #e8edf2;font-size:12px;color:#94a3b8;}';
+  css += '.report-footer .date{margin-top:4px;}';
+  css += '.print-btn-area{text-align:center;margin-top:24px;}';
+  css += '.print-btn{background:linear-gradient(135deg,#4B9FE0,#2E7AC4);color:white;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(75,159,224,0.3);}';
+  css += '.print-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(75,159,224,0.4);}';
+  css += '@media print{';
+  css += 'body{background:white;padding:0;}';
+  css += '.report-page{box-shadow:none;border-radius:0;padding:20px;max-width:100%;}';
+  css += '.print-btn-area{display:none;}';
+  css += '.dim-section{page-break-inside:avoid;}';
+  css += '.overall-section{page-break-inside:avoid;}';
+  css += '.message-section{page-break-inside:avoid;}';
+  css += '}';
+  return css;
+}
 </script>
 
 </body>

@@ -65,11 +65,40 @@ export const classSchema = z.object({
   homework: z.string().optional().nullable().transform(v => v || null),
   notes: z.string().optional().nullable().transform(v => v || null),
   class_link: z.string().optional().nullable().transform(v => v || null),
+  is_trial: z.number().int().optional().default(0),
   status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed'),
   organization_id: z.number().int().positive().optional().nullable()
 });
 
 export const classUpdateSchema = classSchema.partial();
+
+// Assessments Schema (体验课评估报告)
+export const assessmentSchema = z.object({
+  class_id: z.number().int().positive('课程ID不能为空'),
+  listening_conversation: z.number().int().min(1).max(5).optional().nullable(),
+  listening_key_info: z.number().int().min(1).max(5).optional().nullable(),
+  listening_comments: z.string().optional().nullable().transform(v => v || null),
+  speaking_pronunciation: z.number().int().min(1).max(5).optional().nullable(),
+  speaking_communication: z.number().int().min(1).max(5).optional().nullable(),
+  speaking_comments: z.string().optional().nullable().transform(v => v || null),
+  reading_vocabulary: z.number().int().min(1).max(5).optional().nullable(),
+  reading_comprehension: z.number().int().min(1).max(5).optional().nullable(),
+  reading_comments: z.string().optional().nullable().transform(v => v || null),
+  writing_spelling: z.number().int().min(1).max(5).optional().nullable(),
+  writing_sentences: z.number().int().min(1).max(5).optional().nullable(),
+  writing_comments: z.string().optional().nullable().transform(v => v || null),
+  classroom_participation: z.number().int().min(1).max(5).optional().nullable(),
+  classroom_focus: z.number().int().min(1).max(5).optional().nullable(),
+  classroom_interaction: z.number().int().min(1).max(5).optional().nullable(),
+  classroom_comments: z.string().optional().nullable().transform(v => v || null),
+  strengths: z.string().optional().nullable().transform(v => v || null),
+  improvements: z.string().optional().nullable().transform(v => v || null),
+  recommended_level: z.string().optional().nullable().transform(v => v || null),
+  teacher_message: z.string().optional().nullable().transform(v => v || null),
+  status: z.enum(['draft', 'published']).optional().default('draft'),
+});
+
+export const assessmentUpdateSchema = assessmentSchema.partial().omit({ class_id: true });
 
 // Payments Schema - 允许金额为0（赠送课时）
 export const paymentSchema = z.object({

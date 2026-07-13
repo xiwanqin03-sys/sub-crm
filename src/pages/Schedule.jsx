@@ -50,6 +50,7 @@ export default function Schedule() {
     duration: 50,
     subject: '英语',
     notes: '',
+    is_trial: false,
     organization_id: ''
   });
 
@@ -179,6 +180,7 @@ export default function Schedule() {
       duration: 50,
       subject: '英语',
       notes: '',
+      is_trial: false,
       organization_id: ''
     });
     setEditingSchedule(null);
@@ -198,6 +200,7 @@ export default function Schedule() {
       duration: schedule.hours ? schedule.hours * 60 : 60,
       subject: schedule.subject || '英语',
       notes: schedule.notes || '',
+      is_trial: schedule.is_trial ? true : false,
       organization_id: orgId ? String(orgId) : ''
     });
     setShowModal(true);
@@ -264,6 +267,7 @@ export default function Schedule() {
         hours: durationToHours(formData.duration),
         subject: formData.subject,
         notes: formData.notes,
+        is_trial: formData.is_trial ? 1 : 0,
         status: 'scheduled',
         organization_id: formData.organization_id ? parseInt(formData.organization_id) : null
       };
@@ -406,8 +410,9 @@ export default function Schedule() {
                             e.stopPropagation();
                             handleEditSchedule(schedule);
                           }}
-                          className={`${statusStyle.bg} ${statusStyle.text} text-xs p-1 rounded mb-1 hover:opacity-80 group relative`}
+                          className={`${statusStyle.bg} ${statusStyle.text} text-xs p-1 rounded mb-1 hover:opacity-80 group relative ${schedule.is_trial ? 'ring-2 ring-orange-400' : ''}`}
                         >
+                          {schedule.is_trial && <span className="absolute -top-1 -right-1 text-[9px] bg-orange-500 text-white rounded-full px-1 leading-tight">🎁</span>}
                           <div className="flex items-center gap-1">
                             {statusStyle.icon}
                             <div className="font-medium truncate">
@@ -538,7 +543,7 @@ export default function Schedule() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">时长（分钟）</label>
                   <select
                     value={formData.duration}
-                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value), is_trial: parseInt(e.target.value) === 25 ? formData.is_trial : false })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value={25}>25分钟 (0.5课时)</option>
@@ -557,6 +562,21 @@ export default function Schedule() {
                   />
                 </div>
               </div>
+
+              {formData.duration === 25 && (
+                <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_trial}
+                    onChange={(e) => setFormData({ ...formData, is_trial: e.target.checked })}
+                    className="w-4 h-4 text-orange-600 rounded"
+                    id="is-trial"
+                  />
+                  <label htmlFor="is-trial" className="text-sm text-orange-700 font-medium cursor-pointer">
+                    🎁 体验课（25分钟免费试听）
+                  </label>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>

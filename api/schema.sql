@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS classes (
   content TEXT,
   homework TEXT,
   notes TEXT,
+  class_link TEXT,
+  is_trial INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'absent')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -83,6 +85,48 @@ CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes (teacher_id);
 CREATE INDEX IF NOT EXISTS idx_classes_date ON classes (date);
 CREATE INDEX IF NOT EXISTS idx_classes_status ON classes (status);
 CREATE INDEX IF NOT EXISTS idx_classes_teacher ON classes (teacher);
+
+-- ============================================
+-- 3b. Assessments 表（体验课评估报告）
+-- ============================================
+CREATE TABLE IF NOT EXISTS assessments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  class_id INTEGER NOT NULL,
+  student_id INTEGER NOT NULL,
+  teacher_id INTEGER,
+  listening_conversation INTEGER,
+  listening_key_info INTEGER,
+  listening_comments TEXT,
+  speaking_pronunciation INTEGER,
+  speaking_communication INTEGER,
+  speaking_comments TEXT,
+  reading_vocabulary INTEGER,
+  reading_comprehension INTEGER,
+  reading_comments TEXT,
+  writing_spelling INTEGER,
+  writing_sentences INTEGER,
+  writing_comments TEXT,
+  classroom_participation INTEGER,
+  classroom_focus INTEGER,
+  classroom_interaction INTEGER,
+  classroom_comments TEXT,
+  strengths TEXT,
+  improvements TEXT,
+  recommended_level TEXT,
+  teacher_message TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  organization_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assessments_class_id ON assessments (class_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_student_id ON assessments (student_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_teacher_id ON assessments (teacher_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_org_id ON assessments (organization_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_status ON assessments (status);
 
 -- ============================================
 -- 4. Payments 表（付款记录）

@@ -885,7 +885,8 @@ function buildScheduleHTML(date) {
       items.forEach(c => {
         const s = scheduleData.students.find(x=>x.id===c.student_id);
         const t = scheduleData.teachers.find(x=>x.id===c.teacher_id);
-        h += `<div class="text-xs p-1 rounded mb-1 ${c.status==='completed'?'completed':c.status==='scheduled'?'scheduled':'cancelled'} relative group" onclick="event.stopPropagation();editClass(${c.id})">
+        h += `<div class="text-xs p-1 rounded mb-1 ${c.status==='completed'?'completed':c.status==='scheduled'?'scheduled':'cancelled'} ${c.is_trial?'ring-2 ring-orange-400':''} relative group" onclick="event.stopPropagation();editClass(${c.id})">
+          ${c.is_trial?'<span class="absolute -top-1 -right-1 text-[9px] bg-orange-500 text-white rounded-full px-1 leading-tight">🎁</span>':''}
           <div class="font-medium truncate">${s?.name||'未知'}${s?.english_name?` (${esc(s.english_name)})`:''}</div>
           <div class="truncate text-gray-500 text-xs">${esc(c.teacher_name||t?.name||c.teacher||'')}</div>
           <button onclick="event.stopPropagation();deleteClass(${c.id})" class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-0.5 bg-red-500 text-white rounded text-[10px]"><i class="ri-close-line"></i></button></div>`;
@@ -924,7 +925,11 @@ function bindScheduleEvents(date) {
           <input type="hidden" name="date" value="${dk}">
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-sm font-medium mb-1">开始时间 *</label><input type="time" name="start_time" value="${time}" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"></div>
-            <div><label class="block text-sm font-medium mb-1">时长（分钟）</label><select name="duration" class="w-full px-3 py-2 border rounded-lg"><option value="25">25分钟 (0.5课时)</option><option value="50" selected>50分钟 (1课时)</option><option value="60">60分钟</option></select></div>
+            <div><label class="block text-sm font-medium mb-1">时长（分钟）</label><select name="duration" id="duration-select" class="w-full px-3 py-2 border rounded-lg"><option value="25">25分钟 (0.5课时)</option><option value="50" selected>50分钟 (1课时)</option><option value="60">60分钟</option></select></div>
+          </div>
+          <div id="trial-box" class="hidden flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+            <input type="checkbox" name="is_trial" value="1" id="is-trial-check" class="w-4 h-4 text-orange-600 rounded">
+            <label for="is-trial-check" class="text-sm text-orange-700 font-medium cursor-pointer">🎁 体验课（25分钟免费试听）</label>
           </div>
           <div><label class="block text-sm font-medium mb-1">科目</label><input name="subject" value="英语" class="w-full px-3 py-2 border rounded-lg"></div>
           <div><label class="block text-sm font-medium mb-1">备注</label><textarea name="notes" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea></div>
@@ -932,6 +937,17 @@ function bindScheduleEvents(date) {
         </form>
       </div>`;
     document.body.appendChild(modal);
+    // ── 体验课勾选框联动 ──
+    const durSelect = modal.querySelector('#duration-select');
+    const trialBox = modal.querySelector('#trial-box');
+    durSelect.addEventListener('change', () => {
+      if (parseInt(durSelect.value) === 25) {
+        trialBox.classList.remove('hidden');
+      } else {
+        trialBox.classList.add('hidden');
+        trialBox.querySelector('#is-trial-check').checked = false;
+      }
+    });
     modal.querySelector('form').addEventListener('submit', async e => {
       e.preventDefault(); const fd = new FormData(e.target); const data = Object.fromEntries(fd);
       data.student_id = parseInt(data.student_id); data.teacher_id = parseInt(data.teacher_id);
@@ -939,6 +955,7 @@ function bindScheduleEvents(date) {
       // 时长(分钟) → 课时数：25分钟=0.5课时, 50分钟=1课时, 60分钟=1课时
       data.hours = duration === 25 ? 0.5 : duration === 50 ? 1.0 : duration / 60;
       data.status = 'scheduled';
+      data.is_trial = data.is_trial ? 1 : 0;
       delete data.duration;
       data.organization_id = parseInt(orgId);
       const teacher = scheduleData.teachers.find(t=>t.id===data.teacher_id);

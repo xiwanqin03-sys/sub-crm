@@ -10,6 +10,17 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #9333ea; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    /* ── Trial badge ── */
+    .trial-badge { display: inline-block; font-size: 10px; background: #F5A623; color: white; padding: 1px 6px; border-radius: 999px; margin-left: 4px; vertical-align: middle; }
+    .trial-ring { box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.5); }
+    /* ── Star rating ── */
+    .star-rating { display: inline-flex; gap: 2px; }
+    .star-rating .star { font-size: 22px; color: #d1d5db; cursor: pointer; transition: color 0.15s; user-select: none; }
+    .star-rating .star.active { color: #F5A623; }
+    .star-rating .star:hover { color: #f0b553; }
+    .stars-readonly .star { cursor: default; }
+    /* ── Assessment modal scroll ── */
+    #assessment-modal { max-height: 90vh; overflow-y: auto; }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -428,11 +439,13 @@ function renderTodayClasses(classes) {
 var html = '';
 for (var i = 0; i < classes.length; i++) {
 var c = classes[i];
-html += '<div class="bg-white rounded-lg shadow p-4">';
+var trialBadge = c.is_trial ? '<span class="trial-badge">🎁 体验课</span>' : '';
+var trialRing = c.is_trial ? 'trial-ring' : '';
+html += '<div class="bg-white rounded-lg shadow p-4 ' + trialRing + '">';
 html += '<div class="flex items-center justify-between mb-3">';
 html += '<div class="flex items-center gap-2">';
 html += '<i data-lucide="clock" class="w-4 h-4 text-gray-400"></i>';
-html += '<span class="font-medium">' + formatTime(c.start_time) + ' - ' + formatTime(c.end_time) + '</span>';
+html += '<span class="font-medium">' + formatTime(c.start_time) + ' - ' + formatTime(c.end_time) + '</span>' + trialBadge;
 html += '</div>';
 html += '<span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span>';
 html += '</div>';
@@ -470,7 +483,12 @@ if (c.class_link) {
 }
 html += '</div>';
 html += '</div>';
-html += '<button onclick="openTodayFeedback(' + i + ')" class="mt-4 w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Submit Feedback</button>';
+// 体验课显示「评估报告」按钮，正常课显示「Submit Feedback」
+if (c.is_trial) {
+  html += '<button onclick="openAssessment(' + i + ')" class="mt-4 w-full py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm">📝 评估报告</button>';
+} else {
+  html += '<button onclick="openTodayFeedback(' + i + ')" class="mt-4 w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Submit Feedback</button>';
+}
 html += '</div>';
 }
 
@@ -542,17 +560,25 @@ function renderHistory() {
     var globalIdx = start + i;
     html += '<tr class="hover:bg-gray-50">';
     html += '<td class="px-4 py-3 text-sm">' + c.date + '</td>';
-    html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
+    html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + ' ' + (c.is_trial ? '<span class="trial-badge">🎁</span>' : '') + '</td>';
     html += '<td class="px-4 py-3 text-sm font-medium">' + formatStudentName(c) + '</td>';
     html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
     html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
 
     if (c.status !== 'scheduled') {
       // 已提交的显示View按钮
-      html += '<td class="px-4 py-3"><button onclick="showViewFeedback(' + globalIdx + '); return false;" class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">View</button></td>';
+      if (c.is_trial) {
+        html += '<td class="px-4 py-3"><button onclick="viewAssessment(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 报告</button></td>';
+      } else {
+        html += '<td class="px-4 py-3"><button onclick="showViewFeedback(' + globalIdx + '); return false;" class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">View</button></td>';
+      }
     } else {
       // 未提交的显示填写按钮
-      html += '<td class="px-4 py-3"><button onclick="openFeedbackFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">Submit</button></td>';
+      if (c.is_trial) {
+        html += '<td class="px-4 py-3"><button onclick="openAssessmentFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 评估</button></td>';
+      } else {
+        html += '<td class="px-4 py-3"><button onclick="openFeedbackFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">Submit</button></td>';
+      }
     }
 
     html += '</tr>';
@@ -676,6 +702,393 @@ document.getElementById('today-date').textContent = new Date().toLocaleDateStrin
 });
 lucide.createIcons();
 loadTeacherData();
+
+// ===== Assessment (体验课评估报告) =====
+var currentAssessmentClass = null;
+
+function openAssessment(idx) {
+  var cls = window_todayClasses[idx];
+  if (cls) openAssessmentForm(cls);
+}
+
+function openAssessmentFromHistory(idx) {
+  var cls = window_allPastClasses[idx];
+  if (cls) openAssessmentForm(cls);
+}
+
+function openAssessmentForm(cls) {
+  currentAssessmentClass = cls;
+  var info = '';
+  info += '<div><span class="font-medium">Student:</span> ' + formatStudentName(cls) + (cls.is_trial ? ' <span class="trial-badge">🎁 体验课</span>' : '') + '</div>';
+  info += '<div><span class="font-medium">Date:</span> ' + cls.date + '</div>';
+  info += '<div><span class="font-medium">Time:</span> ' + formatTime(cls.start_time) + ' - ' + formatTime(cls.end_time) + '</div>';
+  info += '<div><span class="font-medium">Subject:</span> ' + (cls.subject || 'English') + '</div>';
+  
+  var html = '<div id="assessment-modal" class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">';
+  html += '<h2 class="text-xl font-bold mb-4">📝 体验课评估报告</h2>';
+  html += '<div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">' + info + '</div>';
+  html += '<form id="assessment-form" class="space-y-4">';
+  
+  // 评估维度
+  var dimensions = [
+    { key: 'listening', icon: '🎧', title: '听力评估', items: [
+      { key: 'listening_conversation', label: '日常对话理解' },
+      { key: 'listening_key_info', label: '关键信息抓取' }
+    ], commentKey: 'listening_comments', commentLabel: '听力评语' },
+    { key: 'speaking', icon: '🗣️', title: '口语评估', items: [
+      { key: 'speaking_pronunciation', label: '发音与流利度' },
+      { key: 'speaking_communication', label: '表达能力' }
+    ], commentKey: 'speaking_comments', commentLabel: '口语评语' },
+    { key: 'reading', icon: '📖', title: '阅读评估', items: [
+      { key: 'reading_vocabulary', label: '词汇量' },
+      { key: 'reading_comprehension', label: '阅读理解' }
+    ], commentKey: 'reading_comments', commentLabel: '阅读评语' },
+    { key: 'writing', icon: '✍️', title: '写作评估', items: [
+      { key: 'writing_spelling', label: '基础拼写' },
+      { key: 'writing_sentences', label: '简单句构建' }
+    ], commentKey: 'writing_comments', commentLabel: '写作评语' },
+    { key: 'classroom', icon: '🌟', title: '课堂表现', items: [
+      { key: 'classroom_participation', label: '参与度' },
+      { key: 'classroom_focus', label: '专注力' },
+      { key: 'classroom_interaction', label: '互动意愿' }
+    ], commentKey: 'classroom_comments', commentLabel: '课堂表现评语' }
+  ];
+  
+  dimensions.forEach(function(dim) {
+    html += '<div class="border rounded-lg p-4">';
+    html += '<h3 class="font-semibold text-gray-800 mb-3">' + dim.icon + ' ' + dim.title + '</h3>';
+    dim.items.forEach(function(item) {
+      html += '<div class="flex items-center justify-between mb-2">';
+      html += '<span class="text-sm text-gray-600">' + item.label + '</span>';
+      html += '<div class="star-rating" data-name="' + item.key + '">';
+      for (var s = 1; s <= 5; s++) {
+        html += '<span class="star" data-val="' + s + '">★</span>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '<textarea name="' + dim.commentKey + '" rows="2" placeholder="' + dim.commentLabel + '..." class="w-full px-3 py-2 mt-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-500"></textarea>';
+    html += '</div>';
+  });
+  
+  // 综合评估
+  html += '<div class="border rounded-lg p-4 bg-orange-50">';
+  html += '<h3 class="font-semibold text-gray-800 mb-3">📋 综合评估</h3>';
+  html += '<div class="space-y-3">';
+  html += '<div><label class="block text-sm font-medium text-gray-700 mb-1">强项</label><textarea name="strengths" rows="2" placeholder="学生的优势..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"></textarea></div>';
+  html += '<div><label class="block text-sm font-medium text-gray-700 mb-1">待提升</label><textarea name="improvements" rows="2" placeholder="需要改进的方面..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"></textarea></div>';
+  html += '<div><label class="block text-sm font-medium text-gray-700 mb-1">建议课程级别</label><select name="recommended_level" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"><option value="">请选择</option><option value="Pre-A1">Pre-A1 (零基础)</option><option value="A1">A1 (入门)</option><option value="A2">A2 (基础)</option><option value="B1">B1 (进阶)</option><option value="B2">B2 (中高级)</option></select></div>';
+  html += '<div><label class="block text-sm font-medium text-gray-700 mb-1">教师寄语</label><textarea name="teacher_message" rows="3" placeholder="给家长的话..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"></textarea></div>';
+  html += '</div>';
+  html += '</div>';
+  
+  // Buttons
+  html += '<div class="flex gap-3 pt-4">';
+  html += '<button type="button" onclick="closeAssessmentModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>';
+  html += '<button type="submit" class="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">保存报告</button>';
+  html += '</div>';
+  html += '</form>';
+  html += '</div>';
+  
+  // Remove existing modal
+  var existing = document.getElementById('assessment-overlay');
+  if (existing) existing.remove();
+  
+  var overlay = document.createElement('div');
+  overlay.id = 'assessment-overlay';
+  overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  
+  // Star rating interaction
+  overlay.querySelectorAll('.star-rating').forEach(function(rating) {
+    var stars = rating.querySelectorAll('.star');
+    var selectedVal = 0;
+    var hiddenName = rating.getAttribute('data-name');
+    
+    // Create hidden input
+    var hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = hiddenName;
+    hidden.value = '';
+    rating.appendChild(hidden);
+    
+    stars.forEach(function(star) {
+      star.addEventListener('click', function() {
+        selectedVal = parseInt(star.getAttribute('data-val'));
+        stars.forEach(function(s) {
+          if (parseInt(s.getAttribute('data-val')) <= selectedVal) {
+            s.classList.add('active');
+          } else {
+            s.classList.remove('active');
+          }
+        });
+        hidden.value = selectedVal;
+      });
+    });
+  });
+  
+  // Check for existing assessment
+  checkExistingAssessment(cls.id, overlay);
+  
+  // Form submit
+  overlay.querySelector('#assessment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var fd = new FormData(e.target);
+    var data = {};
+    fd.forEach(function(val, key) {
+      if (val !== '') {
+        if (['listening_conversation','listening_key_info','speaking_pronunciation','speaking_communication','reading_vocabulary','reading_comprehension','writing_spelling','writing_sentences','classroom_participation','classroom_focus','classroom_interaction'].includes(key)) {
+          data[key] = parseInt(val);
+        } else {
+          data[key] = val;
+        }
+      }
+    });
+    data.class_id = currentAssessmentClass.id;
+    data.status = 'published';
+    
+    // Also update class status to completed
+    try {
+      var existing = overlay.getAttribute('data-existing-id');
+      if (existing) {
+        // Update existing assessment
+        await apiPatch('/assessments/' + existing, data);
+      } else {
+        // Create new assessment
+        await fetch(API_BASE + '/assessments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+          body: JSON.stringify(data)
+        });
+      }
+      
+      // Mark class as completed (only if still scheduled)
+      if (currentAssessmentClass.status === 'scheduled') {
+        await apiPatch('/classes/' + currentAssessmentClass.id, { status: 'completed', is_trial: 1 });
+      }
+      
+      closeAssessmentModal();
+      loadTeacherData();
+      alert('评估报告已保存！');
+    } catch(err) {
+      alert('保存失败: ' + err.message);
+    }
+  });
+}
+
+function closeAssessmentModal() {
+  var overlay = document.getElementById('assessment-overlay');
+  if (overlay) overlay.remove();
+  currentAssessmentClass = null;
+}
+
+async function checkExistingAssessment(classId, overlay) {
+  try {
+    var res = await fetch(API_BASE + '/assessments/class/' + classId, { headers: { 'X-API-Key': API_KEY } });
+    if (res.ok) {
+      var resp = await res.json();
+      var data = resp.data || resp;
+      overlay.setAttribute('data-existing-id', data.id);
+      
+      // Fill stars
+      var starFields = ['listening_conversation','listening_key_info','speaking_pronunciation','speaking_communication','reading_vocabulary','reading_comprehension','writing_spelling','writing_sentences','classroom_participation','classroom_focus','classroom_interaction'];
+      starFields.forEach(function(key) {
+        if (data[key]) {
+          var rating = overlay.querySelector('.star-rating[data-name="' + key + '"]');
+          if (rating) {
+            var stars = rating.querySelectorAll('.star');
+            stars.forEach(function(s) {
+              if (parseInt(s.getAttribute('data-val')) <= data[key]) {
+                s.classList.add('active');
+              }
+            });
+            var hidden = rating.querySelector('input[type="hidden"]');
+            if (hidden) hidden.value = data[key];
+          }
+        }
+      });
+      
+      // Fill textareas and selects
+      var textFields = ['listening_comments','speaking_comments','reading_comments','writing_comments','classroom_comments','strengths','improvements','teacher_message'];
+      textFields.forEach(function(key) {
+        if (data[key]) {
+          var el = overlay.querySelector('[name="' + key + '"]');
+          if (el) el.value = data[key];
+        }
+      });
+      
+      if (data.recommended_level) {
+        var sel = overlay.querySelector('[name="recommended_level"]');
+        if (sel) sel.value = data.recommended_level;
+      }
+    }
+  } catch(e) { /* no existing assessment, that's fine */ }
+}
+
+// ===== View Assessment Report =====
+function viewAssessment(idx) {
+  var cls = window_allPastClasses[idx];
+  if (!cls) return;
+  
+  // Open a new window with the report for printing
+  var reportWindow = window.open('', '_blank', 'width=800,height=900');
+  reportWindow.document.write('<html><head><title>评估报告 - ' + escapeHtml(formatStudentName(cls)) + '</title>');
+  reportWindow.document.write('<style>');
+  reportWindow.document.write(getReportPrintStyles());
+  reportWindow.document.write('</style></head><body>');
+  reportWindow.document.write('<div id="loading">加载中...</div>');
+  reportWindow.document.write('</body></html>');
+  reportWindow.document.close();
+  
+  // Fetch assessment data
+  fetch(API_BASE + '/assessments/class/' + cls.id, { headers: { 'X-API-Key': API_KEY } })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      var data = resp.data || resp;
+      if (!data || resp.meta === undefined && !data.id) {
+        reportWindow.document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#666;">暂无评估报告</div>';
+        return;
+      }
+      reportWindow.document.body.innerHTML = buildReportHTML(data, cls);
+    })
+    .catch(function() {
+      reportWindow.document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#c00;">加载失败</div>';
+    });
+}
+
+function buildReportHTML(a, cls) {
+  var starHTML = function(val) {
+    var h = '<span class="stars-readonly">';
+    for (var i = 1; i <= 5; i++) {
+      h += '<span class="star ' + (i <= val ? 'active' : '') + '">★</span>';
+    }
+    h += '</span>';
+    return h;
+  };
+  
+  var studentName = a.student_name || '';
+  var enName = a.student_english_name || '';
+  var teacherName = a.teacher_name || '';
+  var classDate = a.class_date || cls.date;
+  var startTime = a.start_time || cls.start_time || '';
+  var endTime = a.end_time || cls.end_time || '';
+  var subject = a.subject || cls.subject || 'English';
+  
+  var h = '<div class="report-page">';
+  
+  // Header
+  h += '<div class="report-header">';
+  h += '<div class="logo">SunnyBridge</div>';
+  h += '<h1>体验课评估报告</h1>';
+  h += '<div class="subtitle">Trial Class Assessment Report</div>';
+  h += '</div>';
+  
+  // Student info
+  h += '<div class="info-section">';
+  h += '<div class="info-item"><span class="label">学生姓名</span><span class="value">' + escapeHtml(studentName) + (enName ? ' (' + escapeHtml(enName) + ')' : '') + '</span></div>';
+  h += '<div class="info-item"><span class="label">授课教师</span><span class="value">' + escapeHtml(teacherName) + '</span></div>';
+  h += '<div class="info-item"><span class="label">上课日期</span><span class="value">' + classDate + ' ' + formatTime(startTime) + '-' + formatTime(endTime) + '</span></div>';
+  h += '<div class="info-item"><span class="label">课程科目</span><span class="value">' + escapeHtml(subject) + '</span></div>';
+  h += '</div>';
+  
+  // Dimensions
+  var dims = [
+    { icon: '🎧', title: '听力评估', items: [['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']], comments: a.listening_comments },
+    { icon: '🗣️', title: '口语评估', items: [['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']], comments: a.speaking_comments },
+    { icon: '📖', title: '阅读评估', items: [['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']], comments: a.reading_comments },
+    { icon: '✍️', title: '写作评估', items: [['writing_spelling','基础拼写'],['writing_sentences','简单句构建']], comments: a.writing_comments },
+    { icon: '🌟', title: '课堂表现', items: [['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']], comments: a.classroom_comments }
+  ];
+  
+  dims.forEach(function(dim) {
+    h += '<div class="dim-section">';
+    h += '<div class="dim-header">' + dim.icon + ' ' + dim.title + '</div>';
+    dim.items.forEach(function(item) {
+      var val = a[item[0]] || 0;
+      h += '<div class="dim-item"><span class="dim-label">' + item[1] + '</span>' + starHTML(val) + '</div>';
+    });
+    if (dim.comments) {
+      h += '<div class="dim-comments">评语：' + escapeHtml(dim.comments) + '</div>';
+    }
+    h += '</div>';
+  });
+  
+  // Overall
+  h += '<div class="overall-section">';
+  h += '<div class="dim-header">📋 综合评估</div>';
+  if (a.strengths) h += '<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">' + escapeHtml(a.strengths) + '</div></div>';
+  if (a.improvements) h += '<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">' + escapeHtml(a.improvements) + '</div></div>';
+  if (a.recommended_level) h += '<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">' + escapeHtml(a.recommended_level) + '</div></div>';
+  h += '</div>';
+  
+  // Teacher message
+  if (a.teacher_message) {
+    h += '<div class="message-section">';
+    h += '<div class="message-header">💌 教师寄语</div>';
+    h += '<div class="message-text">' + escapeHtml(a.teacher_message) + '</div>';
+    h += '</div>';
+  }
+  
+  // Footer
+  h += '<div class="report-footer">';
+  h += '<div>SunnyBridge 少儿英语 · Bridging Smiles, Building Futures</div>';
+  h += '<div class="date">' + new Date().toLocaleDateString('zh-CN') + '</div>';
+  h += '</div>';
+  
+  // Print button (hidden in print)
+  h += '<div class="print-btn-area"><button onclick="window.print()" class="print-btn">🖨️ 导出 / 打印 PDF</button></div>';
+  
+  h += '</div>';
+  return h;
+}
+
+function getReportPrintStyles() {
+  return ''
+    + 'body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f0f0; padding: 20px; margin: 0; color: #1a1a2e; }'
+    + '.report-page { max-width: 760px; margin: 0 auto; background: white; padding: 48px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }'
+    + '.report-header { text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #4B9FE0; }'
+    + '.report-header .logo { font-size: 18px; font-weight: 700; color: #4B9FE0; letter-spacing: 2px; margin-bottom: 8px; }'
+    + '.report-header h1 { font-size: 26px; color: #1C244B; margin: 0 0 6px; }'
+    + '.report-header .subtitle { font-size: 14px; color: #94a3b8; letter-spacing: 1px; }'
+    + '.info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 28px; padding: 20px; background: #F7FAFC; border-radius: 12px; }'
+    + '.info-item { display: flex; flex-direction: column; gap: 2px; }'
+    + '.info-item .label { font-size: 12px; color: #6b7f8f; font-weight: 500; }'
+    + '.info-item .value { font-size: 15px; color: #1C244B; font-weight: 600; }'
+    + '.dim-section { margin-bottom: 20px; padding: 16px 20px; border: 1px solid #e8edf2; border-radius: 10px; }'
+    + '.dim-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f4f8; }'
+    + '.dim-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }'
+    + '.dim-label { font-size: 14px; color: #475569; }'
+    + '.stars-readonly { display: inline-flex; gap: 2px; }'
+    + '.stars-readonly .star { font-size: 18px; color: #d1d5db; }'
+    + '.stars-readonly .star.active { color: #F5A623; }'
+    + '.dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFAF5; border-left: 3px solid #F5A623; border-radius: 4px; font-size: 14px; color: #475569; line-height: 1.6; }'
+    + '.overall-section { margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 10px; }'
+    + '.overall-item { margin-bottom: 12px; }'
+    + '.overall-item:last-child { margin-bottom: 0; }'
+    + '.overall-label { display: inline-block; font-size: 14px; font-weight: 600; color: #1C244B; margin-bottom: 4px; }'
+    + '.overall-text { font-size: 14px; color: #475569; line-height: 1.6; padding-left: 16px; }'
+    + '.message-section { margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #E8F4FD, #FFFAF5); border-radius: 12px; border: 1px solid #E0F2FE; }'
+    + '.message-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 10px; }'
+    + '.message-text { font-size: 15px; color: #475569; line-height: 1.8; }'
+    + '.report-footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e8edf2; font-size: 12px; color: #94a3b8; }'
+    + '.report-footer .date { margin-top: 4px; }'
+    + '.print-btn-area { text-align: center; margin-top: 24px; }'
+    + '.print-btn { background: linear-gradient(135deg, #4B9FE0, #2E7AC4); color: white; border: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(75,159,224,0.3); }'
+    + '.print-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(75,159,224,0.4); }'
+    + '@media print {'
+    + '  body { background: white; padding: 0; }'
+    + '  .report-page { box-shadow: none; border-radius: 0; padding: 20px; max-width: 100%; }'
+    + '  .print-btn-area { display: none; }'
+    + '  .dim-section { page-break-inside: avoid; }'
+    + '  .overall-section { page-break-inside: avoid; }'
+    + '  .message-section { page-break-inside: avoid; }'
+    + '}'
+    ;
+}
+
+// ===== Escape HTML helper (already defined above, but exportble for report window) =====
+
 </script>
 </body>
 </html>

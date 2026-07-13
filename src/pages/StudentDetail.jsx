@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, CreditCard, Clock, Plus, Trash2, AlertTriangle, MessageSquare, FileText } from 'lucide-react';
 import { studentOps, packageOps, classOps, paymentOps, hourChangeOps } from '../store';
+import { request } from '../store/api';
 import AdjustHoursModal from '../components/AdjustHoursModal';
 
 export default function StudentDetail() {
@@ -17,6 +18,7 @@ export default function StudentDetail() {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hourChanges, setHourChanges] = useState([]);
+  const [assessments, setAssessments] = useState([]);
   const [classForm, setClassForm] = useState({ date: '', hours: 1, notes: '' });
 
   useEffect(() => {
@@ -97,6 +99,13 @@ export default function StudentDetail() {
             });
             setHourChanges(merged);
           }
+          
+          // 加载评估报告
+          try {
+            const assessmentsData = await request('/assessments?student_id=' + id);
+            setAssessments(assessmentsData?.data || []);
+          } catch(e) { console.error('Load assessments:', e); }
+          
         } catch (err) {
           console.error('Load student error:', err);
         } finally {
@@ -185,6 +194,7 @@ export default function StudentDetail() {
     { id: 'classes', label: '上课记录' },
     { id: 'payments', label: '付款记录' },
     { id: 'hour-changes', label: '课时变动' },
+    { id: 'assessments', label: '评估报告' },
   ];
 
   const STATUS_LABELS = {
@@ -516,6 +526,54 @@ export default function StudentDetail() {
         </div>
       )}
 
+      {/* 评估报告 */}
+      {activeTab === 'assessments' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="font-semibold text-gray-800 mb-6">体验课评估报告</h3>
+          {assessments.length > 0 ? (
+            <div className="space-y-4">
+              {assessments.map(a => (
+                <div key={a.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {a.is_trial === 1 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🎁 体验课</span>}
+                        <span className="text-sm text-gray-500">{a.class_date} {a.start_time?.substring(0,5)} - {a.end_time?.substring(0,5)}</span>
+                        <span className="text-sm font-medium text-gray-700">教师：{a.teacher_name || '-'}</span>
+                      </div>
+                      <div className="text-sm text-gray-500">课程：{a.subject || '英语'}</div>
+                      {a.recommended_level && (
+                        <div className="mt-2 inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-lg">
+                          🎓 建议级别: {a.recommended_level}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => openAssessmentReport(a)}
+                      className="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm hover:bg-orange-200 font-medium flex items-center gap-1"
+                    >
+                      <FileText className="w-4 h-4" />
+                      查看 / 导出PDF
+                    </button>
+                  </div>
+                  {a.teacher_message && (
+                    <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm text-gray-600">
+                      <span className="font-medium">💌 教师寄语：</span>{a.teacher_message}
+                    </div>
+                  )}
+                  <div className="mt-2 text-xs text-gray-400">{a.status === 'published' ? '已发布' : '草稿'}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>暂无评估报告</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 添加上课记录弹窗 */}
       {showClassModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -639,4 +697,121 @@ export default function StudentDetail() {
       )}
     </div>
   );
+
+  // ===== Report Window Function =====
+  function openAssessmentReport(assessment) {
+    const reportWindow = window.open('', '_blank', 'width=800,height=900');
+    reportWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>评估报告 - ${assessment.student_name || ''}</title>`);
+    reportWindow.document.write(`<style>${getReportPrintCSS()}</style></head><body>`);
+    reportWindow.document.write('<div id="loading" style="text-align:center;padding:60px;color:#94a3b8;">加载中...</div>');
+    reportWindow.document.write('</body></html>');
+    reportWindow.document.close();
+
+    // Fetch full data
+    request(`/assessments/${assessment.id}`).then(data => {
+      const a = data.data || data;
+      reportWindow.document.body.innerHTML = buildReportHTML(a);
+    }).catch(() => {
+      reportWindow.document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#c00;">加载失败</div>';
+    });
+  }
+
+  function buildReportHTML(a) {
+    const starHTML = (val) => {
+      let h = '<span class="stars-readonly">';
+      for (let i = 1; i <= 5; i++) h += `<span class="star ${i <= val ? 'active' : ''}">★</span>`;
+      return h + '</span>';
+    };
+    const esc = (s) => { if (!s) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c])); };
+
+    let html = '<div class="report-page">';
+    html += '<div class="report-header"><div class="logo">SunnyBridge</div><h1>体验课评估报告</h1><div class="subtitle">Trial Class Assessment Report</div></div>';
+    html += '<div class="info-section">';
+    html += `<div class="info-item"><span class="label">学生姓名</span><span class="value">${esc(a.student_name||'')}${a.student_english_name?' ('+esc(a.student_english_name)+')':''}</span></div>`;
+    html += `<div class="info-item"><span class="label">授课教师</span><span class="value">${esc(a.teacher_name||'-')}</span></div>`;
+    html += `<div class="info-item"><span class="label">上课日期</span><span class="value">${a.class_date||''} ${(a.start_time||'').substring(0,5)}-${(a.end_time||'').substring(0,5)}</span></div>`;
+    html += `<div class="info-item"><span class="label">课程科目</span><span class="value">${esc(a.subject||'英语')}</span></div>`;
+    html += '</div>';
+
+    const dims = [
+      { icon: '🎧', title: '听力评估', items: [['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']], comments: a.listening_comments },
+      { icon: '🗣️', title: '口语评估', items: [['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']], comments: a.speaking_comments },
+      { icon: '📖', title: '阅读评估', items: [['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']], comments: a.reading_comments },
+      { icon: '✍️', title: '写作评估', items: [['writing_spelling','基础拼写'],['writing_sentences','简单句构建']], comments: a.writing_comments },
+      { icon: '🌟', title: '课堂表现', items: [['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']], comments: a.classroom_comments }
+    ];
+    dims.forEach(dim => {
+      html += '<div class="dim-section">';
+      html += `<div class="dim-header">${dim.icon} ${dim.title}</div>`;
+      dim.items.forEach(item => {
+        const val = a[item[0]] || 0;
+        html += `<div class="dim-item"><span class="dim-label">${item[1]}</span>${starHTML(val)}</div>`;
+      });
+      if (dim.comments) html += `<div class="dim-comments">评语：${esc(dim.comments)}</div>`;
+      html += '</div>';
+    });
+
+    html += '<div class="overall-section"><div class="dim-header">📋 综合评估</div>';
+    if (a.strengths) html += `<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">${esc(a.strengths)}</div></div>`;
+    if (a.improvements) html += `<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">${esc(a.improvements)}</div></div>`;
+    if (a.recommended_level) html += `<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">${esc(a.recommended_level)}</div></div>`;
+    html += '</div>';
+
+    if (a.teacher_message) {
+      html += '<div class="message-section">';
+      html += '<div class="message-header">💌 教师寄语</div>';
+      html += `<div class="message-text">${esc(a.teacher_message)}</div>`;
+      html += '</div>';
+    }
+
+    html += '<div class="report-footer"><div>SunnyBridge 少儿英语 · Bridging Smiles, Building Futures</div><div class="date">' + new Date().toLocaleDateString('zh-CN') + '</div></div>';
+    html += '<div class="print-btn-area"><button onclick="window.print()" class="print-btn">🖨️ 导出 / 打印 PDF</button></div>';
+    html += '</div>';
+    return html;
+  }
+
+  function getReportPrintCSS() {
+    return `
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+      body { font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f0f0f0; padding: 20px; margin: 0; color: #1a1a2e; }
+      .report-page { max-width: 760px; margin: 0 auto; background: white; padding: 48px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+      .report-header { text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #4B9FE0; }
+      .report-header .logo { font-size: 18px; font-weight: 700; color: #4B9FE0; letter-spacing: 2px; margin-bottom: 8px; }
+      .report-header h1 { font-size: 26px; color: #1C244B; margin: 0 0 6px; }
+      .report-header .subtitle { font-size: 14px; color: #94a3b8; letter-spacing: 1px; }
+      .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 28px; padding: 20px; background: #F7FAFC; border-radius: 12px; }
+      .info-item { display: flex; flex-direction: column; gap: 2px; }
+      .info-item .label { font-size: 12px; color: #6b7f8f; font-weight: 500; }
+      .info-item .value { font-size: 15px; color: #1C244B; font-weight: 600; }
+      .dim-section { margin-bottom: 20px; padding: 16px 20px; border: 1px solid #e8edf2; border-radius: 10px; }
+      .dim-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f4f8; }
+      .dim-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+      .dim-label { font-size: 14px; color: #475569; }
+      .stars-readonly { display: inline-flex; gap: 2px; }
+      .stars-readonly .star { font-size: 18px; color: #d1d5db; }
+      .stars-readonly .star.active { color: #F5A623; }
+      .dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFAF5; border-left: 3px solid #F5A623; border-radius: 4px; font-size: 14px; color: #475569; line-height: 1.6; }
+      .overall-section { margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 10px; }
+      .overall-item { margin-bottom: 12px; }
+      .overall-item:last-child { margin-bottom: 0; }
+      .overall-label { display: inline-block; font-size: 14px; font-weight: 600; color: #1C244B; margin-bottom: 4px; }
+      .overall-text { font-size: 14px; color: #475569; line-height: 1.6; padding-left: 16px; }
+      .message-section { margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #E8F4FD, #FFFAF5); border-radius: 12px; border: 1px solid #E0F2FE; }
+      .message-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 10px; }
+      .message-text { font-size: 15px; color: #475569; line-height: 1.8; }
+      .report-footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e8edf2; font-size: 12px; color: #94a3b8; }
+      .report-footer .date { margin-top: 4px; }
+      .print-btn-area { text-align: center; margin-top: 24px; }
+      .print-btn { background: linear-gradient(135deg, #4B9FE0, #2E7AC4); color: white; border: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(75,159,224,0.3); }
+      .print-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(75,159,224,0.4); }
+      @media print {
+        body { background: white; padding: 0; }
+        .report-page { box-shadow: none; border-radius: 0; padding: 20px; max-width: 100%; }
+        .print-btn-area { display: none; }
+        .dim-section { page-break-inside: avoid; }
+        .overall-section { page-break-inside: avoid; }
+        .message-section { page-break-inside: avoid; }
+      }
+    `;
+  }
 }
