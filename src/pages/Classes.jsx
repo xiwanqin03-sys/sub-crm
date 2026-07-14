@@ -658,7 +658,88 @@ function Classes() {
             </div>
             )}
 
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end mt-6 gap-2">
+              {isTrialReport && a && (
+                <button
+                  onClick={() => {
+                    const dims = [
+                      {title:'🎧 听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comment:'listening_comments'},
+                      {title:'🗣️ 口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comment:'speaking_comments'},
+                      {title:'📖 阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comment:'reading_comments'},
+                      {title:'✍️ 写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comment:'writing_comments'},
+                      {title:'🌟 课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comment:'classroom_comments'},
+                    ];
+                    const stars = (n) => [1,2,3,4,5].map(i => `<span class="star${i<=(n||0)?' active':''}">★</span>`).join('');
+                    const esc = (s) => (s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
+                    const win = window.open('', '_blank');
+                    win.document.write(`<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>体验课评估报告</title>
+<style>
+body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f0f0;padding:20px;margin:0;color:#1a1a2e;}
+.report-page{max-width:760px;margin:0 auto;background:white;padding:48px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);}
+.report-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #4B9FE0;}
+.report-header .logo{font-size:18px;font-weight:700;color:#4B9FE0;letter-spacing:2px;margin-bottom:8px;}
+.report-header h1{font-size:26px;color:#1C244B;margin:0 0 6px;}
+.report-header .subtitle{font-size:14px;color:#94a3b8;}
+.info-section{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:28px;padding:20px;background:#F7FAFC;border-radius:12px;}
+.info-item{display:flex;flex-direction:column;gap:2px;}
+.info-item .label{font-size:12px;color:#6b7f8f;font-weight:500;}
+.info-item .value{font-size:15px;color:#1C244B;font-weight:600;}
+.dim-section{margin-bottom:20px;padding:16px 20px;border:1px solid #e8edf2;border-radius:10px;}
+.dim-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f4f8;}
+.dim-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+.dim-label{font-size:14px;color:#475569;}
+.stars-readonly{display:inline-flex;gap:2px;}
+.stars-readonly .star{font-size:18px;color:#d1d5db;}
+.stars-readonly .star.active{color:#F5A623;}
+.dim-comments{margin-top:10px;padding:10px 14px;background:#FFFAF5;border-left:3px solid #F5A623;border-radius:4px;font-size:14px;color:#475569;line-height:1.6;white-space:pre-wrap;}
+.overall-section{margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:10px;}
+.overall-item{margin-bottom:12px;}
+.overall-item:last-child{margin-bottom:0;}
+.overall-label{display:inline-block;font-size:14px;font-weight:600;color:#1C244B;margin-bottom:4px;}
+.overall-text{font-size:14px;color:#475569;line-height:1.6;padding-left:16px;white-space:pre-wrap;}
+.message-section{margin-bottom:24px;padding:20px;background:linear-gradient(135deg,#E8F4FD,#FFFAF5);border-radius:12px;border:1px solid #E0F2FE;}
+.message-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:10px;}
+.message-text{font-size:15px;color:#475569;line-height:1.8;white-space:pre-wrap;}
+.report-footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #e8edf2;font-size:12px;color:#94a3b8;}
+@media print{body{background:white;padding:0;}.report-page{box-shadow:none;border-radius:0;padding:20px;max-width:100%;}.no-print{display:none;}.dim-section,.overall-section,.message-section{page-break-inside:avoid;}}
+</style></head><body>
+<div class="report-page">
+  <div class="report-header">
+    <div class="logo">SUNNYBRIDGE</div>
+    <h1>体验课评估报告</h1>
+    <div class="subtitle">Assessment Report</div>
+  </div>
+  <div class="info-section">
+    <div class="info-item"><span class="label">学生</span><span class="value">${esc(showFeedbackModal.studentName||'未知')}</span></div>
+    <div class="info-item"><span class="label">日期</span><span class="value">${esc(showFeedbackModal.date||'-')}</span></div>
+    <div class="info-item"><span class="label">老师</span><span class="value">${esc(showFeedbackModal.teacherName||showFeedbackModal.teacher||'-')}</span></div>
+    <div class="info-item"><span class="label">科目</span><span class="value">${esc(a.subject||'英语')}</span></div>
+  </div>
+  ${dims.map(dim => `
+  <div class="dim-section">
+    <div class="dim-header">${dim.title}</div>
+    ${dim.items.map(item => `<div class="dim-item"><span class="dim-label">${item[1]}</span><span class="stars-readonly">${stars(a[item[0]])}</span></div>`).join('')}
+    ${a[dim.comment] ? `<div class="dim-comments">${esc(a[dim.comment])}</div>` : ''}
+  </div>`).join('')}
+  <div class="overall-section">
+    <div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">${esc(a.strengths||'')}</div></div>
+    <div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">${esc(a.improvements||'')}</div></div>
+    <div class="overall-item"><span class="overall-label">🎓 建议级别</span><span class="overall-text">${esc(a.recommended_level||'')}</span></div>
+  </div>
+  ${a.teacher_message ? `<div class="message-section"><div class="message-header">💌 教师寄语</div><div class="message-text">${esc(a.teacher_message)}</div></div>` : ''}
+  <div class="report-footer"><div>SunnyBridge 阳光桥在线英语</div><div class="date">生成日期：${new Date().toLocaleDateString('zh-CN')}</div></div>
+</div>
+<div class="no-print" style="text-align:center;margin:20px 0;">
+  <button onclick="window.print()" style="background:linear-gradient(135deg,#4B9FE0,#2E7AC4);color:white;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(75,159,224,0.3);">🖨️ 打印 / 导出 PDF</button>
+</div>
+</body></html>`);
+                    win.document.close();
+                  }}
+                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                >
+                  🖨️ 导出 PDF
+                </button>
+              )}
               <button
                 onClick={() => setShowFeedbackModal(null)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
