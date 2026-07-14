@@ -32,6 +32,8 @@ export default function Payments() {
     method: 'wechat',
     notes: '',
     packageHours: 0,
+    lessonType: '50',      // '50' = 50分钟, '25' = 25分钟
+    lessonCount: '',       // 节数
   });
 
   useEffect(() => {
@@ -78,7 +80,9 @@ export default function Payments() {
         date: new Date().toISOString().slice(0, 10),
         method: 'wechat',
         notes: '',
-        packageHours: 0
+        packageHours: 0,
+        lessonType: '50',
+        lessonCount: '',
       });
       loadPayments();
     } catch (err) {
@@ -287,16 +291,55 @@ export default function Payments() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">购买课时数</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.packageHours}
-                  onChange={(e) => setFormData({ ...formData, packageHours: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="如：20、30、60（留空则不添加课时）"
-                />
-                <p className="text-xs text-gray-400 mt-1">填写后，付款成功会自动给学生添加对应课时</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">购买课程</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">课程类型</label>
+                    <select
+                      value={formData.lessonType}
+                      onChange={(e) => {
+                        const type = e.target.value;
+                        const count = parseInt(formData.lessonCount) || 0;
+                        const coeff = type === '25' ? 0.66 : 1.0;
+                        setFormData({ ...formData, lessonType: type, packageHours: parseFloat((count * coeff).toFixed(2)) });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="50">50分钟/节</option>
+                      <option value="25">25分钟/节</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">节数</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.lessonCount}
+                      onChange={(e) => {
+                        const count = parseInt(e.target.value) || 0;
+                        const coeff = formData.lessonType === '25' ? 0.66 : 1.0;
+                        setFormData({ ...formData, lessonCount: count, packageHours: parseFloat((count * coeff).toFixed(2)) });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="如：10、20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">课时数（自动）</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formData.packageHours ? `${formData.packageHours} 课时` : '—'}
+                      className="w-full px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700 font-medium"
+                      placeholder="自动计算"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {formData.lessonType === '25'
+                    ? `25分钟课 × ${formData.lessonCount || 0}节 × 0.66系数 = ${formData.packageHours || 0}课时`
+                    : `50分钟课 × ${formData.lessonCount || 0}节 × 1.0 = ${formData.packageHours || 0}课时`}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
