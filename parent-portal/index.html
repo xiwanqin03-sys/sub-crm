@@ -936,7 +936,7 @@
             <th>Time</th>
             <th>Subject</th>
             <th>Teacher</th>
-            <th>Feedback</th>
+            <th>反馈/报告</th>
           </tr>
         </thead>
         <tbody id="history-body"></tbody>
@@ -1287,7 +1287,13 @@ function renderHistory() {
     html += '<td data-label="科目">' + (c.subject || '英语') + '</td>';
     html += '<td data-label="老师">' + (c.teacher_name || '未知老师') + '</td>';
     if (c.status !== 'scheduled') {
-      html += '<td data-label="反馈"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
+      var isTrialWithReport = c.is_trial === 1 && window_allAssessments && window_allAssessments.some(function(a) { return a.class_id === c.id; });
+      if (isTrialWithReport) {
+        var aId = window_allAssessments.find(function(a) { return a.class_id === c.id; }).id;
+        html += '<td data-label="反馈"><a class="feedback-link" onclick="viewAssessmentReport(' + aId + '); return false;">查看报告</a></td>';
+      } else {
+        html += '<td data-label="反馈"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
+      }
     } else {
       html += '<td data-label="反馈" class="no-feedback">未提交</td>';
     }
@@ -1351,7 +1357,12 @@ async function loadAssessments(studentId) {
   try {
     var resp = await apiGet('/assessments?student_id=' + studentId + '&status=published&page_size=50');
     var data = resp.data && resp.data.data ? resp.data.data : (resp.data || []);
+    window_allAssessments = data;
     renderAssessments(data);
+    // 评估报告加载完成后重新渲染历史记录(体验课显示"查看报告")
+    if (window_allPastClasses && window_allPastClasses.length > 0) {
+      renderHistory();
+    }
   } catch(e) { console.error('Assessments load error:', e); }
 }
 
