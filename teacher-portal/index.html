@@ -484,9 +484,9 @@ if (c.class_link) {
 }
 html += '</div>';
 html += '</div>';
-// 体验课显示「评估报告」按钮，正常课显示「Submit Feedback」
+// Trial class shows Assessment button, regular class shows Submit Feedback
 if (c.is_trial) {
-  html += '<button onclick="openAssessment(' + i + ')" class="mt-4 w-full py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm">📝 评估报告</button>';
+  html += '<button onclick="openAssessment(' + i + ')" class="mt-4 w-full py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm">📝 Assessment</button>';
 } else {
   html += '<button onclick="openTodayFeedback(' + i + ')" class="mt-4 w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Submit Feedback</button>';
 }
@@ -569,14 +569,14 @@ function renderHistory() {
     if (c.status !== 'scheduled') {
        // 已提交的显示View按钮
        if (c.is_trial) {
-         html += '<td class="px-4 py-3"><button onclick="openAssessmentFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 查看报告</button></td>';
+         html += '<td class="px-4 py-3"><button onclick="openAssessmentFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 View Report</button></td>';
        } else {
         html += '<td class="px-4 py-3"><button onclick="showViewFeedback(' + globalIdx + '); return false;" class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">View</button></td>';
       }
     } else {
       // 未提交的显示填写按钮
       if (c.is_trial) {
-        html += '<td class="px-4 py-3"><button onclick="openAssessmentFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 评估</button></td>';
+        html += '<td class="px-4 py-3"><button onclick="openAssessmentFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">📝 Assess</button></td>';
       } else {
         html += '<td class="px-4 py-3"><button onclick="openFeedbackFromHistory(' + globalIdx + '); return false;" class="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm hover:bg-orange-200">Submit</button></td>';
       }
