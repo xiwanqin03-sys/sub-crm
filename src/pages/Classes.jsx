@@ -395,7 +395,7 @@ function Classes() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {(cls.content || cls.homework) ? (
+                      {(cls.content || cls.homework || cls.fb_highlight || cls.fb_practice || cls.fb_homework || cls.fb_teacher_message || cls.fb_vocab || cls.fb_patterns || cls.fb_grammar) ? (
                         <button
                           onClick={() => setShowFeedbackModal(cls)}
                           className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
