@@ -4,11 +4,13 @@ import { teacherOps, studentOps, classOps } from '../store';
 import OrgFilter from '../components/OrgFilter';
 import { setSelectedOrg, organizationOps } from '../store/api';
 
-// 时长(分钟) → 课时数 映射：25分钟=0.5课时, 50分钟=1课时
+// 时长(分钟) → 后端根据系数自动计算课时，前端只传 duration
+// 此函数仅用于前端显示和课时充足检查的预估
+const COEFFICIENT = 0.66; // 默认系数，API会根据机构配置实际计算
 function durationToHours(duration) {
-  if (duration === 25) return 0.5;
+  if (duration === 25) return COEFFICIENT;
   if (duration === 50) return 1.0;
-  return duration / 60;
+  return duration / 50;
 }
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -265,6 +267,7 @@ export default function Schedule() {
         start_time: formData.time,
         end_time: endTime,
         hours: durationToHours(formData.duration),
+        duration: formData.duration,
         subject: formData.subject,
         notes: formData.notes,
         is_trial: formData.is_trial ? 1 : 0,
@@ -545,7 +548,7 @@ export default function Schedule() {
                     onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value), is_trial: parseInt(e.target.value) === 25 ? formData.is_trial : false })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value={25}>25分钟 (0.5课时)</option>
+                    <option value={25}>25分钟 (0.66课时)</option>
                     <option value={50}>50分钟 (1课时)</option>
                     <option value={60}>60分钟</option>
                   </select>

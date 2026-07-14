@@ -18,11 +18,13 @@ teacherPayments.get('/stats/:teacher_id', async (c) => {
     return c.json(error('BAD_REQUEST', '请提供开始和结束日期'), 400);
   }
 
-  // 查询该周已完成的课程
+  // 查询该周期已完成的课程 — 按次数区分
   const classes = await DB.prepare(`
     SELECT
       COUNT(*) as total_classes,
-      SUM(hours) as total_hours
+      SUM(hours) as total_hours,
+      SUM(CASE WHEN hours >= 1.0 THEN 1 ELSE 0 END) as count_50min,
+      SUM(CASE WHEN hours < 1.0 THEN 1 ELSE 0 END) as count_25min
     FROM classes
     WHERE teacher_id = ?
       AND date >= ?
@@ -30,18 +32,21 @@ teacherPayments.get('/stats/:teacher_id', async (c) => {
       AND status = 'completed'
   `).bind(teacherId, startDate, endDate).first();
 
-  // 获取教师时薪
+  // 获取教师单价（50分钟 + 25分钟）
   const teacher = await DB.prepare(`
-    SELECT hourly_rate FROM teachers WHERE id = ?
+    SELECT hourly_rate, hourly_rate_25 FROM teachers WHERE id = ?
   `).bind(teacherId).first();
 
   if (!teacher) {
     return c.json(error('NOT_FOUND', '教师不存在'), 404);
   }
 
-  const hourlyRate = teacher.hourly_rate || 0;
+  const rate50 = teacher.hourly_rate || 0;
+  const rate25 = teacher.hourly_rate_25 || 80;
   const totalHours = classes.total_hours || 0;
-  const totalAmount = totalHours * hourlyRate;
+  const count50 = classes.count_50min || 0;
+  const count25 = classes.count_25min || 0;
+  const totalAmount = count50 * rate50 + count25 * rate25;
 
   return c.json(success({
     teacher_id: teacherId,
@@ -49,7 +54,11 @@ teacherPayments.get('/stats/:teacher_id', async (c) => {
     period_end: endDate,
     total_classes: classes.total_classes || 0,
     total_hours: totalHours,
-    hourly_rate: hourlyRate,
+    hourly_rate: rate50,
+    count_50min: count50,
+    count_25min: count25,
+    rate_50min: rate50,
+    rate_25min: rate25,
     total_amount: totalAmount
   }));
 });
@@ -97,11 +106,13 @@ teacherPayments.post('/', async (c) => {
     return c.json(error('BAD_REQUEST', '缺少必要字段'), 400);
   }
 
-  // 获取上课统计
+  // 获取上课统计 — 按次数区分50分钟和25分钟
   const stats = await DB.prepare(`
     SELECT
       COUNT(*) as total_classes,
-      SUM(hours) as total_hours
+      SUM(hours) as total_hours,
+      SUM(CASE WHEN hours >= 1.0 THEN 1 ELSE 0 END) as count_50min,
+      SUM(CASE WHEN hours < 1.0 THEN 1 ELSE 0 END) as count_25min
     FROM classes
     WHERE teacher_id = ?
       AND date >= ?
@@ -109,19 +120,22 @@ teacherPayments.post('/', async (c) => {
       AND status = 'completed'
   `).bind(teacher_id, period_start, period_end).first();
 
-  // 获取教师时薪
+  // 获取教师单价（50分钟 + 25分钟）
   const teacher = await DB.prepare(`
-    SELECT hourly_rate FROM teachers WHERE id = ?
+    SELECT hourly_rate, hourly_rate_25 FROM teachers WHERE id = ?
   `).bind(teacher_id).first();
 
   if (!teacher) {
     return c.json(error('NOT_FOUND', '教师不存在'), 404);
   }
 
-  const hourlyRate = teacher.hourly_rate || 0;
+  const rate50 = teacher.hourly_rate || 0;
+  const rate25 = teacher.hourly_rate_25 || 80;
   const totalClasses = stats.total_classes || 0;
   const totalHours = stats.total_hours || 0;
-  const totalAmount = totalHours * hourlyRate;
+  const count50 = stats.count_50min || 0;
+  const count25 = stats.count_25min || 0;
+  const totalAmount = count50 * rate50 + count25 * rate25;
 
   // 检查是否已存在该周期的结算
   const existing = await DB.prepare(`
@@ -136,9 +150,9 @@ teacherPayments.post('/', async (c) => {
   // 创建结算记录
   const result = await DB.prepare(`
     INSERT INTO teacher_payments
-      (teacher_id, period_start, period_end, total_classes, total_hours, hourly_rate, total_amount, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(teacher_id, period_start, period_end, totalClasses, totalHours, hourlyRate, totalAmount, notes || null).run();
+      (teacher_id, period_start, period_end, total_classes, total_hours, hourly_rate, total_amount, notes, count_50min, count_25min, rate_50min, rate_25min)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(teacher_id, period_start, period_end, totalClasses, totalHours, rate50, totalAmount, notes || null, count50, count25, rate50, rate25).run();
 
   return c.json(success({
     id: result.meta.last_row_id,

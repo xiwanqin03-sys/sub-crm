@@ -1,13 +1,39 @@
 import { useState, useRef, useEffect } from 'react';
 import { Download, Upload, Database, Trash2, AlertTriangle, Users, ExternalLink } from 'lucide-react';
 import { exportData, importData } from '../store';
-import { adminOps } from '../store/api';
+import { adminOps, request } from '../store/api';
 
 export default function SettingsPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [confirmClear, setConfirmClear] = useState(false);
   const [stats, setStats] = useState({ students: 0, packages: 0, classes: 0, payments: 0 });
   const fileInputRef = useRef(null);
+  const [coefficient, setCoefficient] = useState('0.66');
+
+  // 加载课时系数
+  useEffect(() => {
+    async function loadCoefficient() {
+      try {
+        const res = await request('/settings/short_class_coefficient');
+        const val = res?.data?.value || res?.value || '0.66';
+        setCoefficient(val);
+      } catch(e) { /* 可能还没配置 */ }
+    }
+    loadCoefficient();
+  }, []);
+
+  const handleSaveCoefficient = async () => {
+    try {
+      await request('/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ short_class_coefficient: coefficient }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      setMessage({ type: 'success', text: `课时系数已保存为 ${coefficient}` });
+    } catch(e) {
+      setMessage({ type: 'error', text: '保存失败：' + (e.message || '未知错误') });
+    }
+  };
 
   // 加载数据统计
   useEffect(() => {
@@ -107,6 +133,43 @@ export default function SettingsPage() {
           {message.text}
         </div>
       )}
+
+      {/* 课时系数配置 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="font-semibold text-gray-800">课时与计费配置</h2>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">25分钟课时系数</label>
+              <p className="text-xs text-gray-400">影响学生扣课时和充值买课时。50分钟=1课时，25分钟=系数×1</p>
+            </div>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max="1"
+              value={coefficient}
+              onChange={(e) => setCoefficient(e.target.value)}
+              className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-center"
+            />
+            <button
+              onClick={handleSaveCoefficient}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 text-sm"
+            >
+              保存系数
+            </button>
+          </div>
+          <div className="bg-orange-50 rounded-lg p-3 text-sm text-gray-600">
+            <p className="font-medium text-gray-700 mb-1">计算示例：</p>
+            <p>25分钟课扣课时 = {coefficient || 0.66} 课时</p>
+            <p>充值25分钟10节 = {((parseFloat(coefficient) || 0.66) * 10).toFixed(2)} 课时</p>
+            <p>充值50分钟10节 = 10 课时</p>
+            <p className="mt-1 text-xs text-gray-400">老师结算按次数独立计费，不受系数影响</p>
+          </div>
+        </div>
+      </div>
 
       {/* 数据统计 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">

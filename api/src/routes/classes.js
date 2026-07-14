@@ -8,6 +8,32 @@ import { success, error, calculatePagination } from '../utils/response.js';
 
 const classes = new Hono();
 
+// ── 课时系数辅助 ──
+// 优先使用 organization.short_class_coefficient，否则用 settings 中的全局值
+async function resolveCoefficient(DB, orgId) {
+  if (orgId) {
+    const org = await DB.prepare('SELECT short_class_coefficient FROM organizations WHERE id = ?').bind(orgId).first();
+    if (org && org.short_class_coefficient !== null) {
+      return parseFloat(org.short_class_coefficient);
+    }
+  }
+  const setting = await DB.prepare("SELECT value FROM settings WHERE key = 'short_class_coefficient'").first();
+  return setting ? parseFloat(setting.value) : 0.66;
+}
+
+// 根据 data.duration 或 data.hours 计算实际课时数
+async function resolveClassHours(DB, data, orgId) {
+  // 如果有 duration（分钟），按系数计算
+  if (data.duration) {
+    const dur = parseInt(data.duration);
+    if (dur === 50) return 1.0;
+    if (dur === 25) return await resolveCoefficient(DB, orgId);
+    return dur / 50; // 其他时长以50分钟为1课时
+  }
+  // 兼容：前端直接传 hours 的情况
+  return data.hours || 1;
+}
+
 // ── 老师时间冲突检查 ──
 // 同一老师、同一日期、时间区间重叠（排除 cancelled 状态）
 // 返回冲突记录数组（空=无冲突）
@@ -270,7 +296,7 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     data.teacher || null,
     data.teacher_id || null,
     data.subject || null,
-    data.hours || 1,
+    await resolveClassHours(DB, data, organizationId),
     data.date || new Date().toISOString().split('T')[0],
     data.start_time || null,
     data.end_time || null,
@@ -283,7 +309,7 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
   ).run();
 
   const classId = result.meta.last_row_id;
-  const classHours = data.hours || 1;
+  const classHours = await resolveClassHours(DB, data, organizationId);
   const classStatus = data.status || 'completed';
 
   // ── 同步机构课时包 ──

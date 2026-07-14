@@ -90,15 +90,17 @@ orgSettlements.get('/preview', async (c) => {
   }
 
   // 查询机构单价
-  const org = await DB.prepare('SELECT unit_price_cny FROM organizations WHERE id = ?').bind(orgId).first();
+  const org = await DB.prepare('SELECT unit_price_cny, unit_price_25_cny FROM organizations WHERE id = ?').bind(orgId).first();
   if (!org) {
     return c.json(error('NOT_FOUND', '机构不存在'), 404);
   }
-  const unitPrice = org.unit_price_cny || 0;
+  const unitPrice50 = org.unit_price_cny || 0;
+  const unitPrice25 = org.unit_price_25_cny || 50;
 
-  // 查询该周期内已完成的课程（排除已结算的）
+  // 查询该周期内已完成的课程（排除已结算的）— 按次数区分
   const classesResult = await DB.prepare(`
-    SELECT c.id, c.hours
+    SELECT c.id, c.hours,
+      CASE WHEN c.hours >= 1.0 THEN '50min' ELSE '25min' END as duration_type
     FROM classes c
     WHERE c.organization_id = ?
       AND c.status = 'completed'
@@ -115,7 +117,9 @@ orgSettlements.get('/preview', async (c) => {
   const classList = classesResult.results || [];
   const totalClasses = classList.length;
   const totalHours = classList.reduce((sum, cls) => sum + (cls.hours || 0), 0);
-  const amountDue = totalHours * unitPrice;
+  const count50 = classList.filter(cls => cls.hours >= 1.0).length;
+  const count25 = classList.filter(cls => cls.hours < 1.0).length;
+  const amountDue = count50 * unitPrice50 + count25 * unitPrice25;
 
   return c.json(success({
     org_id: parseInt(orgId),
@@ -123,7 +127,10 @@ orgSettlements.get('/preview', async (c) => {
     period_end: periodEnd,
     total_classes: totalClasses,
     total_hours: totalHours,
-    unit_price_cny: unitPrice,
+    count_50min: count50,
+    count_25min: count25,
+    unit_price_cny: unitPrice50,
+    unit_price_25_cny: unitPrice25,
     amount_due_cny: amountDue
   }));
 });
@@ -184,12 +191,13 @@ orgSettlements.post('/generate', async (c) => {
     return c.json(error('VALIDATION_ERROR', 'org_id, period_start, period_end 均为必填'), 400);
   }
 
-  // 查询机构单价
-  const org = await DB.prepare('SELECT id, name, unit_price_cny FROM organizations WHERE id = ?').bind(org_id).first();
+  // 查询机构单价（50分钟 + 25分钟）
+  const org = await DB.prepare('SELECT id, name, unit_price_cny, unit_price_25_cny FROM organizations WHERE id = ?').bind(org_id).first();
   if (!org) {
     return c.json(error('NOT_FOUND', '机构不存在'), 404);
   }
-  const unitPrice = org.unit_price_cny || 0;
+  const unitPrice50 = org.unit_price_cny || 0;
+  const unitPrice25 = org.unit_price_25_cny || 50;
 
   // 查询该周期内已完成的课程（排除已结算的）
   const classesResult = await DB.prepare(`
@@ -217,26 +225,31 @@ orgSettlements.post('/generate', async (c) => {
     return c.json(error('NO_DATA', '该周期内无符合的已完课记录'), 400);
   }
 
-  // 计算汇总
+  // 计算汇总 — 按次数分别计费
   const totalClasses = classList.length;
   const totalHours = classList.reduce((sum, cls) => sum + (cls.hours || 0), 0);
-  const amountDue = totalHours * unitPrice;
+  const count50 = classList.filter(cls => (cls.hours || 0) >= 1.0).length;
+  const count25 = classList.filter(cls => (cls.hours || 0) < 1.0).length;
+  const amountDue = count50 * unitPrice50 + count25 * unitPrice25;
 
   // 开启事务：先插入结算单
   const insertSettle = await DB.prepare(`
     INSERT INTO org_settlements (org_id, period_start, period_end, total_classes, total_hours, unit_price_cny, amount_due_cny, status, generated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
-  `).bind(org_id, period_start, period_end, totalClasses, totalHours, unitPrice, amountDue).run();
+  `).bind(org_id, period_start, period_end, totalClasses, totalHours, unitPrice50, amountDue).run();
 
   const settlementId = insertSettle.meta?.last_row_id;
 
-  // 插入明细
+  // 插入明细 — 按课时类型选单价
   for (const cls of classList) {
     const hours = cls.hours || 0;
-    const subtotal = hours * unitPrice;
+    const is50min = hours >= 1.0;
+    const price = is50min ? unitPrice50 : unitPrice25;
+    const subtotal = is50min ? price : price; // 按次计费，每次1个单价
+    const durationType = is50min ? '50min' : '25min';
     await DB.prepare(`
-      INSERT INTO org_settlement_items (settlement_id, class_id, student_id, student_name, teacher_name, class_date, hours, unit_price_cny, subtotal_cny)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO org_settlement_items (settlement_id, class_id, student_id, student_name, teacher_name, class_date, hours, unit_price_cny, subtotal_cny, duration_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       settlementId,
       cls.id,
@@ -245,8 +258,9 @@ orgSettlements.post('/generate', async (c) => {
       cls.teacher_name || '',
       cls.date,
       hours,
-      unitPrice,
-      subtotal
+      price,
+      subtotal,
+      durationType
     ).run();
   }
 

@@ -15,6 +15,7 @@ export default function TeacherPayments() {
   const [showRateModal, setShowRateModal] = useState(false);
   const [editingRateTeacher, setEditingRateTeacher] = useState(null);
   const [rateValue, setRateValue] = useState('');
+  const [rateValue25, setRateValue25] = useState('');
   const [showRateSection, setShowRateSection] = useState(false);
   
   // 筛选状态
@@ -55,6 +56,7 @@ export default function TeacherPayments() {
   const handleEditRate = (teacher) => {
     setEditingRateTeacher(teacher);
     setRateValue(teacher.hourly_rate || '');
+    setRateValue25(teacher.hourly_rate_25 !== undefined && teacher.hourly_rate_25 !== null ? teacher.hourly_rate_25 : '80');
     setShowRateModal(true);
   };
 
@@ -63,7 +65,8 @@ export default function TeacherPayments() {
     try {
       await teacherOps.update(editingRateTeacher.id, {
         ...editingRateTeacher,
-        hourly_rate: rateValue ? parseFloat(rateValue) : null
+        hourly_rate: rateValue ? parseFloat(rateValue) : null,
+        hourly_rate_25: rateValue25 ? parseFloat(rateValue25) : null
       });
       setShowRateModal(false);
       loadTeachers();
@@ -149,7 +152,11 @@ export default function TeacherPayments() {
     setLoading(true);
     try {
       const result = await teacherPaymentOps.create(formData);
-      alert(`结算创建成功！\n课时数: ${result.total_classes}\n总时长: ${result.total_hours} 小时\n应付金额: ₱${result.total_amount}`);
+      const c50 = result.count_50min || 0;
+      const c25 = result.count_25min || 0;
+      const r50 = result.rate_50min || result.hourly_rate || 0;
+      const r25 = result.rate_25min || 0;
+      alert(`结算创建成功！\n50分钟课: ${c50}节 × ₱${r50} + 25分钟课: ${c25}节 × ₱${r25} = ₱${result.total_amount}`);
       setShowModal(false);
       loadPayments();
       setFormData({ teacher_id: '', period_start: '', period_end: '', notes: '' });
@@ -433,7 +440,8 @@ export default function TeacherPayments() {
                   <div>
                     <span className="text-sm font-medium">{teacher.name}</span>
                     <div className={`text-xs ${teacher.hourly_rate ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
-                      {teacher.hourly_rate ? `₱${teacher.hourly_rate}/小时` : '未设置'}
+                      {teacher.hourly_rate ? `50min: ₱${teacher.hourly_rate}/节` : '未设置'}
+                      {teacher.hourly_rate_25 ? ` · 25min: ₱${teacher.hourly_rate_25}/节` : ''}
                     </div>
                   </div>
                   <button
@@ -596,19 +604,34 @@ export default function TeacherPayments() {
       {/* 编辑时薪弹窗 */}
       {showRateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
-            <h2 className="text-xl font-bold mb-4">编辑教师时薪</h2>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold mb-4">编辑教师结算单价</h2>
             <p className="text-gray-600 mb-4">教师：<span className="font-medium">{editingRateTeacher?.name}</span></p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">时薪（₱/小时）</label>
-              <input
-                type="number"
-                step="0.01"
-                value={rateValue}
-                onChange={(e) => setRateValue(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">50分钟课单价（₱/节）</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rateValue}
+                  onChange={(e) => setRateValue(e.target.value)}
+                  placeholder="如 150"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">25分钟课单价（₱/节）</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rateValue25}
+                  onChange={(e) => setRateValue25(e.target.value)}
+                  placeholder="如 80"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">结算 = 50分钟次数 × 50分钟单价 + 25分钟次数 × 25分钟单价</p>
+              </div>
             </div>
             <div className="flex gap-3 pt-4">
               <button
