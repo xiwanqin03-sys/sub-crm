@@ -68,7 +68,7 @@ export default function Payments() {
         date: formData.date,
         payment_method: formData.method,  // 修正字段名
         description: formData.notes,
-      hours: parseInt(formData.packageHours) || 0
+      hours: parseFloat(formData.packageHours) || 0
       });
 
       // addStudentHours removed: backend already updates total_hours in payments.js
