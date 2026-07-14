@@ -133,7 +133,22 @@ const data = results.results?.map(cls => ({
   is_trial: cls.is_trial || 0,
   organization_id: cls.organization_id,
   created_at: cls.created_at,
-  updated_at: cls.updated_at
+  updated_at: cls.updated_at,
+  fb_lesson_level: cls.fb_lesson_level,
+  fb_unit: cls.fb_unit,
+  fb_lesson: cls.fb_lesson,
+  fb_vocab: cls.fb_vocab,
+  fb_patterns: cls.fb_patterns,
+  fb_grammar: cls.fb_grammar,
+  fb_perf_speaking: cls.fb_perf_speaking,
+  fb_perf_pronunciation: cls.fb_perf_pronunciation,
+  fb_perf_comprehension: cls.fb_perf_comprehension,
+  fb_perf_exercise: cls.fb_perf_exercise,
+  fb_highlight: cls.fb_highlight,
+  fb_practice: cls.fb_practice,
+  fb_homework: cls.fb_homework,
+  fb_next_preview: cls.fb_next_preview,
+  fb_teacher_message: cls.fb_teacher_message,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -183,9 +198,24 @@ const data = results.results?.map(cls => ({
   notes: cls.notes,
   class_link: cls.class_link,
   status: cls.status,
+  is_trial: cls.is_trial || 0,
   organization_id: cls.organization_id,
   created_at: cls.created_at,
-  updated_at: cls.updated_at
+  fb_lesson_level: cls.fb_lesson_level,
+  fb_unit: cls.fb_unit,
+  fb_lesson: cls.fb_lesson,
+  fb_vocab: cls.fb_vocab,
+  fb_patterns: cls.fb_patterns,
+  fb_grammar: cls.fb_grammar,
+  fb_perf_speaking: cls.fb_perf_speaking,
+  fb_perf_pronunciation: cls.fb_perf_pronunciation,
+  fb_perf_comprehension: cls.fb_perf_comprehension,
+  fb_perf_exercise: cls.fb_perf_exercise,
+  fb_highlight: cls.fb_highlight,
+  fb_practice: cls.fb_practice,
+  fb_homework: cls.fb_homework,
+  fb_next_preview: cls.fb_next_preview,
+  fb_teacher_message: cls.fb_teacher_message,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -231,7 +261,22 @@ return c.json(success({
   status: cls.status,
   organization_id: cls.organization_id,
   created_at: cls.created_at,
-  updated_at: cls.updated_at
+  updated_at: cls.updated_at,
+  fb_lesson_level: cls.fb_lesson_level,
+  fb_unit: cls.fb_unit,
+  fb_lesson: cls.fb_lesson,
+  fb_vocab: cls.fb_vocab,
+  fb_patterns: cls.fb_patterns,
+  fb_grammar: cls.fb_grammar,
+  fb_perf_speaking: cls.fb_perf_speaking,
+  fb_perf_pronunciation: cls.fb_perf_pronunciation,
+  fb_perf_comprehension: cls.fb_perf_comprehension,
+  fb_perf_exercise: cls.fb_perf_exercise,
+  fb_highlight: cls.fb_highlight,
+  fb_practice: cls.fb_practice,
+  fb_homework: cls.fb_homework,
+  fb_next_preview: cls.fb_next_preview,
+  fb_teacher_message: cls.fb_teacher_message,
 }));
 });
 

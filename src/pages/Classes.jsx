@@ -625,29 +625,54 @@ function Classes() {
                 </div>
               );
             })() : (
-            <div className="space-y-4">
-              {showFeedbackModal.content && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">上课内容</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 whitespace-pre-wrap">
-                    {showFeedbackModal.content}
-                  </div>
+            <div className="space-y-3">
+              {/* 📅 上课信息 */}
+              {(showFeedbackModal.fb_lesson_level || showFeedbackModal.fb_unit || showFeedbackModal.fb_lesson) && (
+                <div className="border rounded-lg p-3">
+                  <div className="font-medium text-gray-700 text-sm mb-2">📅 上课信息</div>
+                  <div className="text-sm text-gray-600">课程级别：{showFeedbackModal.fb_lesson_level || '-'} · 教材进度：Unit {showFeedbackModal.fb_unit || '-'} / Lesson {showFeedbackModal.fb_lesson || '-'}</div>
                 </div>
               )}
-              {showFeedbackModal.homework && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">作业布置</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 whitespace-pre-wrap">
-                    {showFeedbackModal.homework}
-                  </div>
+              {/* 📚 今日学习内容 */}
+              {(showFeedbackModal.fb_vocab || showFeedbackModal.fb_patterns || showFeedbackModal.fb_grammar) && (
+                <div className="border rounded-lg p-3">
+                  <div className="font-medium text-gray-700 text-sm mb-2">📚 今日学习内容</div>
+                  {showFeedbackModal.fb_vocab && <div className="mb-1 text-sm text-gray-600"><b>词汇：</b>{showFeedbackModal.fb_vocab}</div>}
+                  {showFeedbackModal.fb_patterns && <div className="mb-1 text-sm text-gray-600"><b>句型：</b>{showFeedbackModal.fb_patterns}</div>}
+                  {showFeedbackModal.fb_grammar && <div className="mb-1 text-sm text-gray-600"><b>语法重点：</b>{showFeedbackModal.fb_grammar}</div>}
                 </div>
               )}
-              {showFeedbackModal.notes && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">备注</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 whitespace-pre-wrap">
-                    {showFeedbackModal.notes}
+              {/* ⭐️ 今日表现 */}
+              {(showFeedbackModal.fb_perf_speaking || showFeedbackModal.fb_perf_pronunciation || showFeedbackModal.fb_perf_comprehension || showFeedbackModal.fb_perf_exercise) && (() => {
+                const perf = [
+                  ['fb_perf_speaking', '开口积极性'],
+                  ['fb_perf_pronunciation', '发音准确度'],
+                  ['fb_perf_comprehension', '理解新内容速度'],
+                  ['fb_perf_exercise', '完成练习情况'],
+                ];
+                return (
+                  <div className="border rounded-lg p-3">
+                    <div className="font-medium text-gray-700 text-sm mb-2">⭐️ 今日表现</div>
+                    {perf.map(([key, label]) => (
+                      <div key={key} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-gray-600">{label}</span>
+                        <span className="text-lg tracking-tight">
+                          {[1,2,3,4,5].map(i => <span key={i} className={i <= (showFeedbackModal[key]||0) ? 'text-orange-400' : 'text-gray-300'}>★</span>)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
+                );
+              })()}
+              {/* 综合总结 */}
+              {(showFeedbackModal.fb_highlight || showFeedbackModal.fb_practice || showFeedbackModal.fb_homework || showFeedbackModal.fb_next_preview || showFeedbackModal.fb_teacher_message) && (
+                <div className="border rounded-lg p-3 bg-purple-50">
+                  <div className="font-medium text-gray-700 text-sm mb-2">📋 课后总结</div>
+                  {showFeedbackModal.fb_highlight && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">💪 今日亮点</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_highlight}</div></div>}
+                  {showFeedbackModal.fb_practice && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">📈 需要继续练习</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_practice}</div></div>}
+                  {showFeedbackModal.fb_homework && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">📝 课后作业</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_homework}</div></div>}
+                  {showFeedbackModal.fb_next_preview && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">🎯 下节课预告</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_next_preview}</div></div>}
+                  {showFeedbackModal.fb_teacher_message && <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm"><span className="font-medium text-gray-700">💌 老师寄语</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_teacher_message}</div></div>}
                 </div>
               )}
             </div>

@@ -20,6 +20,11 @@
     .star-rating .star:hover { color: #f0b553; }
     .stars-readonly .star { cursor: default; font-size: 18px; color: #d1d5db; }
     .stars-readonly .star.active { color: #F5A623; }
+    /* ── Feedback star rating (reuses .star styles) ── */
+    .fb-star-rating { display: inline-flex; gap: 2px; }
+    .fb-star-rating .star { font-size: 22px; color: #d1d5db; cursor: pointer; transition: color 0.15s; user-select: none; }
+    .fb-star-rating .star.active { color: #F5A623; }
+    .fb-star-rating .star:hover { color: #f0b553; }
     /* ── Assessment modal scroll ── */
     #assessment-modal { max-height: 90vh; overflow-y: auto; }
   </style>
@@ -109,13 +114,11 @@
 
 <!-- View Modal -->
 <div id="view-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="if(event.target===this)closeViewModal()">
- <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+ <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
 <h3 class="text-lg font-semibold mb-4">Feedback Details</h3>
  <div id="view-class-info" class="bg-blue-50 rounded-lg p-3 mb-4 text-sm"></div>
- <div class="mb-2"><b>Class Content:</b><div id="view-content" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
-  <div class="mb-2"><b>Homework:</b><div id="view-homework" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
-  <div class="mb-2"><b>Notes:</b><div id="view-notes" class="bg-gray-50 p-2 rounded whitespace-pre-wrap"></div></div>
-  <div class="flex gap-3 mt-4">
+ <div id="view-feedback-content" class="space-y-3"></div>
+ <div class="flex gap-3 mt-4">
     <button onclick="editFromView()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Edit</button>
     <button onclick="closeViewModal()" class="px-4 py-2 bg-gray-200 rounded">Close</button>
   </div>
@@ -125,21 +128,42 @@
 
 <!-- Feedback Modal -->
 <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
- <div class="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+ <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
   <h2 class="text-xl font-bold mb-4">Submit Feedback</h2>
   <div id="class-info" class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600"></div>
   <form id="feedback-form" class="space-y-4">
-  <div>
-  <label class="block text-sm font-medium text-gray-700 mb-1">Class Content</label>
-  <textarea id="input-content" rows="3" placeholder="What was taught in this class..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  <!-- 📅 Lesson Info -->
+  <div class="border rounded-lg p-3">
+    <h3 class="font-semibold text-gray-800 text-sm mb-3">📅 Lesson Info</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="block text-xs text-gray-500 mb-1">Level</label><input id="fb-level" type="text" placeholder="e.g. A1, A2" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div>
+      <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs text-gray-500 mb-1">Unit</label><input id="fb-unit" type="text" placeholder="e.g. 5" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div><div><label class="block text-xs text-gray-500 mb-1">Lesson</label><input id="fb-lesson" type="text" placeholder="e.g. 3" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div></div>
+    </div>
   </div>
-  <div>
-  <label class="block text-sm font-medium text-gray-700 mb-1">Homework</label>
-  <textarea id="input-homework" rows="2" placeholder="Homework assigned..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  <!-- 📚 Today's Learning -->
+  <div class="border rounded-lg p-3">
+    <h3 class="font-semibold text-gray-800 text-sm mb-3">📚 Today's Learning</h3>
+    <div class="space-y-2">
+      <div><label class="block text-xs text-gray-500 mb-1">Vocabulary</label><textarea id="fb-vocab" rows="2" placeholder="Words learned..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">Sentence Patterns</label><textarea id="fb-patterns" rows="2" placeholder="Key sentence patterns..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">Grammar Focus</label><textarea id="fb-grammar" rows="2" placeholder="Grammar points..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    </div>
   </div>
-  <div>
-  <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-  <textarea id="input-notes" rows="2" placeholder="Student performance, areas for improvement..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+  <!-- ⭐️ Performance -->
+  <div class="border rounded-lg p-3">
+    <h3 class="font-semibold text-gray-800 text-sm mb-3">⭐️ Performance</h3>
+    <div id="fb-perf-list" class="space-y-2"></div>
+  </div>
+  <!-- Summary sections -->
+  <div class="border rounded-lg p-3 bg-purple-50">
+    <h3 class="font-semibold text-gray-800 text-sm mb-3">📋 Summary</h3>
+    <div class="space-y-2">
+      <div><label class="block text-xs text-gray-500 mb-1">💪 Highlight</label><textarea id="fb-highlight" rows="2" placeholder="What the student did well..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">📈 Needs Practice</label><textarea id="fb-practice" rows="2" placeholder="What needs review/practice..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">📝 Homework</label><textarea id="fb-homework" rows="2" placeholder="Homework details..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">🎯 Next Lesson Preview</label><textarea id="fb-next" rows="2" placeholder="What will be covered next..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">💌 Teacher's Message</label><textarea id="fb-message" rows="2" placeholder="A personal note to student/parents..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    </div>
   </div>
   <div id="status-field">
   <label class="block text-sm font-medium text-gray-700 mb-1">Class Status</label>
@@ -332,10 +356,67 @@ function showViewFeedback(idx) {
   var cls = window_historyClasses[idx];
   if (!cls) return;
   currentViewClass = cls;
-  document.getElementById('view-class-info').innerHTML = '<b>' + formatStudentName(cls) + '</b> - ' + cls.date;
-  document.getElementById('view-content').innerHTML = escapeHtml(cls.content) || 'N/A';
-  document.getElementById('view-homework').innerHTML = escapeHtml(cls.homework) || 'N/A';
-  document.getElementById('view-notes').innerHTML = escapeHtml(cls.notes) || 'N/A';
+
+  var info = '<b>' + escapeHtml(formatStudentName(cls)) + '</b> - ' + cls.date + ' ' + formatTime(cls.start_time);
+  if (cls.subject) info += ' · ' + escapeHtml(cls.subject);
+  document.getElementById('view-class-info').innerHTML = info;
+
+  var esc = function(s) { return s ? escapeHtml(s) : ''; };
+  var starsHtml = function(val) {
+    var h = '<span class="stars-readonly text-lg">';
+    for (var i = 1; i <= 5; i++) h += '<span class="star' + (i <= (val||0) ? ' active' : '') + '">★</span>';
+    h += '</span>';
+    return h;
+  };
+
+  var perfItems = [
+    ['fb_perf_speaking', 'Speaking Initiative'],
+    ['fb_perf_pronunciation', 'Pronunciation Accuracy'],
+    ['fb_perf_comprehension', 'Comprehension Speed'],
+    ['fb_perf_exercise', 'Exercise Completion']
+  ];
+
+  var html = '';
+
+  // Lesson Info
+  if (cls.fb_lesson_level || cls.fb_unit || cls.fb_lesson) {
+    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">📅 Lesson Info</div>';
+    html += '<div class="text-sm text-gray-600">Level: ' + esc(cls.fb_lesson_level) + ' · Unit ' + esc(cls.fb_unit) + ' / Lesson ' + esc(cls.fb_lesson) + '</div>';
+    html += '</div>';
+  }
+
+  // Today's Learning
+  if (cls.fb_vocab || cls.fb_patterns || cls.fb_grammar) {
+    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">📚 Today\'s Learning</div>';
+    if (cls.fb_vocab) html += '<div class="mb-1 text-sm"><b>Vocabulary:</b> ' + esc(cls.fb_vocab) + '</div>';
+    if (cls.fb_patterns) html += '<div class="mb-1 text-sm"><b>Patterns:</b> ' + esc(cls.fb_patterns) + '</div>';
+    if (cls.fb_grammar) html += '<div class="mb-1 text-sm"><b>Grammar:</b> ' + esc(cls.fb_grammar) + '</div>';
+    html += '</div>';
+  }
+
+  // Performance
+  if (perfItems.some(function(p) { return cls[p[0]]; })) {
+    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">⭐️ Performance</div>';
+    perfItems.forEach(function(item) {
+      html += '<div class="flex items-center justify-between py-1"><span class="text-sm text-gray-600">' + item[1] + '</span>' + starsHtml(cls[item[0]]) + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Summary
+  if (cls.fb_highlight || cls.fb_practice || cls.fb_homework || cls.fb_next_preview || cls.fb_teacher_message) {
+    html += '<div class="border rounded-lg p-3 bg-purple-50"><div class="font-medium text-gray-700 text-sm mb-2">📋 Summary</div>';
+    if (cls.fb_highlight) html += '<div class="mb-2 text-sm"><b>💪 Highlight:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_highlight) + '</div></div>';
+    if (cls.fb_practice) html += '<div class="mb-2 text-sm"><b>📈 Needs Practice:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_practice) + '</div></div>';
+    if (cls.fb_homework) html += '<div class="mb-2 text-sm"><b>📝 Homework:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_homework) + '</div></div>';
+    if (cls.fb_next_preview) html += '<div class="mb-2 text-sm"><b>🎯 Next Lesson:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_next_preview) + '</div></div>';
+    if (cls.fb_teacher_message) html += '<div class="mt-2 p-2 bg-blue-50 rounded text-sm"><b>💌 Teacher\'s Message:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_teacher_message) + '</div></div>';
+    html += '</div>';
+  }
+
+  if (!html) html = '<div class="text-center text-gray-400 py-4">No feedback submitted yet</div>';
+
+  document.getElementById('view-feedback-content').innerHTML = html;
   document.getElementById('view-modal').classList.remove('hidden');
   document.getElementById('view-modal').classList.add('flex');
 }
@@ -611,33 +692,77 @@ function goHistoryPage(p) {
   document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
 }
 
+// ===== Feedback star rating interaction (delegated) =====
+document.addEventListener('click', function(e) {
+  var star = e.target.closest('.fb-star-rating .star');
+  if (!star) return;
+  var rating = star.closest('.fb-star-rating');
+  var stars = rating.querySelectorAll('.star');
+  var selectedVal = parseInt(star.getAttribute('data-val'));
+  stars.forEach(function(s) {
+    if (parseInt(s.getAttribute('data-val')) <= selectedVal) s.classList.add('active');
+    else s.classList.remove('active');
+  });
+  var hidden = rating.querySelector('input[type="hidden"]');
+  if (hidden) hidden.value = selectedVal;
+});
+
 // ===== Open Feedback Modal =====
 function openFeedback(cls) {
   selectedClass = cls;
-  
-  // 根据状态更新标题
+
   var modalTitle = cls.status !== 'scheduled' ? 'Edit Feedback' : 'Submit Feedback';
   document.querySelector('#feedback-modal h2').textContent = modalTitle;
-  
-  // 编辑模式隐藏状态选择（避免误扣课时）
+
   var statusField = document.getElementById('status-field');
   if (cls.status !== 'scheduled') {
     statusField.style.display = 'none';
   } else {
     statusField.style.display = 'block';
   }
-  
+
   var info = '';
-info += '<div><span class="font-medium">Student:</span>' + formatStudentName(cls) + '</div>';
- info += '<div><span class="font-medium">Date:</span>' + cls.date + '</div>';
- info += '<div><span class="font-medium">Time:</span>' + formatTime(cls.start_time) + '</div>';
- info += '<div><span class="font-medium">Subject:</span>' + (cls.subject || 'English') + '</div>';
- info += '<div><span class="font-medium">Hours:</span>' + (cls.hours || 1) + '</div>';
+  info += '<div><span class="font-medium">Student:</span> ' + formatStudentName(cls) + '</div>';
+  info += '<div><span class="font-medium">Date:</span> ' + cls.date + '</div>';
+  info += '<div><span class="font-medium">Time:</span> ' + formatTime(cls.start_time) + '</div>';
+  info += '<div><span class="font-medium">Subject:</span> ' + (cls.subject || 'English') + '</div>';
   document.getElementById('class-info').innerHTML = info;
-  document.getElementById('input-content').value = cls.content || '';
-  document.getElementById('input-homework').value = cls.homework || '';
-  document.getElementById('input-notes').value = cls.notes || '';
-  // 新课程(scheduled)默认Completed，已存在课程保持原状态
+
+  // Fill lesson info
+  document.getElementById('fb-level').value = cls.fb_lesson_level || '';
+  document.getElementById('fb-unit').value = cls.fb_unit || '';
+  document.getElementById('fb-lesson').value = cls.fb_lesson || '';
+  document.getElementById('fb-vocab').value = cls.fb_vocab || '';
+  document.getElementById('fb-patterns').value = cls.fb_patterns || '';
+  document.getElementById('fb-grammar').value = cls.fb_grammar || '';
+  document.getElementById('fb-highlight').value = cls.fb_highlight || '';
+  document.getElementById('fb-practice').value = cls.fb_practice || '';
+  document.getElementById('fb-homework').value = cls.fb_homework || '';
+  document.getElementById('fb-next').value = cls.fb_next_preview || '';
+  document.getElementById('fb-message').value = cls.fb_teacher_message || '';
+
+  // Render performance star ratings
+  var perfItems = [
+    { key: 'fb_perf_speaking', label: 'Speaking Initiative' },
+    { key: 'fb_perf_pronunciation', label: 'Pronunciation Accuracy' },
+    { key: 'fb_perf_comprehension', label: 'Comprehension Speed' },
+    { key: 'fb_perf_exercise', label: 'Exercise Completion' }
+  ];
+  var perfHtml = '';
+  perfItems.forEach(function(item) {
+    var val = cls[item.key] || 0;
+    perfHtml += '<div class="flex items-center justify-between py-1">';
+    perfHtml += '<span class="text-sm text-gray-600">' + item.label + '</span>';
+    perfHtml += '<div class="fb-star-rating" data-name="' + item.key + '">';
+    for (var s = 1; s <= 5; s++) {
+      perfHtml += '<span class="star' + (s <= val ? ' active' : '') + '" data-val="' + s + '">★</span>';
+    }
+    perfHtml += '<input type="hidden" value="' + (val || '') + '">';
+    perfHtml += '</div>';
+    perfHtml += '</div>';
+  });
+  document.getElementById('fb-perf-list').innerHTML = perfHtml;
+
   var statusValue = cls.status === 'scheduled' ? 'completed' : (cls.status || 'completed');
   document.getElementById('input-status').value = statusValue;
   document.getElementById('feedback-modal').classList.remove('hidden');
@@ -671,10 +796,30 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
     }
   }
 
+  // Collect performance stars
+  var perfData = {};
+  document.querySelectorAll('#fb-perf-list .fb-star-rating').forEach(function(rating) {
+    var name = rating.getAttribute('data-name');
+    var hidden = rating.querySelector('input[type="hidden"]');
+    perfData[name] = hidden.value ? parseInt(hidden.value) : null;
+  });
+
   var data = {
-    content: document.getElementById('input-content').value,
-    homework: document.getElementById('input-homework').value,
-    notes: document.getElementById('input-notes').value,
+    fb_lesson_level: document.getElementById('fb-level').value,
+    fb_unit: document.getElementById('fb-unit').value,
+    fb_lesson: document.getElementById('fb-lesson').value,
+    fb_vocab: document.getElementById('fb-vocab').value,
+    fb_patterns: document.getElementById('fb-patterns').value,
+    fb_grammar: document.getElementById('fb-grammar').value,
+    fb_perf_speaking: perfData.fb_perf_speaking,
+    fb_perf_pronunciation: perfData.fb_perf_pronunciation,
+    fb_perf_comprehension: perfData.fb_perf_comprehension,
+    fb_perf_exercise: perfData.fb_perf_exercise,
+    fb_highlight: document.getElementById('fb-highlight').value,
+    fb_practice: document.getElementById('fb-practice').value,
+    fb_homework: document.getElementById('fb-homework').value,
+    fb_next_preview: document.getElementById('fb-next').value,
+    fb_teacher_message: document.getElementById('fb-message').value,
     status: document.getElementById('input-status').value
   };
 

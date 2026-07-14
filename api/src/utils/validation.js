@@ -67,7 +67,23 @@ export const classSchema = z.object({
   class_link: z.string().optional().nullable().transform(v => v || null),
   is_trial: z.number().int().optional().default(0),
   status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed'),
-  organization_id: z.number().int().positive().optional().nullable()
+  organization_id: z.number().int().positive().optional().nullable(),
+  // 课后反馈结构化字段
+  fb_lesson_level: z.string().optional().nullable().transform(v => v || null),
+  fb_unit: z.string().optional().nullable().transform(v => v || null),
+  fb_lesson: z.string().optional().nullable().transform(v => v || null),
+  fb_vocab: z.string().optional().nullable().transform(v => v || null),
+  fb_patterns: z.string().optional().nullable().transform(v => v || null),
+  fb_grammar: z.string().optional().nullable().transform(v => v || null),
+  fb_perf_speaking: z.number().int().min(1).max(5).optional().nullable(),
+  fb_perf_pronunciation: z.number().int().min(1).max(5).optional().nullable(),
+  fb_perf_comprehension: z.number().int().min(1).max(5).optional().nullable(),
+  fb_perf_exercise: z.number().int().min(1).max(5).optional().nullable(),
+  fb_highlight: z.string().optional().nullable().transform(v => v || null),
+  fb_practice: z.string().optional().nullable().transform(v => v || null),
+  fb_homework: z.string().optional().nullable().transform(v => v || null),
+  fb_next_preview: z.string().optional().nullable().transform(v => v || null),
+  fb_teacher_message: z.string().optional().nullable().transform(v => v || null),
 });
 
 export const classUpdateSchema = classSchema.partial();
