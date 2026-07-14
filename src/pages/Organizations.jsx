@@ -9,7 +9,8 @@ export default function Organizations() {
   const [showModal, setShowModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: ''
+    name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '',
+    unit_price_cny: '', unit_price_25_cny: '', short_class_coefficient: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -35,14 +36,20 @@ export default function Organizations() {
     e.preventDefault();
     setSaving(true);
     try {
+      const submitData = { ...formData };
+      // 数值字段转float或null
+      submitData.unit_price_cny = formData.unit_price_cny ? parseFloat(formData.unit_price_cny) : null;
+      submitData.unit_price_25_cny = formData.unit_price_25_cny ? parseFloat(formData.unit_price_25_cny) : null;
+      submitData.short_class_coefficient = formData.short_class_coefficient ? parseFloat(formData.short_class_coefficient) : null;
       if (editingOrg) {
-        await organizationOps.update(editingOrg.id, formData);
+        await organizationOps.update(editingOrg.id, submitData);
       } else {
-        await organizationOps.add(formData);
+        await organizationOps.add(submitData);
       }
       setShowModal(false);
       setEditingOrg(null);
-      setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '' });
+      setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '',
+        unit_price_cny: '', unit_price_25_cny: '', short_class_coefficient: '' });
       fetchOrgs();
     } catch (e) {
       console.error('保存机构失败:', e);
@@ -58,7 +65,9 @@ export default function Organizations() {
       name: org.name || '', contact_name: org.contact_name || '',
       contact_phone: org.contact_phone || '', contact_email: org.contact_email || '',
       address: org.address || '', notes: org.notes || '',
-      login_code: org.login_code || '', password: ''
+      login_code: org.login_code || '', password: '',
+      unit_price_cny: org.unit_price_cny ?? '', unit_price_25_cny: org.unit_price_25_cny ?? '',
+      short_class_coefficient: org.short_class_coefficient ?? ''
     });
     setShowModal(true);
   };
@@ -75,7 +84,8 @@ export default function Organizations() {
 
   const handleAdd = () => {
     setEditingOrg(null);
-    setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '' });
+    setFormData({ name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', notes: '', login_code: '', password: '',
+      unit_price_cny: '', unit_price_25_cny: '', short_class_coefficient: '' });
     setShowModal(true);
   };
 
@@ -168,6 +178,11 @@ export default function Organizations() {
                 <span>学生: {org.student_count || 0}</span>
                 <span>教师: {org.teacher_count || 0}</span>
                 <span>课程: {org.class_count || 0}</span>
+                {(org.unit_price_cny || org.unit_price_25_cny) && (
+                  <span className="text-gray-400">
+                    单价: 50min ¥{org.unit_price_cny || '—'} / 25min ¥{org.unit_price_25_cny || '—'}
+                  </span>
+                )}
                 {org.login_code && (
                   <span className="ml-auto text-primary-500">
                     {org.has_password ? '🔑 已设登录' : '⚠️ 未设密码'}
@@ -237,6 +252,44 @@ export default function Organizations() {
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
+              {/* 结算单价配置 */}
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-400 mb-3">结算单价配置（可选）</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">50分钟单价（¥）</label>
+                  <input
+                    type="number" step="0.01"
+                    value={formData.unit_price_cny}
+                    onChange={e => setFormData({...formData, unit_price_cny: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="80"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">25分钟单价（¥）</label>
+                  <input
+                    type="number" step="0.01"
+                    value={formData.unit_price_25_cny}
+                    onChange={e => setFormData({...formData, unit_price_25_cny: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">课时系数</label>
+                  <input
+                    type="number" step="0.01" min="0.01" max="1"
+                    value={formData.short_class_coefficient}
+                    onChange={e => setFormData({...formData, short_class_coefficient: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="0.66"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">留空则使用全局系数设置。空=不覆盖，0=重置为全局值。</p>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <textarea
