@@ -568,35 +568,68 @@ function Classes() {
         </div>
       )}
 
-      {/* 反馈详情弹窗 */}
-      {showFeedbackModal && (
+      {/* 反馈详情弹窗 / 评估报告弹窗 */}
+      {showFeedbackModal && (() => {
+        const isTrialReport = showFeedbackModal.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(showFeedbackModal.id));
+        const a = isTrialReport ? assessments.find(item => parseInt(item.class_id) === parseInt(showFeedbackModal.id)) : null;
+        return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">上课反馈详情</h2>
-            
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">{isTrialReport ? '📝 体验课评估报告' : '上课反馈详情'}</h2>
+              {isTrialReport && <span className="text-sm text-orange-600 font-medium">🎁 体验课</span>}
+            </div>
+
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-gray-500">学生：</span><span className="font-medium text-gray-800">{showFeedbackModal.studentName || '未知'}</span></div>
+                <div><span className="text-gray-500">日期：</span><span className="font-medium text-gray-800">{showFeedbackModal.date}</span></div>
+                <div><span className="text-gray-500">老师：</span><span className="font-medium text-gray-800">{showFeedbackModal.teacherName || showFeedbackModal.teacher || '-'}</span></div>
                 <div>
-                  <span className="text-gray-500">学生：</span>
-                  <span className="font-medium text-gray-800">{showFeedbackModal.studentName || '未知'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">日期：</span>
-                  <span className="font-medium text-gray-800">{showFeedbackModal.date}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">老师：</span>
-                  <span className="font-medium text-gray-800">{showFeedbackModal.teacherName || showFeedbackModal.teacher || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">状态：</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[showFeedbackModal.status]}`}>
-                    {STATUS_LABELS[showFeedbackModal.status]}
-                  </span>
+                  {isTrialReport
+                    ? <><span className="text-gray-500">科目：</span><span className="font-medium text-gray-800">{a?.subject || '英语'}</span></>
+                    : <><span className="text-gray-500">状态：</span><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[showFeedbackModal.status]}`}>{STATUS_LABELS[showFeedbackModal.status]}</span></>
+                  }
                 </div>
               </div>
             </div>
 
+            {isTrialReport && a ? (() => {
+              const dims = [
+                {title:'🎧 听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comment:'listening_comments'},
+                {title:'🗣️ 口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comment:'speaking_comments'},
+                {title:'📖 阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comment:'reading_comments'},
+                {title:'✍️ 写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comment:'writing_comments'},
+                {title:'🌟 课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comment:'classroom_comments'},
+              ];
+              return (
+                <div className="space-y-3">
+                  {dims.map(dim => (
+                    <div key={dim.title} className="border border-gray-200 rounded-lg p-3">
+                      <div className="font-medium text-gray-700 text-sm mb-2">{dim.title}</div>
+                      {dim.items.map(item => (
+                        <div key={item[0]} className="flex items-center justify-between py-1">
+                          <span className="text-sm text-gray-600">{item[1]}</span>
+                          <span className="text-lg tracking-tight">
+                            {[1,2,3,4,5].map(i => <span key={i} className={i <= (a[item[0]]||0) ? 'text-orange-400' : 'text-gray-300'}>★</span>)}
+                          </span>
+                        </div>
+                      ))}
+                      {a[dim.comment] && (
+                        <div className="mt-2 p-2 bg-orange-50 border-l-2 border-orange-300 rounded text-sm text-gray-600 whitespace-pre-wrap">{a[dim.comment]}</div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="border border-gray-200 rounded-lg p-3 bg-orange-50">
+                    <div className="font-medium text-gray-700 text-sm mb-2">📋 综合评估</div>
+                    {a.strengths && <div className="mb-2"><span className="text-sm font-medium text-gray-700">💪 强项</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.strengths}</div></div>}
+                    {a.improvements && <div className="mb-2"><span className="text-sm font-medium text-gray-700">📈 待提升</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.improvements}</div></div>}
+                    {a.recommended_level && <div className="mb-2"><span className="text-sm font-medium text-gray-700">🎓 建议级别</span><span className="ml-2 text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{a.recommended_level}</span></div>}
+                    {a.teacher_message && <div className="mt-3 p-3 bg-blue-50 rounded-lg"><span className="text-sm font-medium text-gray-700">💌 教师寄语</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.teacher_message}</div></div>}
+                  </div>
+                </div>
+              );
+            })() : (
             <div className="space-y-4">
               {showFeedbackModal.content && (
                 <div>
@@ -606,7 +639,6 @@ function Classes() {
                   </div>
                 </div>
               )}
-
               {showFeedbackModal.homework && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-1">作业布置</h3>
@@ -615,7 +647,6 @@ function Classes() {
                   </div>
                 </div>
               )}
-
               {showFeedbackModal.notes && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-1">备注</h3>
@@ -625,6 +656,7 @@ function Classes() {
                 </div>
               )}
             </div>
+            )}
 
             <div className="flex justify-end mt-6">
               <button
@@ -636,7 +668,8 @@ function Classes() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
