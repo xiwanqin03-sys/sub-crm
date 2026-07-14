@@ -698,8 +698,8 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
 });
 
 // ===== Initialize =====
-document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-CN', {
-  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
 });
 lucide.createIcons();
 loadTeacherData();
