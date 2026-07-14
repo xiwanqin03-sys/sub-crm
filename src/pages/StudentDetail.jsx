@@ -383,11 +383,11 @@ export default function StudentDetail() {
                         </div>
                       </div>
                     </div>
-                    {(cls.content || cls.homework || (cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))) && (
-                      <button onClick={() => (cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))
-                        ? setShowAssessmentFeedback(assessments.find(a => a.class_id === cls.id))
-                        : setShowFeedbackModal(cls)} className="text-primary-600 hover:text-primary-700" title={cls.is_trial === 1 ? "查看评估报告" : "查看反馈"}>
-                        {(cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))
+                    {(cls.content || cls.homework || (cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))) && (
+                      <button onClick={() => (cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))
+                        ? setShowAssessmentFeedback(assessments.find(a => parseInt(a.class_id) === parseInt(cls.id)))
+                        : setShowFeedbackModal(cls)} className="text-primary-600 hover:text-primary-700" title={cls.is_trial === 1 ? "查看报告" : "查看反馈"}>
+                        {(cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))
                           ? <FileText size={16} />
                           : <MessageSquare size={16} />}
                       </button>
@@ -434,11 +434,11 @@ export default function StudentDetail() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(cls.content || cls.homework || (cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))) && (
-                      <button onClick={() => (cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))
-                        ? setShowAssessmentFeedback(assessments.find(a => a.class_id === cls.id))
-                        : setShowFeedbackModal(cls)} className="p-2 text-primary-600 hover:text-primary-700" title={cls.is_trial === 1 ? "查看评估报告" : "查看反馈"}>
-                        {(cls.is_trial === 1 && assessments.some(a => a.class_id === cls.id))
+                    {(cls.content || cls.homework || (cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))) && (
+                      <button onClick={() => (cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))
+                        ? setShowAssessmentFeedback(assessments.find(a => parseInt(a.class_id) === parseInt(cls.id)))
+                        : setShowFeedbackModal(cls)} className="p-2 text-primary-600 hover:text-primary-700" title={cls.is_trial === 1 ? "查看报告" : "查看反馈"}>
+                        {(cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id)))
                           ? <FileText size={18} />
                           : <MessageSquare size={18} />}
                       </button>

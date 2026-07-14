@@ -1287,15 +1287,15 @@ function renderHistory() {
     html += '<td data-label="科目">' + (c.subject || '英语') + '</td>';
     html += '<td data-label="老师">' + (c.teacher_name || '未知老师') + '</td>';
     if (c.status !== 'scheduled') {
-      var isTrialWithReport = c.is_trial === 1 && window_allAssessments && window_allAssessments.some(function(a) { return a.class_id === c.id; });
+      var isTrialWithReport = c.is_trial === 1 && window_allAssessments && window_allAssessments.some(function(a) { return parseInt(a.class_id) === parseInt(c.id); });
       if (isTrialWithReport) {
-        var aId = window_allAssessments.find(function(a) { return a.class_id === c.id; }).id;
-        html += '<td data-label="反馈"><a class="feedback-link" onclick="viewAssessmentReport(' + aId + '); return false;">查看报告</a></td>';
+        var aId = window_allAssessments.find(function(a) { return parseInt(a.class_id) === parseInt(c.id); }).id;
+        html += '<td data-label="反馈/报告"><a class="feedback-link" onclick="viewAssessmentReport(' + aId + '); return false;">查看报告</a></td>';
       } else {
-        html += '<td data-label="反馈"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
+        html += '<td data-label="反馈/报告"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
       }
     } else {
-      html += '<td data-label="反馈" class="no-feedback">未提交</td>';
+      html += '<td data-label="反馈/报告" class="no-feedback">未提交</td>';
     }
     html += '</tr>';
   }
