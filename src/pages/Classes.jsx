@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Calendar, Plus, Trash2, User, Clock, Search, CheckCircle, XCircle, AlertCircle, MessageSquare, FileText, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { classOps, studentOps, packageOps } from '../store';
-import { organizationOps } from '../store/api';
+import { organizationOps, request } from '../store/api';
 import OrgFilter from '../components/OrgFilter';
 import { setSelectedOrg } from '../store/api';
 
@@ -25,6 +25,7 @@ function Classes() {
     notes: ''
   });
   const [orgs, setOrgs] = useState([]);
+  const [assessments, setAssessments] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -49,6 +50,13 @@ function Classes() {
         studentOps.getAll(),
         packageOps.getAll()
       ]);
+
+      // 加载评估报告
+      try {
+        const aResp = await request('/assessments?page_size=1000');
+        const aData = aResp?.data?.data || aResp?.data || [];
+        setAssessments(Array.isArray(aData) ? aData : []);
+      } catch(e) { console.error('Load assessments:', e); }
 
       // 转换字段名 snake_case -> camelCase
       const normalizedClasses = (Array.isArray(classesData) ? classesData : []).map(cls => ({
@@ -394,6 +402,14 @@ function Classes() {
                         >
                           <MessageSquare size={14} />
                           查看反馈
+                        </button>
+                      ) : (cls.is_trial === 1 && assessments.some(a => parseInt(a.class_id) === parseInt(cls.id))) ? (
+                        <button
+                          onClick={() => setShowFeedbackModal(cls)}
+                          className="inline-flex items-center gap-1 text-orange-600 hover:text-orange-700 text-sm"
+                        >
+                          <FileText size={14} />
+                          查看报告
                         </button>
                       ) : (
                         <span className="text-gray-400 text-sm">-</span>
