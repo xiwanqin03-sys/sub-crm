@@ -222,8 +222,8 @@ export default function Schedule() {
     e.preventDefault();
     
     try {
-      // 检查学生课时是否足够（仅新增时检查）
-      if (formData.student_id && !editingSchedule) {
+      // 检查学生课时是否足够（仅新增时检查，体验课免费不扣课时）
+      if (formData.student_id && !editingSchedule && !formData.is_trial) {
         const studentData = await studentOps.getById(formData.student_id);
         const totalHours = studentData?.total_hours ?? 0; const usedHours = studentData?.used_hours ?? 0; const totalRemaining = totalHours - usedHours;
         const hoursNeeded = durationToHours(formData.duration);

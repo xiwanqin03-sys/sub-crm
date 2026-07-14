@@ -311,7 +311,10 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
   const classId = result.meta.last_row_id;
   const classHours = await resolveClassHours(DB, data, organizationId);
   const classStatus = data.status || 'completed';
+  const isTrial = data.is_trial || 0;
 
+  // 体验课免费，不扣课时（机构课时包 + 学生课时都不扣）
+  if (!isTrial) {
   // ── 同步机构课时包 ──
   if (organizationId && classStatus === 'completed') {
     // 找该机构最新 pending/partial_paid 包，增加 used_hours
@@ -348,6 +351,7 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
       VALUES (?, 'class', ?, ?, ?)
     `).bind(studentId, -classHours, classId, `上课消耗 - ${classHours}节`).run();
   }
+  } // end if (!isTrial)
 
   return c.json(success({
     id: classId,
@@ -429,7 +433,10 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
   const newStatus = data.status ?? oldStatus;
   const clsHours = data.hours ?? existing.hours;
   const clsOrgId = existing.organization_id;
+  const isTrialUpdate = existing.is_trial || data.is_trial || 0;
 
+  // 体验课免费，不扣课时
+  if (!isTrialUpdate) {
   if (clsOrgId && oldStatus !== newStatus) {
     let delta = 0;
     let note = '';
@@ -479,6 +486,7 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
       ).bind(newUsed, existing.student_id).run();
     }
   }
+  } // end if (!isTrialUpdate)
 
   // 返回更新后的记录
   const cls = await DB.prepare('SELECT * FROM classes WHERE id = ?').bind(id).first();
