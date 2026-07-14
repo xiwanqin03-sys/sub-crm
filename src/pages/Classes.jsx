@@ -596,11 +596,9 @@ function Classes() {
 
             {isTrialReport && a ? (() => {
               const dims = [
-                {title:'🎧 听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comment:'listening_comments'},
-                {title:'🗣️ 口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comment:'speaking_comments'},
-                {title:'📖 阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comment:'reading_comments'},
-                {title:'✍️ 写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comment:'writing_comments'},
-                {title:'🌟 课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comment:'classroom_comments'},
+                {title:'🗣️ 口语表现',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口主动性']]},
+                {title:'🎧 理解能力',items:[['listening_conversation','听懂指令的程度'],['listening_key_info','课堂反应速度']]},
+                {title:'🌟 课堂表现',items:[['classroom_focus','专注度'],['classroom_interaction','与老师互动']]},
               ];
               return (
                 <div className="space-y-3">
@@ -615,17 +613,14 @@ function Classes() {
                           </span>
                         </div>
                       ))}
-                      {a[dim.comment] && (
-                        <div className="mt-2 p-2 bg-orange-50 border-l-2 border-orange-300 rounded text-sm text-gray-600 whitespace-pre-wrap">{a[dim.comment]}</div>
-                      )}
                     </div>
                   ))}
                   <div className="border border-gray-200 rounded-lg p-3 bg-orange-50">
                     <div className="font-medium text-gray-700 text-sm mb-2">📋 综合评估</div>
-                    {a.strengths && <div className="mb-2"><span className="text-sm font-medium text-gray-700">💪 强项</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.strengths}</div></div>}
-                    {a.improvements && <div className="mb-2"><span className="text-sm font-medium text-gray-700">📈 待提升</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.improvements}</div></div>}
                     {a.recommended_level && <div className="mb-2"><span className="text-sm font-medium text-gray-700">🎓 建议级别</span><span className="ml-2 text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{a.recommended_level}</span></div>}
-                    {a.teacher_message && <div className="mt-3 p-3 bg-blue-50 rounded-lg"><span className="text-sm font-medium text-gray-700">💌 教师寄语</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.teacher_message}</div></div>}
+                    {a.strengths && <div className="mb-2"><span className="text-sm font-medium text-gray-700">💪 孩子的亮点</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.strengths}</div></div>}
+                    {a.improvements && <div className="mb-2"><span className="text-sm font-medium text-gray-700">📈 建议重点提升</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.improvements}</div></div>}
+                    {a.teacher_message && <div className="mt-3 p-3 bg-blue-50 rounded-lg"><span className="text-sm font-medium text-gray-700">💌 老师寄语</span><div className="text-sm text-gray-600 whitespace-pre-wrap mt-1">{a.teacher_message}</div></div>}
                   </div>
                 </div>
               );
@@ -663,11 +658,9 @@ function Classes() {
                 <button
                   onClick={() => {
                     const dims = [
-                      {title:'🎧 听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comment:'listening_comments'},
-                      {title:'🗣️ 口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comment:'speaking_comments'},
-                      {title:'📖 阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comment:'reading_comments'},
-                      {title:'✍️ 写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comment:'writing_comments'},
-                      {title:'🌟 课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comment:'classroom_comments'},
+                      {title:'🗣️ 口语表现',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口主动性']]},
+                      {title:'🎧 理解能力',items:[['listening_conversation','听懂指令的程度'],['listening_key_info','课堂反应速度']]},
+                      {title:'🌟 课堂表现',items:[['classroom_focus','专注度'],['classroom_interaction','与老师互动']]},
                     ];
                     const stars = (n) => [1,2,3,4,5].map(i => `<span class="star${i<=(n||0)?' active':''}">★</span>`).join('');
                     const esc = (s) => (s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
@@ -719,14 +712,13 @@ body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;backg
   <div class="dim-section">
     <div class="dim-header">${dim.title}</div>
     ${dim.items.map(item => `<div class="dim-item"><span class="dim-label">${item[1]}</span><span class="stars-readonly">${stars(a[item[0]])}</span></div>`).join('')}
-    ${a[dim.comment] ? `<div class="dim-comments">${esc(a[dim.comment])}</div>` : ''}
   </div>`).join('')}
   <div class="overall-section">
-    <div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">${esc(a.strengths||'')}</div></div>
-    <div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">${esc(a.improvements||'')}</div></div>
     <div class="overall-item"><span class="overall-label">🎓 建议级别</span><span class="overall-text">${esc(a.recommended_level||'')}</span></div>
+    <div class="overall-item"><span class="overall-label">💪 孩子的亮点</span><div class="overall-text">${esc(a.strengths||'')}</div></div>
+    <div class="overall-item"><span class="overall-label">📈 建议重点提升</span><div class="overall-text">${esc(a.improvements||'')}</div></div>
   </div>
-  ${a.teacher_message ? `<div class="message-section"><div class="message-header">💌 教师寄语</div><div class="message-text">${esc(a.teacher_message)}</div></div>` : ''}
+  ${a.teacher_message ? `<div class="message-section"><div class="message-header">💌 老师寄语</div><div class="message-text">${esc(a.teacher_message)}</div></div>` : ''}
   <div class="report-footer"><div>SunnyBridge 阳光桥在线英语</div><div class="date">生成日期：${new Date().toLocaleDateString('zh-CN')}</div></div>
 </div>
 <div class="no-print" style="text-align:center;margin:20px 0;">
