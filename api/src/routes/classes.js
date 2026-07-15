@@ -101,7 +101,7 @@ classes.get('/', async (c) => {
 
   // 查询数据
   const results = await DB.prepare(`
-    SELECT c.*, s.name as student_name, p.name as package_name, t.name as teacher_name
+    SELECT c.*, s.name as student_name, s.grade as student_grade, p.name as package_name, t.name as teacher_name
     FROM classes c
     JOIN students s ON c.student_id = s.id
     LEFT JOIN packages p ON c.package_id = p.id
@@ -115,6 +115,7 @@ const data = results.results?.map(cls => ({
   id: cls.id,
   student_id: cls.student_id,
   student_name: cls.student_name,
+  student_grade: cls.student_grade,
   package_id: cls.package_id,
   package_name: cls.package_name,
   teacher: cls.teacher,
@@ -227,7 +228,7 @@ classes.get('/:id', validateParams(idParamSchema), async (c) => {
   const { id } = c.req.validatedParams;
 
   const cls = await DB.prepare(`
-    SELECT c.*, s.name as student_name, p.name as package_name, t.name as teacher_name
+    SELECT c.*, s.name as student_name, s.grade as student_grade, p.name as package_name, t.name as teacher_name
     FROM classes c
     JOIN students s ON c.student_id = s.id
     LEFT JOIN packages p ON c.package_id = p.id
@@ -243,6 +244,7 @@ return c.json(success({
   id: cls.id,
   student_id: cls.student_id,
   student_name: cls.student_name,
+  student_grade: cls.student_grade,
   package_id: cls.package_id,
   package_name: cls.package_name,
   teacher: cls.teacher,
@@ -471,6 +473,14 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
   values.push(id);
 
   await DB.prepare(`UPDATE classes SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run();
+
+  // ── 同步学生等级：如果反馈中 Level 有变化，更新学生档案的 grade ──
+  if (data.fb_lesson_level && existing.student_id) {
+    const currentStudent = await DB.prepare('SELECT grade FROM students WHERE id = ?').bind(existing.student_id).first();
+    if (currentStudent && currentStudent.grade !== data.fb_lesson_level) {
+      await DB.prepare('UPDATE students SET grade = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(data.fb_lesson_level, existing.student_id).run();
+    }
+  }
 
   // ── 同步机构课时包 ──
   // 当 status 在 completed ↔ 其他 之间切换时，调整 org_packages.used_hours
