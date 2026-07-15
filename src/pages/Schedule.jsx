@@ -448,12 +448,14 @@ export default function Schedule() {
 
       {/* 添加/编辑排课弹窗 */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold mb-4">
-              {editingSchedule ? '编辑排课' : '添加排课'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="p-6 pb-2 shrink-0">
+              <h2 className="text-xl font-bold">
+                {editingSchedule ? '编辑排课' : '添加排课'}
+              </h2>
+            </div>
+            <form id="schedule-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
               {/* 所属机构 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">所属机构 *</label>
@@ -591,22 +593,23 @@ export default function Schedule() {
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  保存
-                </button>
-              </div>
             </form>
+            <div className="flex gap-3 p-6 pt-2 shrink-0 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                form="schedule-form"
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                保存
+              </button>
+            </div>
           </div>
         </div>
       )}
