@@ -9,8 +9,9 @@ import { setSelectedOrg, organizationOps } from '../store/api';
 const COEFFICIENT = 0.66; // 默认系数，API会根据机构配置实际计算
 function durationToHours(duration) {
   if (duration === 25) return COEFFICIENT;
-  if (duration === 50) return 1.0;
-  return duration / 50;
+  if (duration === 50 || duration === 60) return 1.0;
+  // 其他时长默认按1课时
+  return 1.0;
 }
 
 const DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];

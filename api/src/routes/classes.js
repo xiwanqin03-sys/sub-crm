@@ -26,9 +26,9 @@ async function resolveClassHours(DB, data, orgId) {
   // 如果有 duration（分钟），按系数计算
   if (data.duration) {
     const dur = parseInt(data.duration);
-    if (dur === 50) return 1.0;
+    if (dur === 50 || dur === 60) return 1.0;
     if (dur === 25) return await resolveCoefficient(DB, orgId);
-    return dur / 50; // 其他时长以50分钟为1课时
+    return 1.0; // 其他时长默认按1课时
   }
   // 兼容：前端直接传 hours 的情况
   return data.hours || 1;

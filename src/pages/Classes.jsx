@@ -582,15 +582,10 @@ function Classes() {
 
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-gray-500">学生：</span><span className="font-medium text-gray-800">{showFeedbackModal.studentName || '未知'}</span></div>
+                <div><span className="text-gray-500">学生：</span><span className="font-medium text-gray-800">{showFeedbackModal.studentName || showFeedbackModal.student_name || '未知'}</span></div>
                 <div><span className="text-gray-500">日期：</span><span className="font-medium text-gray-800">{showFeedbackModal.date}</span></div>
-                <div><span className="text-gray-500">老师：</span><span className="font-medium text-gray-800">{showFeedbackModal.teacherName || showFeedbackModal.teacher || '-'}</span></div>
-                <div>
-                  {isTrialReport
-                    ? <><span className="text-gray-500">科目：</span><span className="font-medium text-gray-800">{a?.subject || '英语'}</span></>
-                    : <><span className="text-gray-500">状态：</span><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[showFeedbackModal.status]}`}>{STATUS_LABELS[showFeedbackModal.status]}</span></>
-                  }
-                </div>
+                <div><span className="text-gray-500">老师：</span><span className="font-medium text-gray-800">{showFeedbackModal.teacherName || showFeedbackModal.teacher_name || showFeedbackModal.teacher || '-'}</span></div>
+                <div><span className="text-gray-500">状态：</span><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[showFeedbackModal.status]}`}>{STATUS_LABELS[showFeedbackModal.status]}</span></div>
               </div>
             </div>
 
@@ -673,6 +668,15 @@ function Classes() {
                   {showFeedbackModal.fb_homework && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">📝 课后作业</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_homework}</div></div>}
                   {showFeedbackModal.fb_next_preview && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">🎯 下节课预告</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_next_preview}</div></div>}
                   {showFeedbackModal.fb_teacher_message && <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm"><span className="font-medium text-gray-700">💌 老师寄语</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.fb_teacher_message}</div></div>}
+                </div>
+              )}
+              {/* 旧格式兼容：content/homework/notes */}
+              {(showFeedbackModal.content || showFeedbackModal.homework || showFeedbackModal.notes) && !showFeedbackModal.fb_highlight && !showFeedbackModal.fb_vocab && (
+                <div className="border rounded-lg p-3">
+                  <div className="font-medium text-gray-700 text-sm mb-2">📋 反馈内容</div>
+                  {showFeedbackModal.content && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">上课内容</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.content}</div></div>}
+                  {showFeedbackModal.homework && <div className="mb-2 text-sm"><span className="font-medium text-gray-700">作业布置</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.homework}</div></div>}
+                  {showFeedbackModal.notes && <div className="text-sm"><span className="font-medium text-gray-700">备注</span><div className="text-gray-600 whitespace-pre-wrap mt-1">{showFeedbackModal.notes}</div></div>}
                 </div>
               )}
             </div>
