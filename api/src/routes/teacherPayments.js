@@ -154,6 +154,38 @@ teacherPayments.post('/', async (c) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(teacher_id, period_start, period_end, totalClasses, totalHours, rate50, totalAmount, notes || null, count50, count25, rate50, rate25).run();
 
+  // 获取结算明细列表
+  const details = await DB.prepare(`
+    SELECT id, date, start_time, end_time, subject, hours, status, student_id
+    FROM classes
+    WHERE teacher_id = ?
+      AND date >= ?
+      AND date <= ?
+      AND status = 'completed'
+    ORDER BY date ASC, start_time ASC
+  `).bind(teacher_id, period_start, period_end).all();
+
+  // 获取学生姓名
+  const studentIds = (details.results || []).map(d => d.student_id).filter(Boolean);
+  let studentMap = {};
+  if (studentIds.length > 0) {
+    const placeholders = studentIds.map(() => '?').join(',');
+    const students = await DB.prepare(`SELECT id, name, english_name FROM students WHERE id IN (${placeholders})`).bind(...studentIds).all();
+    (students.results || []).forEach(s => { studentMap[s.id] = s; });
+  }
+
+  const detailList = (details.results || []).map(d => ({
+    class_id: d.id,
+    date: d.date,
+    start_time: d.start_time,
+    end_time: d.end_time,
+    subject: d.subject,
+    hours: d.hours,
+    is_50min: d.hours >= 1.0,
+    student_name: d.student_id ? (studentMap[d.student_id]?.name || '') : '',
+    student_english_name: d.student_id ? (studentMap[d.student_id]?.english_name || '') : ''
+  }));
+
   return c.json(success({
     id: result.meta.last_row_id,
     teacher_id,
@@ -163,8 +195,71 @@ teacherPayments.post('/', async (c) => {
     total_hours: totalHours,
     hourly_rate: rate50,
     total_amount: totalAmount,
-    status: 'pending'
+    count_50min: count50,
+    count_25min: count25,
+    rate_50min: rate50,
+    rate_25min: rate25,
+    status: 'pending',
+    details: detailList
   }), 201);
+});
+
+// 获取结算明细
+teacherPayments.get('/:id/details', async (c) => {
+  const DB = c.env.DB;
+  const id = c.req.param('id');
+
+  const payment = await DB.prepare('SELECT * FROM teacher_payments WHERE id = ?').bind(id).first();
+  if (!payment) return c.json(error('NOT_FOUND', '结算记录不存在'), 404);
+
+  const details = await DB.prepare(`
+    SELECT id, date, start_time, end_time, subject, hours, status, student_id
+    FROM classes
+    WHERE teacher_id = ?
+      AND date >= ?
+      AND date <= ?
+      AND status = 'completed'
+    ORDER BY date ASC, start_time ASC
+  `).bind(payment.teacher_id, payment.period_start, payment.period_end).all();
+
+  const studentIds = (details.results || []).map(d => d.student_id).filter(Boolean);
+  let studentMap = {};
+  if (studentIds.length > 0) {
+    const placeholders = studentIds.map(() => '?').join(',');
+    const students = await DB.prepare(`SELECT id, name, english_name FROM students WHERE id IN (${placeholders})`).bind(...studentIds).all();
+    (students.results || []).forEach(s => { studentMap[s.id] = s; });
+  }
+
+  const detailList = (details.results || []).map(d => ({
+    class_id: d.id,
+    date: d.date,
+    start_time: d.start_time,
+    end_time: d.end_time,
+    subject: d.subject,
+    hours: d.hours,
+    is_50min: d.hours >= 1.0,
+    student_name: d.student_id ? (studentMap[d.student_id]?.name || '') : '',
+    student_english_name: d.student_id ? (studentMap[d.student_id]?.english_name || '') : ''
+  }));
+
+  return c.json(success({
+    payment: {
+      id: payment.id,
+      teacher_id: payment.teacher_id,
+      period_start: payment.period_start,
+      period_end: payment.period_end,
+      total_classes: payment.total_classes,
+      total_hours: payment.total_hours,
+      total_amount: payment.total_amount,
+      count_50min: payment.count_50min,
+      count_25min: payment.count_25min,
+      rate_50min: payment.rate_50min,
+      rate_25min: payment.rate_25min,
+      status: payment.status,
+      notes: payment.notes
+    },
+    details: detailList
+  }));
 });
 
 // 标记为已支付

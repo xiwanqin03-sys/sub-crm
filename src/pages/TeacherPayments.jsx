@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Calendar, CheckCircle, XCircle, Plus, RefreshCw, Trash2, CreditCard, Edit2, ChevronDown, ChevronUp, Filter, Clock } from 'lucide-react';
 import { teacherOps, teacherPaymentOps } from '../store';
+import { request } from '../store/api';
 
 
 export default function TeacherPayments() {
@@ -17,6 +18,9 @@ export default function TeacherPayments() {
   const [rateValue, setRateValue] = useState('');
   const [rateValue25, setRateValue25] = useState('');
   const [showRateSection, setShowRateSection] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   
   // 筛选状态
   const [filterTeacher, setFilterTeacher] = useState('');
@@ -73,6 +77,19 @@ export default function TeacherPayments() {
     } catch (err) {
       alert('保存失败：' + err.message);
     }
+  };
+
+  const handleViewDetail = async (id) => {
+    setDetailLoading(true);
+    setShowDetailModal(true);
+    try {
+      const res = await request(`/teacher-payments/${id}/details`);
+      setDetailData(res.data);
+    } catch (err) {
+      alert('加载明细失败: ' + err.message);
+      setShowDetailModal(false);
+    }
+    setDetailLoading(false);
   };
 
   // 统计数据
@@ -156,7 +173,22 @@ export default function TeacherPayments() {
       const c25 = result.count_25min || 0;
       const r50 = result.rate_50min || result.hourly_rate || 0;
       const r25 = result.rate_25min || 0;
-      alert(`结算创建成功！\n50分钟课: ${c50}节 × ₱${r50} + 25分钟课: ${c25}节 × ₱${r25} = ₱${result.total_amount}`);
+      const details = result.details || [];
+
+      let msg = `结算创建成功！\n\n`;
+      msg += `📊 统计：\n`;
+      msg += `50分钟课: ${c50}节 × ₱${r50} = ₱${c50 * r50}\n`;
+      msg += `25分钟课: ${c25}节 × ₱${r25} = ₱${c25 * r25}\n`;
+      msg += `总计: ₱${result.total_amount}\n`;
+      if (details.length > 0) {
+        msg += `\n📋 明细 (${details.length}节)：\n`;
+        details.slice(0, 20).forEach((d, i) => {
+          const student = d.student_name + (d.student_english_name ? '(' + d.student_english_name + ')' : '');
+          msg += `${i + 1}. ${d.date} ${d.start_time || ''} ${student} ${d.is_50min ? '50min' : '25min'}\n`;
+        });
+        if (details.length > 20) msg += `... 共${details.length}节\n`;
+      }
+      alert(msg);
       setShowModal(false);
       loadPayments();
       setFormData({ teacher_id: '', period_start: '', period_end: '', notes: '' });
@@ -388,6 +420,12 @@ export default function TeacherPayments() {
                     ) : payment.status === 'pending' ? (
                       <>
                         <button
+                          onClick={() => handleViewDetail(payment.id)}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 font-medium"
+                        >
+                          明细
+                        </button>
+                        <button
                           onClick={() => handlePay(payment.id)}
                           className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 font-medium"
                         >
@@ -407,12 +445,20 @@ export default function TeacherPayments() {
                         </button>
                       </>
                     ) : (
-                      <button
-                        onClick={() => handleDelete(payment.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleViewDetail(payment.id)}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 font-medium"
+                        >
+                          明细
+                        </button>
+                        <button
+                          onClick={() => handleDelete(payment.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -646,6 +692,64 @@ export default function TeacherPayments() {
               >
                 保存
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📋 结算明细弹窗 */}
+      {showDetailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDetailModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">📋 结算明细</h3>
+            {detailLoading ? (
+              <div className="text-center py-8 text-gray-400">加载中...</div>
+            ) : detailData ? (
+              <>
+                <div className="bg-gray-50 rounded-lg p-3 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div><span className="text-gray-500">周期:</span> <span className="font-medium">{detailData.payment.period_start} ~ {detailData.payment.period_end}</span></div>
+                  <div><span className="text-gray-500">50分钟:</span> <span className="font-medium">{detailData.payment.count_50min}节 × ₱{detailData.payment.rate_50min}</span></div>
+                  <div><span className="text-gray-500">25分钟:</span> <span className="font-medium">{detailData.payment.count_25min}节 × ₱{detailData.payment.rate_25min}</span></div>
+                  <div><span className="text-gray-500">总金额:</span> <span className="font-bold text-green-600">₱{detailData.payment.total_amount}</span></div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left px-2 py-2 font-medium text-gray-600">#</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-600">日期</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-600">时间</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-600">学生</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-600">类型</th>
+                        <th className="text-right px-2 py-2 font-medium text-gray-600">金额</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(detailData.details || []).map((d, i) => (
+                        <tr key={i} className="border-b hover:bg-gray-50">
+                          <td className="px-2 py-2 text-gray-400">{i + 1}</td>
+                          <td className="px-2 py-2">{d.date}</td>
+                          <td className="px-2 py-2 text-gray-600">{d.start_time}</td>
+                          <td className="px-2 py-2">{d.student_name}{d.student_english_name ? ` (${d.student_english_name})` : ''}</td>
+                          <td className="px-2 py-2"><span className={`px-2 py-0.5 rounded text-xs ${d.is_50min ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>{d.is_50min ? '50min' : '25min'}</span></td>
+                          <td className="px-2 py-2 text-right">₱{d.is_50min ? detailData.payment.rate_50min : detailData.payment.rate_25min}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 font-bold">
+                        <td colSpan="5" className="px-2 py-3 text-right">合计</td>
+                        <td className="px-2 py-3 text-right text-green-600">₱{detailData.payment.total_amount}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-400">无数据</div>
+            )}
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">关闭</button>
             </div>
           </div>
         </div>
