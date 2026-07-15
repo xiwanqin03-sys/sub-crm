@@ -599,7 +599,7 @@ export default function TeacherPayments() {
 
       {/* 支付确认弹窗 */}
       {showPayModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-100 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <CreditCard size={20} />
