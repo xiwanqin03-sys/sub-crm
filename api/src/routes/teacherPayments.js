@@ -161,7 +161,7 @@ teacherPayments.post('/', async (c) => {
     period_end,
     total_classes: totalClasses,
     total_hours: totalHours,
-    hourly_rate: hourlyRate,
+    hourly_rate: rate50,
     total_amount: totalAmount,
     status: 'pending'
   }), 201);
