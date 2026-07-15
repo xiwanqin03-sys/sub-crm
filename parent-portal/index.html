@@ -847,6 +847,81 @@
       }
       /* Trial badge */
       .trial-badge { display: inline-block; font-size: 11px; background: #F5A623; color: white; padding: 1px 8px; border-radius: 100px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
+
+      /* ===== Study Profile Section ===== */
+      .sp-section { margin-top: 28px; }
+      .sp-info-card { background: rgba(255,255,255,0.72); backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8); border-radius: 20px; padding: 24px 20px; box-shadow: 0 2px 20px rgba(28,36,75,0.06),0 0 0 1px rgba(28,36,75,0.05); margin-bottom: 20px; }
+      .sp-info-top { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+      .sp-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--sb-accent), var(--sb-orange)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; flex-shrink: 0; box-shadow: 0 3px 12px rgba(226,107,49,0.2); }
+      .sp-info-name { font-size: 20px; font-weight: 700; color: var(--sb-dark); }
+      .sp-info-sub { font-size: 13px; color: var(--sb-muted); margin-top: 2px; }
+      .sp-info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .sp-info-item { text-align: center; padding: 8px 4px; border-radius: 10px; background: rgba(75,159,224,0.06); }
+      .sp-info-item__label { font-size: 11px; color: var(--sb-muted); margin-bottom: 4px; }
+      .sp-info-item__value { font-size: 18px; font-weight: 700; color: var(--sb-dark); }
+      .sp-info-item__value.warn { color: #e24545; }
+      .sp-info-item__value.accent { color: var(--sb-accent); }
+      .sp-info-item__value.blue { color: var(--sb-blue); }
+      .sp-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+      .sp-overview-card { background: rgba(255,255,255,0.72); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 16px; padding: 20px 14px; text-align: center; box-shadow: 0 2px 12px rgba(28,36,75,0.05); cursor: pointer; transition: transform 0.15s; }
+      .sp-overview-card:active { transform: scale(0.97); }
+      .sp-overview-num { font-size: 28px; font-weight: 800; color: var(--sb-blue); }
+      .sp-overview-label { font-size: 12px; color: var(--sb-muted); margin-top: 4px; }
+      .sp-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+      .sp-tab { padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 600; background: rgba(255,255,255,0.6); color: var(--sb-muted); border: 1px solid rgba(28,36,75,0.08); cursor: pointer; transition: all 0.15s; }
+      .sp-tab.active { background: var(--sb-blue); color: #fff; border-color: var(--sb-blue); }
+      .sp-tab-content { display: none; }
+      .sp-tab-content.active { display: block; }
+      .sp-card { background: rgba(255,255,255,0.72); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 16px; padding: 18px 16px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(28,36,75,0.05); position: relative; }
+      .sp-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+      .sp-card-date { font-size: 14px; font-weight: 600; color: var(--sb-dark); }
+      .sp-card-teacher { font-size: 12px; color: var(--sb-muted); }
+      .sp-stars-readonly { font-size: 16px; letter-spacing: 1px; }
+      .sp-stars-readonly span { color: #d1d5db; }
+      .sp-stars-readonly span.on { color: #F5A623; }
+      .sp-level-badge { display: inline-block; font-size: 12px; background: rgba(75,159,224,0.12); color: var(--sb-blue-dark); padding: 2px 10px; border-radius: 100px; font-weight: 600; }
+      .sp-chip { display: inline-block; font-size: 12px; background: rgba(245,166,35,0.1); color: var(--sb-accent-dark); padding: 2px 8px; border-radius: 6px; margin: 2px 0; }
+      .sp-feedback-group { margin-bottom: 8px; }
+      .sp-feedback-label { font-size: 12px; font-weight: 600; color: var(--sb-dark); margin-bottom: 2px; }
+      .sp-feedback-text { font-size: 13px; color: var(--sb-muted); line-height: 1.5; }
+      .sp-month-header { font-size: 14px; font-weight: 700; color: var(--sb-blue-dark); margin: 16px 0 8px; padding-left: 4px; }
+      .sp-share-btn { position: absolute; top: 14px; right: 14px; font-size: 12px; background: rgba(75,159,224,0.1); color: var(--sb-blue-dark); padding: 4px 10px; border-radius: 8px; border: none; cursor: pointer; }
+      .sp-perf-bars { display: flex; gap: 6px; margin: 10px 0; }
+      .sp-perf-bar { flex: 1; text-align: center; }
+      .sp-perf-bar-fill { height: 6px; border-radius: 3px; background: #e8e8e8; margin: 4px auto; width: 100%; overflow: hidden; }
+      .sp-perf-bar-fill > div { height: 100%; background: linear-gradient(90deg, var(--sb-accent), var(--sb-orange)); border-radius: 3px; }
+      .sp-perf-bar-label { font-size: 10px; color: var(--sb-muted); }
+      .sp-perf-bar-val { font-size: 13px; font-weight: 700; color: var(--sb-dark); }
+      /* Timeline */
+      .sp-timeline { position: relative; padding-left: 28px; }
+      .sp-timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: rgba(75,159,224,0.2); }
+      .sp-tl-node { position: relative; margin-bottom: 14px; padding: 12px 16px; background: rgba(255,255,255,0.72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; box-shadow: 0 1px 8px rgba(28,36,75,0.04); }
+      .sp-tl-node::before { content: ''; position: absolute; left: -22px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--sb-blue); border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(75,159,224,0.2); }
+      .sp-tl-node.milestone::before { width: 16px; height: 16px; left: -25px; background: var(--sb-accent); box-shadow: 0 0 0 3px rgba(245,166,35,0.2); }
+      .sp-tl-date { font-size: 12px; color: var(--sb-muted); }
+      .sp-tl-title { font-size: 14px; font-weight: 600; color: var(--sb-dark); margin: 2px 0; }
+      .sp-tl-desc { font-size: 12px; color: var(--sb-muted); }
+      .sp-tl-milestone-icon { position: absolute; left: -28px; top: 14px; font-size: 18px; }
+      /* Renew CTA */
+      .sp-renew { background: linear-gradient(135deg, rgba(75,159,224,0.08), rgba(245,166,35,0.08)); border-radius: 16px; padding: 18px 16px; margin-top: 24px; text-align: center; box-shadow: 0 2px 12px rgba(28,36,75,0.05); }
+      .sp-renew-stats { display: flex; justify-content: center; gap: 24px; margin: 10px 0 14px; }
+      .sp-renew-stat { text-align: center; }
+      .sp-renew-stat-num { font-size: 24px; font-weight: 800; color: var(--sb-blue-dark); }
+      .sp-renew-stat-lbl { font-size: 11px; color: var(--sb-muted); margin-top: 2px; }
+      .sp-renew-btn { background: linear-gradient(135deg, var(--sb-accent), var(--sb-orange)); color: #fff; border: none; padding: 12px 36px; border-radius: 100px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 12px rgba(226,107,49,0.25); }
+      .sp-share-result { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+      .sp-share-result.show { display: flex; }
+      .sp-share-result img { max-width: 90%; max-height: 70vh; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+      .sp-share-result p { color: #fff; font-size: 14px; }
+      .sp-share-result .close { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 8px 24px; border-radius: 100px; cursor: pointer; }
+      /* Responsive */
+      @media (max-width: 600px) {
+        .sp-info-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .sp-overview { gap: 8px; }
+        .sp-overview-num { font-size: 22px; }
+        .sp-perf-bars { flex-wrap: wrap; }
+        .sp-perf-bar { min-width: 40%; }
+      }
       </style>
 </head>
 <body>
@@ -953,9 +1028,87 @@
     </div>
     <div id="assessments-list" style="display:flex;flex-direction:column;gap:12px;"></div>
   </section>
+
+  <!-- ===== Study Profile Section ===== -->
+  <section id="sp-section" class="sp-section">
+    <!-- Info Card -->
+    <div class="sp-info-card">
+      <div class="sp-info-top">
+        <div class="sp-avatar" id="sp-avatar">?</div>
+        <div>
+          <div class="sp-info-name" id="sp-name">-</div>
+          <div class="sp-info-sub" id="sp-subinfo">-</div>
+        </div>
+      </div>
+      <div class="sp-info-grid">
+        <div class="sp-info-item"><div class="sp-info-item__label">专属老师</div><div class="sp-info-item__value blue" id="sp-teacher">-</div></div>
+        <div class="sp-info-item"><div class="sp-info-item__label">当前级别</div><div class="sp-info-item__value accent" id="sp-level">-</div></div>
+        <div class="sp-info-item"><div class="sp-info-item__label">课时余额</div><div class="sp-info-item__value" id="sp-balance">-</div></div>
+        <div class="sp-info-item"><div class="sp-info-item__label">总节数</div><div class="sp-info-item__value" id="sp-total-lessons">-</div></div>
+      </div>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="sp-overview">
+      <div class="sp-overview-card" onclick="document.getElementById('history-section').scrollIntoView({behavior:'smooth'});">
+        <div class="sp-overview-num" id="ov-lessons">0</div>
+        <div class="sp-overview-label">总节数</div>
+      </div>
+      <div class="sp-overview-card">
+        <div class="sp-overview-num" id="ov-level" style="color:var(--sb-accent)">-</div>
+        <div class="sp-overview-label">当前级别</div>
+      </div>
+      <div class="sp-overview-card" onclick="spSwitchTab('feedback')">
+        <div class="sp-overview-num" id="ov-vocab" style="color:var(--sb-orange)">0</div>
+        <div class="sp-overview-label">累计词汇量</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="sp-tabs">
+      <div class="sp-tab active" onclick="spSwitchTab('feedback')">📚 课后反馈</div>
+      <div class="sp-tab" onclick="spSwitchTab('reports')">📈 成长报告</div>
+      <div class="sp-tab" onclick="spSwitchTab('timeline')">🗺️ 学习轨迹</div>
+    </div>
+
+    <!-- Tab: 课后反馈 -->
+    <div class="sp-tab-content active" id="sp-tab-feedback">
+      <div id="sp-feedback-list"></div>
+    </div>
+
+    <!-- Tab: 成长报告 -->
+    <div class="sp-tab-content" id="sp-tab-reports">
+      <div id="sp-reports-list"></div>
+    </div>
+
+    <!-- Tab: 学习轨迹 -->
+    <div class="sp-tab-content" id="sp-tab-timeline">
+      <div class="sp-timeline" id="sp-timeline-list"></div>
+    </div>
+
+    <!-- Renew CTA -->
+    <div class="sp-renew">
+      <div class="sp-renew-stats">
+        <div class="sp-renew-stat">
+          <div class="sp-renew-stat-num" id="renew-lessons">-</div>
+          <div class="sp-renew-stat-lbl">剩余可上节数</div>
+        </div>
+        <div class="sp-renew-stat">
+          <div class="sp-renew-stat-num" id="renew-target">-</div>
+          <div class="sp-renew-stat-lbl">距下一目标</div>
+        </div>
+      </div>
+      <button class="sp-renew-btn" onclick="alert('请联系您的课程顾问老师续课 ☀\n\nSunnyBridge 阳光桥在线英语')">续费课程</button>
+    </div>
+  </section>
 </div>
 
-<!-- ===== Feedback Modal ===== -->
+<!-- Share Result Modal -->
+<div class="sp-share-result" id="sp-share-result">
+  <p>长按图片保存，分享给好友 📸</p>
+  <img id="sp-share-img" src="">
+  <button class="close" onclick="document.getElementById('sp-share-result').classList.remove('show')">关闭</button>
+</div>
 <div id="feedback-modal" class="modal-overlay">
   <div class="modal-card">
     <h2 class="modal-title">上课反馈详情</h2>
@@ -1127,6 +1280,7 @@ async function loadStudentData() {
     
     // 加载评估报告
     loadAssessments(studentId);
+    renderStudyProfile(student, classesData);
 
   } catch (err) {
     console.error('加载失败:', err);
@@ -1380,6 +1534,308 @@ function showViewFeedback(idx) {
 
   document.getElementById('feedback-modal-body').innerHTML = html;
   document.getElementById('feedback-modal').classList.add('show');
+}
+
+// ===== Study Profile =====
+function spSwitchTab(tab) {
+  document.querySelectorAll('.sp-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.sp-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  var btns = document.querySelectorAll('.sp-tab');
+  var map = { feedback: 0, reports: 1, timeline: 2 };
+  if (btns[map[tab]]) btns[map[tab]].classList.add('active');
+  var content = document.getElementById('sp-tab-' + tab);
+  if (content) content.classList.add('active');
+}
+
+function spStarsHtml(val, max) {
+  max = max || 5;
+  var h = '<span class="sp-stars-readonly">';
+  for (var i = 1; i <= max; i++) h += '<span class="' + (i <= (val || 0) ? 'on' : '') + '">★</span>';
+  h += '</span>';
+  return h;
+}
+
+function spStarValue(val) {
+  return val > 0 ? val.toFixed(1) : '-';
+}
+
+function spEsc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+}
+
+// Load html2canvas lazily
+var spH2cLoading = false;
+function spLoadH2c() {
+  if (window.html2canvas || spH2cLoading) return Promise.resolve();
+  spH2cLoading = true;
+  return new Promise(function(resolve) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.2/html2canvas.min.js';
+    s.onload = function() { resolve(); };
+    s.onerror = function() { spH2cLoading = false; resolve(); };
+    document.head.appendChild(s);
+  });
+}
+
+function spShareCard(btn) {
+  var card = btn.closest('.sp-card');
+  if (!card) return;
+  var orig = card.querySelector('.sp-share-btn');
+  if (orig) orig.style.display = 'none';
+  // Create a wrapper with brand info
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding:16px;background:#F7FAFC;border-radius:16px;';
+  var brand = document.createElement('div');
+  brand.style.cssText = 'text-align:center;padding:12px 0 4px;font-size:13px;color:#4B9FE0;font-weight:600;';
+  brand.textContent = 'SunnyBridge 阳光桥在线英语';
+  wrapper.appendChild(card.cloneNode(true));
+  wrapper.appendChild(brand);
+  document.body.appendChild(wrapper);
+
+  spLoadH2c().then(function() {
+    if (!window.html2canvas) { alert('截图功能加载失败，请稍后重试'); cleanup(); return; }
+    html2canvas(wrapper, { scale: 2, backgroundColor: '#F7FAFC', useCORS: true }).then(function(canvas) {
+      var img = canvas.toDataURL('image/png');
+      document.getElementById('sp-share-img').src = img;
+      document.getElementById('sp-share-result').classList.add('show');
+      cleanup();
+    }).catch(function() { alert('截图失败，请稍后重试'); cleanup(); });
+  });
+
+  function cleanup() {
+    if (orig) orig.style.display = '';
+    wrapper.remove();
+  }
+}
+
+function spCountVocab(classes) {
+  var words = {};
+  classes.forEach(function(c) {
+    if (c.fb_vocab) {
+      c.fb_vocab.split(/[,;，；、\n]/).forEach(function(w) {
+        var w2 = w.trim();
+        if (w2) words[w2] = true;
+      });
+    }
+  });
+  return Object.keys(words).length;
+}
+
+function spPerfAvg(classes) {
+  var sums = { speaking: 0, pronunciation: 0, comprehension: 0, exercise: 0 };
+  var cnt = 0;
+  classes.forEach(function(c) {
+    if (c.fb_perf_speaking || c.fb_perf_pronunciation || c.fb_perf_comprehension || c.fb_perf_exercise) {
+      sums.speaking += c.fb_perf_speaking || 0;
+      sums.pronunciation += c.fb_perf_pronunciation || 0;
+      sums.comprehension += c.fb_perf_comprehension || 0;
+      sums.exercise += c.fb_perf_exercise || 0;
+      cnt++;
+    }
+  });
+  if (cnt === 0) return null;
+  return {
+    speaking: sums.speaking / cnt,
+    pronunciation: sums.pronunciation / cnt,
+    comprehension: sums.comprehension / cnt,
+    exercise: sums.exercise / cnt
+  };
+}
+
+function renderStudyProfile(student, allClasses) {
+  if (!student) return;
+  var myClasses = (allClasses || []).filter(function(c) {
+    return c.student_id === parseInt(getStudentId());
+  });
+
+  // === Info Card ===
+  var initials = (student.name || 'SB').substring(0, 2);
+  document.getElementById('sp-avatar').textContent = initials;
+  document.getElementById('sp-name').textContent = student.name || '-';
+  var subInfo = [];
+  if (student.english_name) subInfo.push('英文名: ' + student.english_name);
+  if (student.age) subInfo.push('年龄: ' + student.age);
+  if (student.grade) subInfo.push('等级: ' + student.grade);
+  document.getElementById('sp-subinfo').textContent = subInfo.join(' · ');
+
+  // Recent teacher
+  var recentTeacher = '';
+  var completed = myClasses.filter(function(c) { return c.status === 'completed' || c.teacher_name; });
+  completed.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  if (completed.length > 0 && completed[0].teacher_name) {
+    recentTeacher = completed[0].teacher_name;
+  } else if (completed.length > 0 && completed[0].teacher) {
+    recentTeacher = completed[0].teacher;
+  }
+  document.getElementById('sp-teacher').textContent = recentTeacher || '-';
+
+  // Level
+  document.getElementById('sp-level').textContent = student.grade || '-';
+  document.getElementById('ov-level').textContent = student.grade || '-';
+
+  // Balance
+  var remaining = (student.total_hours || 0) - (student.used_hours || 0);
+  var balEl = document.getElementById('sp-balance');
+  balEl.textContent = remaining.toFixed(1);
+  if (remaining < 3) balEl.classList.add('warn');
+
+  // Total lessons (completed)
+  var totalLessons = myClasses.filter(function(c) { return c.status === 'completed'; }).length;
+  document.getElementById('sp-total-lessons').textContent = totalLessons;
+  document.getElementById('ov-lessons').textContent = totalLessons;
+
+  // Vocab count
+  var vocabCount = spCountVocab(myClasses);
+  document.getElementById('ov-vocab').textContent = vocabCount;
+
+  // === Tab: 课后反馈 ===
+  var fbClasses = myClasses.filter(function(c) {
+    return c.fb_vocab || c.fb_patterns || c.fb_grammar || c.fb_highlight || c.fb_practice ||
+           c.fb_homework || c.fb_teacher_message || c.fb_next_preview ||
+           c.fb_perf_speaking || c.fb_perf_pronunciation || c.fb_perf_comprehension || c.fb_perf_exercise ||
+           c.content || c.homework;
+  });
+  fbClasses.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+  // Group by month
+  var monthGroups = {};
+  fbClasses.forEach(function(c) {
+    var month = (c.date || '').substring(0, 7);
+    if (!monthGroups[month]) monthGroups[month] = [];
+    monthGroups[month].push(c);
+  });
+
+  var fbHtml = '';
+  var months = Object.keys(monthGroups).sort().reverse();
+  if (months.length === 0) {
+    fbHtml = '<div class="sp-card" style="text-align:center;color:var(--sb-muted);">暂无课后反馈</div>';
+  }
+  months.forEach(function(month) {
+    fbHtml += '<div class="sp-month-header">' + month + '</div>';
+    monthGroups[month].forEach(function(c) {
+      fbHtml += '<div class="sp-card">';
+      fbHtml += '<button class="sp-share-btn" onclick="spShareCard(this)">📸分享</button>';
+      fbHtml += '<div class="sp-card-header"><span class="sp-card-date">' + (c.date || '') + '</span><span class="sp-card-teacher">' + (c.teacher_name || c.teacher_name || '-') + '</span></div>';
+      // Performance stars
+      if (c.fb_perf_speaking || c.fb_perf_pronunciation || c.fb_perf_comprehension || c.fb_perf_exercise) {
+        var perf = [
+          ['fb_perf_speaking', '开口积极性'],
+          ['fb_perf_pronunciation', '发音准确度'],
+          ['fb_perf_comprehension', '理解速度'],
+          ['fb_perf_exercise', '完成练习']
+        ];
+        fbHtml += '<div class="sp-perf-bars">';
+        perf.forEach(function(p) {
+          fbHtml += '<div class="sp-perf-bar"><div class="sp-perf-bar-label">' + p[1] + '</div>';
+          fbHtml += '<div class="sp-perf-bar-fill"><div style="width:' + ((c[p[0]] || 0) / 5 * 100) + '%;"></div></div>';
+          fbHtml += '<div class="sp-perf-bar-val">' + spStarValue(c[p[0]]) + '</div></div>';
+        });
+        fbHtml += '</div>';
+      }
+      if (c.fb_lesson_level || c.fb_unit || c.fb_lesson) {
+        fbHtml += '<div style="margin-bottom:6px;"><span class="sp-level-badge">' + (c.fb_lesson_level || '') + ' · Unit ' + (c.fb_unit || '-') + ' / Lesson ' + (c.fb_lesson || '-') + '</span></div>';
+      }
+      if (c.fb_vocab) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📚 词汇</div><div class="sp-feedback-text">' + spEsc(c.fb_vocab) + '</div></div>';
+      if (c.fb_patterns) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💬 句型</div><div class="sp-feedback-text">' + spEsc(c.fb_patterns) + '</div></div>';
+      if (c.fb_grammar) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📖 语法</div><div class="sp-feedback-text">' + spEsc(c.fb_grammar) + '</div></div>';
+      if (c.fb_highlight) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💪 今日亮点</div><div class="sp-feedback-text">' + spEsc(c.fb_highlight) + '</div></div>';
+      if (c.fb_practice) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📈 需要继续练习</div><div class="sp-feedback-text">' + spEsc(c.fb_practice) + '</div></div>';
+      if (c.fb_homework) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📝 课后作业</div><div class="sp-feedback-text">' + spEsc(c.fb_homework) + '</div></div>';
+      if (c.fb_next_preview) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">🎯 下节课预告</div><div class="sp-feedback-text">' + spEsc(c.fb_next_preview) + '</div></div>';
+      if (c.fb_teacher_message) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💌 老师寄语</div><div class="sp-feedback-text" style="background:rgba(75,159,224,0.06);padding:8px 10px;border-radius:8px;">' + spEsc(c.fb_teacher_message) + '</div></div>';
+      // Old format fallback
+      if (!c.fb_vocab && !c.fb_homework && (c.content || c.homework)) {
+        if (c.content) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">上课内容</div><div class="sp-feedback-text">' + spEsc(c.content) + '</div></div>';
+        if (c.homework) fbHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">作业</div><div class="sp-feedback-text">' + spEsc(c.homework) + '</div></div>';
+      }
+      fbHtml += '</div>';
+    });
+  });
+  document.getElementById('sp-feedback-list').innerHTML = fbHtml;
+
+  // === Tab: 成长报告 ===
+  var assessments = window_allAssessments || [];
+  var rpHtml = '';
+  if (assessments.length === 0) {
+    rpHtml = '<div class="sp-card" style="text-align:center;color:var(--sb-muted);">暂无成长报告</div>';
+  }
+  assessments.forEach(function(a) {
+    rpHtml += '<div class="sp-card">';
+    rpHtml += '<button class="sp-share-btn" onclick="spShareCard(this)">📸分享</button>';
+    // Find class info for this assessment
+    var cls = myClasses.find(function(c) { return parseInt(c.id) === parseInt(a.class_id); });
+    rpHtml += '<div class="sp-card-header"><span class="sp-card-date">' + (cls ? cls.date : (a.created_at || '').substring(0, 10)) + '</span>';
+    rpHtml += '<span class="sp-card-teacher">' + (cls ? (cls.teacher_name || '-') : '-') + '</span></div>';
+    // Stars
+    var dims = [
+      ['speaking_pronunciation', '发音清晰度'],
+      ['speaking_communication', '开口主动性'],
+      ['listening_conversation', '听懂指令'],
+      ['listening_key_info', '课堂反应'],
+      ['classroom_focus', '专注度'],
+      ['classroom_interaction', '互动']
+    ];
+    dims.forEach(function(d) {
+      if (a[d[0]]) {
+        rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">' + d[1] + '</div>' + spStarsHtml(a[d[0]]) + '</div>';
+      }
+    });
+    if (a.recommended_level) rpHtml += '<div style="margin:6px 0;"><span class="sp-level-badge">🎓 建议级别: ' + spEsc(a.recommended_level) + '</span></div>';
+    if (a.strengths) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💪 亮点</div><div class="sp-feedback-text">' + spEsc(a.strengths) + '</div></div>';
+    if (a.improvements) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📈 建议提升</div><div class="sp-feedback-text">' + spEsc(a.improvements) + '</div></div>';
+    if (a.teacher_message) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💌 老师寄语</div><div class="sp-feedback-text" style="background:rgba(75,159,224,0.06);padding:8px 10px;border-radius:8px;">' + spEsc(a.teacher_message) + '</div></div>';
+    rpHtml += '</div>';
+  });
+  document.getElementById('sp-reports-list').innerHTML = rpHtml;
+
+  // === Tab: 学习轨迹 ===
+  var events = [];
+  myClasses.forEach(function(c) {
+    var isMilestone = c.is_trial === 1;
+    var type = isMilestone ? 'trial' : 'lesson';
+    var title = isMilestone ? '🎁 体验课' : '📖 正课';
+    var desc = (c.subject || '英语') + ' · ' + (c.teacher_name || '未知') + ' · ' + (c.status === 'completed' ? '已完成' : c.status === 'absent' ? '缺勤' : c.status === 'cancelled' ? '已取消' : '已排课');
+    if (c.fb_lesson_level) desc += ' · 等级 ' + c.fb_lesson_level;
+    events.push({ date: c.date || '', sortKey: (c.date || '') + ' ' + (c.start_time || ''), type: type, title: title, desc: desc, milestone: isMilestone, data: c });
+  });
+  // Add level change milestones from assessments
+  (window_allAssessments || []).forEach(function(a) {
+    if (a.recommended_level) {
+      var cls = myClasses.find(function(c) { return parseInt(c.id) === parseInt(a.class_id); });
+      events.push({
+        date: cls ? cls.date : (a.created_at || '').substring(0, 10),
+        sortKey: (cls ? cls.date : a.created_at || '') + ' z',
+        type: 'level', title: '🎓 级别评估', desc: '建议级别: ' + a.recommended_level,
+        milestone: true, data: null
+      });
+    }
+  });
+  events.sort(function(a, b) { return a.sortKey.localeCompare(b.sortKey); });
+  // Mark first lesson as milestone
+  var firstReal = events.findIndex(function(e) { return e.type === 'lesson'; });
+  if (firstReal >= 0) events[firstReal].milestone = true;
+
+  var tlHtml = '';
+  if (events.length === 0) {
+    tlHtml = '<div class="sp-card" style="text-align:center;color:var(--sb-muted);">暂无学习轨迹</div>';
+  }
+  events.forEach(function(e) {
+    tlHtml += '<div class="sp-tl-node' + (e.milestone ? ' milestone' : '') + '">';
+    tlHtml += '<div class="sp-tl-date">' + (e.date || '') + '</div>';
+    tlHtml += '<div class="sp-tl-title">' + e.title + '</div>';
+    tlHtml += '<div class="sp-tl-desc">' + spEsc(e.desc) + '</div>';
+    tlHtml += '</div>';
+  });
+  document.getElementById('sp-timeline-list').innerHTML = tlHtml;
+
+  // === Renew CTA ===
+  var lessonsLeft = Math.floor(remaining);
+  var targetMod = totalLessons % 10;
+  var lessonsToTarget = 10 - targetMod;
+  if (totalLessons === 0) lessonsToTarget = 10;
+  document.getElementById('renew-lessons').textContent = lessonsLeft;
+  document.getElementById('renew-target').textContent = lessonsToTarget;
 }
 
 function closeFeedbackModal() {
