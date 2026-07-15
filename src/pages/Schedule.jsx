@@ -223,18 +223,6 @@ export default function Schedule() {
     e.preventDefault();
     
     try {
-      // 检查学生课时是否足够（仅新增时检查，体验课免费不扣课时）
-      if (formData.student_id && !editingSchedule && !formData.is_trial) {
-        const studentData = await studentOps.getById(formData.student_id);
-        const totalHours = studentData?.total_hours ?? 0; const usedHours = studentData?.used_hours ?? 0; const totalRemaining = totalHours - usedHours;
-        const hoursNeeded = durationToHours(formData.duration);
-        
-        if (totalRemaining < hoursNeeded) {
-          alert(`课时不足！该学生剩余 ${totalRemaining} 节，需要 ${hoursNeeded} 节。请先购买课时。`);
-          return;
-        }
-      }
-      
       // 计算结束时间
       const [hours, minutes] = formData.time.split(':').map(Number);
       const endHours = hours + Math.floor(formData.duration / 60);
