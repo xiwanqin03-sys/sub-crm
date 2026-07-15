@@ -138,6 +138,7 @@ export default function Teachers() {
   const handleTabChange = (tab) => {
     if (tab === 'payments' && !passwordVerified) {
       setShowPasswordModal(true);
+      document.body.style.overflow = 'hidden';
     }
     setActiveTab(tab);
   };
@@ -154,6 +155,7 @@ export default function Teachers() {
       if (data.success || data.data?.valid) {
         setPasswordVerified(true);
         setShowPasswordModal(false);
+        document.body.style.overflow = '';
         setPassword('');
         setPasswordError('');
       } else {
@@ -166,6 +168,7 @@ export default function Teachers() {
 
   const handleClosePasswordModal = () => {
     setShowPasswordModal(false);
+    document.body.style.overflow = '';
     setPassword('');
     setPasswordError('');
     if (activeTab === 'payments') {
