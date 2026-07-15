@@ -269,7 +269,7 @@ export default function Teachers() {
 
       {/* 密码验证弹窗 */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div className="fixed top-0 left-0 w-full h-full bg-black flex items-center justify-center z-50" style={{ minHeight: '100vh' }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
             <div className="flex items-center gap-2 mb-4">
               <Lock className="w-5 h-5 text-blue-600" />
