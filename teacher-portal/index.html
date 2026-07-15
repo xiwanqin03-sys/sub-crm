@@ -112,6 +112,25 @@
   </div>
 </div>
 
+<!-- Milestone Report Modal -->
+<div id="milestone-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+ <div class="bg-white rounded-lg p-6 w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+  <div id="milestone-banner" class="rounded-lg p-3 mb-4 text-center text-white"></div>
+  <div id="milestone-info" class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600"></div>
+  <form id="milestone-form" class="space-y-3">
+    <div><label class="block text-sm font-medium text-gray-700 mb-1">📝 Summary (Overall assessment)</label><textarea id="ms-summary" rows="3" placeholder="Overall assessment of this period..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    <div><label class="block text-sm font-medium text-gray-700 mb-1">💪 Strengths</label><textarea id="ms-strengths" rows="2" placeholder="What the student did well..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    <div><label class="block text-sm font-medium text-gray-700 mb-1">📈 Areas for Improvement</label><textarea id="ms-improvements" rows="2" placeholder="Areas that need work..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    <div><label class="block text-sm font-medium text-gray-700 mb-1">🎯 Recommendation for Next Stage</label><textarea id="ms-recommendation" rows="2" placeholder="What to focus on next..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    <div><label class="block text-sm font-medium text-gray-700 mb-1">💌 Teacher's Message to Parents</label><textarea id="ms-message" rows="3" placeholder="A personal message to the parents..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+    <div class="flex gap-3 pt-4">
+      <button type="button" onclick="closeMilestoneModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Later</button>
+      <button type="submit" class="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">Submit Report</button>
+    </div>
+  </form>
+ </div>
+</div>
+
 <!-- View Modal -->
 <div id="view-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="if(event.target===this)closeViewModal()">
  <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
@@ -692,6 +711,101 @@ function goHistoryPage(p) {
   document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
 }
 
+// ===== Milestone Report =====
+var milestoneClass = null;
+var milestoneType = null;
+var milestoneData = null;
+
+var MILESTONE_INFO = {
+  milestone_10: { title: '🎉 10 Lessons Milestone!', desc: 'The student has completed 10 lessons. Write a progress report!', color: '#10B981' },
+  milestone_30: { title: '🌟 30 Lessons Milestone!', desc: 'The student has completed 30 lessons. Write a stage growth report!', color: '#6366F1' },
+  milestone_60: { title: '🏆 60 Lessons Milestone!', desc: 'The student has completed 60 lessons. Write a semester summary report!', color: '#E26B31' },
+  level_up: { title: '🎓 Level Up!', desc: 'The student has reached a new level. Write a congratulatory report!', color: '#F5A623' }
+};
+
+function openMilestoneReport(cls, m, reportType) {
+  milestoneClass = cls;
+  milestoneType = reportType;
+  milestoneData = m;
+
+  var info = MILESTONE_INFO[reportType] || { title: 'Milestone', desc: '', color: '#6366F1' };
+  var banner = document.getElementById('milestone-banner');
+  banner.textContent = info.title;
+  banner.style.background = info.color;
+
+  var infoHtml = '<div><b>Student:</b> ' + escapeHtml(formatStudentName(cls)) + '</div>';
+  infoHtml += '<div><b>Date:</b> ' + cls.date + '</div>';
+  infoHtml += '<div><b>Report Type:</b> ' + info.desc + '</div>';
+  if (m.levelUp && m.levelUp.fromLevel) {
+    infoHtml += '<div><b>Level:</b> ' + escapeHtml(m.levelUp.fromLevel) + ' → ' + escapeHtml(m.levelUp.toLevel) + '</div>';
+  }
+  document.getElementById('milestone-info').innerHTML = infoHtml;
+
+  // Clear form
+  document.getElementById('ms-summary').value = '';
+  document.getElementById('ms-strengths').value = '';
+  document.getElementById('ms-improvements').value = '';
+  document.getElementById('ms-recommendation').value = '';
+  document.getElementById('ms-message').value = '';
+
+  document.getElementById('milestone-modal').classList.remove('hidden');
+  document.getElementById('milestone-modal').classList.add('flex');
+}
+
+function closeMilestoneModal() {
+  document.getElementById('milestone-modal').classList.add('hidden');
+  document.getElementById('milestone-modal').classList.remove('flex');
+}
+
+document.getElementById('milestone-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  if (!milestoneClass) return;
+
+  var teacherId = getTeacherId();
+  var teacherName = '';
+  try {
+    var teacherResp = await apiGet('/teachers/' + teacherId);
+    var teacher = teacherResp.data || teacherResp;
+    teacherName = teacher.name || '';
+  } catch(e) {}
+
+  var reportType = milestoneData.reportType || (milestoneData.levelUp ? milestoneData.levelUp.reportType : milestoneType);
+
+  var reportData = {
+    student_id: milestoneClass.student_id,
+    class_id: milestoneClass.id,
+    report_type: reportType,
+    teacher_id: parseInt(teacherId),
+    teacher_name: teacherName,
+    summary: document.getElementById('ms-summary').value,
+    strengths: document.getElementById('ms-strengths').value,
+    improvements: document.getElementById('ms-improvements').value,
+    recommendation: document.getElementById('ms-recommendation').value,
+    teacher_message: document.getElementById('ms-message').value,
+    from_level: milestoneData.levelUp ? milestoneData.levelUp.fromLevel : null,
+    to_level: milestoneData.levelUp ? milestoneData.levelUp.toLevel : null,
+    organization_id: milestoneClass.organization_id || null
+  };
+
+  try {
+    var res = await fetch(API_BASE + '/progress-reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+      body: JSON.stringify(reportData)
+    });
+    var result = await res.json();
+    if (result.success || result.data) {
+      alert('Progress report submitted successfully! 🎉');
+      closeMilestoneModal();
+      loadTeacherData();
+    } else {
+      alert('Failed: ' + (result.error?.message || 'Unknown error'));
+    }
+  } catch(err) {
+    alert('Failed to submit report: ' + err.message);
+  }
+});
+
 // ===== Feedback star rating interaction (delegated) =====
 document.addEventListener('click', function(e) {
   var star = e.target.closest('.fb-star-rating .star');
@@ -825,18 +939,23 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
 
   try {
     // Update class record
-    await apiPatch('/classes/' + selectedClass.id, data);
-
-    // Only deduct hours for NEW submissions (scheduled -> completed)
-    // Editing existing feedback should NOT deduct hours
-    if (data.status === 'completed' && selectedClass.student_id && selectedClass.status === 'scheduled') {
-      var hoursToDeduct = selectedClass.hours || 1;
-      await apiPatch('/students/' + selectedClass.student_id + '/use-hours', { hours: hoursToDeduct });
-    }
+    var result = await apiPatch('/classes/' + selectedClass.id, data);
+    var responseData = result.data || result;
 
     closeModal();
     loadTeacherData();
     alert('Feedback submitted successfully!');
+
+    // 检查里程碑触发
+    if (responseData.milestone && !responseData.milestone.alreadyExists) {
+      var m = responseData.milestone;
+      var reportType = m.reportType || (m.levelUp ? m.levelUp.reportType : null);
+      if (reportType) {
+        setTimeout(function() {
+          openMilestoneReport(selectedClass, m, reportType);
+        }, 500);
+      }
+    }
   } catch (err) {
     alert('Failed to submit: ' + err.message);
   }

@@ -1623,10 +1623,40 @@ function renderStudyProfile(student, allClasses) {
 
   // === Tab: 成长报告 ===
   var assessments = window_allAssessments || [];
+  var progressReports = window_progressReports || [];
+
+  var REPORT_TYPE_INFO = {
+    milestone_10: { icon: '🎉', label: '入门阶段报告', color: '#10B981' },
+    milestone_30: { icon: '🌟', label: '阶段成长报告', color: '#6366F1' },
+    milestone_60: { icon: '🏆', label: '学期总结报告', color: '#E26B31' },
+    level_up: { icon: '🎓', label: '升级恭喜报告', color: '#F5A623' }
+  };
+
   var rpHtml = '';
-  if (assessments.length === 0) {
+  if (assessments.length === 0 && progressReports.length === 0) {
     rpHtml = '<div class="sp-card" style="text-align:center;color:var(--sb-muted);">暂无成长报告</div>';
   }
+
+  // 先显示阶段报告（更重要的放前面）
+  progressReports.forEach(function(r) {
+    var typeInfo = REPORT_TYPE_INFO[r.report_type] || { icon: '📋', label: '阶段报告', color: '#6366F1' };
+    rpHtml += '<div class="sp-card" style="border-left:3px solid ' + typeInfo.color + ';">';
+    rpHtml += '<button class="sp-share-btn" onclick="spShareCard(this)">📸分享</button>';
+    rpHtml += '<div style="margin-bottom:8px;"><span style="font-size:16px;">' + typeInfo.icon + '</span> <span style="font-size:13px;font-weight:700;color:' + typeInfo.color + ';">' + typeInfo.label + '</span></div>';
+    rpHtml += '<div class="sp-card-header"><span class="sp-card-date">' + ((r.created_at || '').substring(0, 10)) + '</span>';
+    rpHtml += '<span class="sp-card-teacher">' + (r.teacher_name || '-') + '</span></div>';
+    if (r.report_type === 'level_up' && r.from_level && r.to_level) {
+      rpHtml += '<div style="margin:6px 0;"><span class="sp-level-badge">🎓 等级提升: ' + spEsc(r.from_level) + ' → ' + spEsc(r.to_level) + '</span></div>';
+    }
+    if (r.summary) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📝 老师总评</div><div class="sp-feedback-text">' + spEsc(r.summary) + '</div></div>';
+    if (r.strengths) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💪 亮点</div><div class="sp-feedback-text">' + spEsc(r.strengths) + '</div></div>';
+    if (r.improvements) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📈 需提升</div><div class="sp-feedback-text">' + spEsc(r.improvements) + '</div></div>';
+    if (r.recommendation) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">🎯 下阶段建议</div><div class="sp-feedback-text">' + spEsc(r.recommendation) + '</div></div>';
+    if (r.teacher_message) rpHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💌 老师寄语</div><div class="sp-feedback-text" style="background:rgba(75,159,224,0.06);padding:8px 10px;border-radius:8px;">' + spEsc(r.teacher_message) + '</div></div>';
+    rpHtml += '</div>';
+  });
+
+  // 再显示体验课评估
   assessments.forEach(function(a) {
     rpHtml += '<div class="sp-card">';
     rpHtml += '<button class="sp-share-btn" onclick="spShareCard(this)">📸分享</button>';
@@ -1751,6 +1781,11 @@ async function loadAssessments(studentId) {
     var resp = await apiGet('/assessments?student_id=' + studentId + '&status=published&page_size=50');
     var data = resp.data && resp.data.data ? resp.data.data : (resp.data || []);
     window_allAssessments = data;
+
+    // 同时加载阶段报告
+    var prResp = await apiGet('/progress-reports?student_id=' + studentId);
+    var prData = prResp.data && prResp.data.data ? prResp.data.data : (prResp.data || []);
+    window_progressReports = prData;
   } catch(e) { console.error('Assessments load error:', e); }
 }
 

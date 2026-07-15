@@ -545,6 +545,47 @@ classes.patch('/:id', validateParams(idParamSchema), validate(classUpdateSchema)
 
   // 返回更新后的记录
   const cls = await DB.prepare('SELECT * FROM classes WHERE id = ?').bind(id).first();
+
+  // ── 里程碑检测 ──
+  let milestone = null;
+  if (newStatus === 'completed' && oldStatus !== 'completed' && !isTrialUpdate) {
+    // 检查已完成正课数
+    const cntResult = await DB.prepare(
+      'SELECT COUNT(*) as cnt FROM classes WHERE student_id = ? AND status = ? AND is_trial = 0'
+    ).bind(existing.student_id, 'completed').first();
+    const completedCount = cntResult?.cnt || 0;
+    const milestones = [10, 30, 60];
+    const hit = milestones.find(m => completedCount === m);
+    if (hit) {
+      milestone = { lessonCount: completedCount, type: 'milestone_' + hit, reportType: 'milestone_' + hit };
+    }
+  }
+
+  // ── 等级升级检测 ──
+  if (data.fb_lesson_level && existing.student_id) {
+    const currentStudent = await DB.prepare('SELECT grade FROM students WHERE id = ?').bind(existing.student_id).first();
+    const oldGrade = currentStudent?.grade;
+    if (oldGrade && oldGrade !== data.fb_lesson_level) {
+      if (!milestone) milestone = {};
+      milestone.levelUp = { fromLevel: oldGrade, toLevel: data.fb_lesson_level, reportType: 'level_up' };
+    }
+  }
+
+  // 检查是否已有同类报告（避免重复触发）
+  if (milestone) {
+    const reportType = milestone.reportType || milestone.levelUp?.reportType;
+    if (reportType) {
+      const existingReport = await DB.prepare(
+        'SELECT id FROM progress_reports WHERE student_id = ? AND report_type = ? ORDER BY created_at DESC LIMIT 1'
+      ).bind(existing.student_id, reportType).first();
+      if (existingReport) {
+        milestone.alreadyExists = true;
+      } else {
+        milestone.alreadyExists = false;
+      }
+    }
+  }
+
 return c.json(success({
   id: cls.id,
   student_id: cls.student_id,
@@ -562,7 +603,8 @@ return c.json(success({
   status: cls.status,
   class_link: cls.class_link,
   is_trial: cls.is_trial || 0,
-  updated_at: cls.updated_at
+  updated_at: cls.updated_at,
+  milestone: milestone
  }));
 });
 
