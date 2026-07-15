@@ -1174,12 +1174,6 @@ async function loadStudentData() {
     var initials = (student.name || 'SB').substring(0, 2);
     document.getElementById('header-avatar').textContent = initials;
 
-    // Stats
-    document.getElementById('remaining-hours').innerHTML = ((student.total_hours || 0) - (student.used_hours || 0)) + '<span class="stat-block__unit">课时</span>';
-    document.getElementById('used-hours').textContent = student.used_hours || 0;
-    document.getElementById('total-hours').textContent = student.total_hours || 0;
-    document.getElementById('grade').textContent = student.grade || '-';
-
     // 获取课程
     var classesResp = await apiGet('/classes?page_size=200');
     var classesData = classesResp.data && classesResp.data.data ? classesResp.data.data
@@ -1206,12 +1200,11 @@ async function loadStudentData() {
     renderTodayClasses(todayClasses);
     renderUpcoming(upcoming.slice(0, 10));
     window_allPastClasses = past;
-    window_historyPage = 1;
-    renderHistory();
-    
-    // 加载评估报告
-    loadAssessments(studentId);
-    renderStudyProfile(student, classesData);
+
+    // 加载评估报告数据（供成长报告Tab和学习轨迹Tab使用）
+    loadAssessments(studentId).then(function() {
+      renderStudyProfile(student, classesData);
+    });
 
   } catch (err) {
     console.error('加载失败:', err);
@@ -1330,66 +1323,9 @@ function renderUpcoming(classes) {
   document.getElementById('upcoming-section').style.display = '';
 }
 
-// ===== 渲染 History =====
-function renderHistory() {
-  if (typeof window_historyPageSize === 'undefined') window_historyPageSize = 20;
-  if (typeof window_allAssessments === 'undefined') window_allAssessments = [];
-  var all = window_allPastClasses || [];
-  if (all.length === 0) {
-    document.getElementById('history-section').style.display = 'none';
-    return;
-  }
-  var page = window_historyPage || 1;
-  var size = window_historyPageSize || 20;
-  var totalPages = Math.ceil(all.length / size);
-  if (page > totalPages) page = totalPages;
-  if (page < 1) page = 1;
-  window_historyPage = page;
-  var start = (page - 1) * size;
-  var end = start + size;
-  var pageData = all.slice(start, end);
-
-  document.getElementById('history-count').textContent = '(' + all.length + ' 条记录)';
-  var html = '';
-  for (var i = 0; i < pageData.length; i++) {
-    var c = pageData[i];
-    var globalIdx = start + i;
-    html += '<tr>';
-    html += '<td data-label="日期">' + c.date + '</td>';
-    html += '<td data-label="时间">' + formatTime(c.start_time) + '</td>';
-    html += '<td data-label="科目">' + (c.subject || '英语') + '</td>';
-    html += '<td data-label="老师">' + (c.teacher_name || '未知老师') + '</td>';
-    if (c.status !== 'scheduled') {
-      var isTrialWithReport = c.is_trial === 1 && window_allAssessments && window_allAssessments.some(function(a) { return parseInt(a.class_id) === parseInt(c.id); });
-      if (isTrialWithReport) {
-        var aId = window_allAssessments.find(function(a) { return parseInt(a.class_id) === parseInt(c.id); }).id;
-        html += '<td data-label="反馈/报告"><a class="feedback-link" onclick="viewAssessmentReport(' + aId + '); return false;">查看报告</a></td>';
-      } else {
-        html += '<td data-label="反馈/报告"><a class="feedback-link" onclick="showViewFeedback(' + globalIdx + '); return false;">查看反馈</a></td>';
-      }
-    } else {
-      html += '<td data-label="反馈/报告" class="no-feedback">未提交</td>';
-    }
-    html += '</tr>';
-  }
-  document.getElementById('history-body').innerHTML = html;
-  document.getElementById('history-section').style.display = '';
-
-  // Pagination
-  var pagHtml = '<span class="pagination__info">' + (start + 1) + '-' + Math.min(end, all.length) + ' / ' + all.length + '</span>';
-  pagHtml += '<div class="pagination__btns">';
-  pagHtml += '<button onclick="goHistoryPage(1)" class="page-btn" ' + (page === 1 ? 'disabled' : '') + '>First</button>';
-  pagHtml += '<button onclick="goHistoryPage(' + (page - 1) + ')" class="page-btn" ' + (page === 1 ? 'disabled' : '') + '>Prev</button>';
-  pagHtml += '<button onclick="goHistoryPage(' + (page + 1) + ')" class="page-btn" ' + (page >= totalPages ? 'disabled' : '') + '>Next</button>';
-  pagHtml += '<button onclick="goHistoryPage(' + totalPages + ')" class="page-btn" ' + (page >= totalPages ? 'disabled' : '') + '>Last</button>';
-  pagHtml += '</div>';
-  document.getElementById('history-pagination').innerHTML = pagHtml;
-}
-
-function goHistoryPage(page) {
-  window_historyPage = page;
-  renderHistory();
-}
+// ===== 渲染 History (已整合到上课记录Tab,保留空函数兼容旧引用) =====
+function renderHistory() {}
+function goHistoryPage(page) {}
 
 // ===== Feedback Modal =====
 function showViewFeedback(idx) {
@@ -1815,45 +1751,11 @@ async function loadAssessments(studentId) {
     var resp = await apiGet('/assessments?student_id=' + studentId + '&status=published&page_size=50');
     var data = resp.data && resp.data.data ? resp.data.data : (resp.data || []);
     window_allAssessments = data;
-    renderAssessments(data);
-    // 评估报告加载完成后重新渲染历史记录(体验课显示"查看报告")
-    if (window_allPastClasses && window_allPastClasses.length > 0) {
-      renderHistory();
-    }
   } catch(e) { console.error('Assessments load error:', e); }
 }
 
 function renderAssessments(list) {
-  var section = document.getElementById('assessments-section');
-  var container = document.getElementById('assessments-list');
-  document.getElementById('assessments-count').textContent = list.length;
-  
-  if (list.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
-  section.style.display = 'block';
-  
-  var html = '';
-  list.forEach(function(a) {
-    var trialBadge = a.is_trial === 1 ? '<span class="trial-badge">🎁 体验课</span>' : '';
-    var levelBadge = a.recommended_level ? '<span style="display:inline-block;font-size:12px;background:#C7EAF0;color:#0b3a53;padding:2px 10px;border-radius:100px;font-weight:600;">🎓 ' + escapeHtml(a.recommended_level) + '</span>' : '';
-    html += '<div class="assessment-card" onclick="viewAssessmentReport(' + a.id + ')">';
-    html += '<div class="assessment-card__time">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '</div>';
-    html += '<div class="assessment-card__body">';
-    html += '<div class="assessment-card__title">' + escapeHtml(a.subject || '英语') + ' ' + trialBadge + '</div>';
-    html += '<div class="assessment-card__teacher">' + escapeHtml(a.teacher_name || '') + '</div>';
-    if (a.teacher_message) {
-      html += '<div class="assessment-card__message">💌 ' + escapeHtml(a.teacher_message) + '</div>';
-    }
-    if (a.recommended_level) {
-      html += '<div class="assessment-card__level">' + levelBadge + '</div>';
-    }
-    html += '</div>';
-    html += '<div class="assessment-card__arrow">查看报告 →</div>';
-    html += '</div>';
-  });
-  container.innerHTML = html;
+  // 已整合到成长报告Tab,保留空函数兼容
 }
 
 function viewAssessmentReport(assessmentId) {
