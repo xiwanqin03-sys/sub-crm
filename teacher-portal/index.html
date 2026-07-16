@@ -434,6 +434,14 @@ function showViewFeedback(idx) {
     html += '</div>';
   }
 
+  // Old format fallback (content / homework 字段)
+  if (!html && (cls.content || cls.homework)) {
+    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">📋 Class Content</div>';
+    if (cls.content) html += '<div class="mb-2 text-sm"><b>📚 Content:</b><div class="text-gray-600 mt-1 whitespace-pre-wrap">' + esc(cls.content) + '</div></div>';
+    if (cls.homework) html += '<div class="mb-2 text-sm"><b>📝 Homework:</b><div class="text-gray-600 mt-1 whitespace-pre-wrap">' + esc(cls.homework) + '</div></div>';
+    html += '</div>';
+  }
+
   if (!html) html = '<div class="text-center text-gray-400 py-4">No feedback submitted yet</div>';
 
   document.getElementById('view-feedback-content').innerHTML = html;
