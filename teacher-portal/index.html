@@ -623,7 +623,15 @@ function renderUpcoming(classes) {
     html += '<tr>';
     html += '<td class="px-4 py-3 text-sm">' + c.date + ' <span class="text-purple-500 font-medium">' + getDayOfWeek(c.date) + '</span></td>';
     html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
-    var durationMin = Math.round((c.hours || 0) * 60);
+    // 优先用 end_time - start_time 算分钟数,最准确
+    var durationMin = 0;
+    if (c.end_time && c.start_time) {
+      var st = c.start_time.split(':');
+      var et = c.end_time.split(':');
+      durationMin = (parseInt(et[0]) * 60 + parseInt(et[1])) - (parseInt(st[0]) * 60 + parseInt(st[1]));
+      if (durationMin < 0) durationMin += 1440;
+    }
+    if (!durationMin) durationMin = c.duration || Math.round((c.hours || 0) * 60);
     var durationLabel = durationMin ? durationMin + ' min' : '-';
     var durationColor = durationMin === 25 ? 'text-orange-600' : durationMin === 50 ? 'text-blue-600' : 'text-gray-600';
     if (c.is_trial) durationLabel = '🎁 ' + durationLabel;
