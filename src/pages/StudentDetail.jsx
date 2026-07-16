@@ -801,24 +801,35 @@ export default function StudentDetail() {
     const esc = (s) => { if (!s) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c])); };
 
     let html = '<div class="report-page">';
-    html += '<div class="report-header"><div class="logo">SunnyBridge</div><h1>体验课评估报告</h1><div class="subtitle">Trial Class Assessment Report</div></div>';
-    html += '<div class="info-section">';
-    html += `<div class="info-item"><span class="label">学生姓名</span><span class="value">${esc(a.student_name||'')}${a.student_english_name?' ('+esc(a.student_english_name)+')':''}</span></div>`;
-    html += `<div class="info-item"><span class="label">授课教师</span><span class="value">${esc(a.teacher_name||'-')}</span></div>`;
-    html += `<div class="info-item"><span class="label">上课日期</span><span class="value">${a.class_date||''} ${(a.start_time||'').substring(0,5)}-${(a.end_time||'').substring(0,5)}</span></div>`;
-    html += `<div class="info-item"><span class="label">课程科目</span><span class="value">${esc(a.subject||'英语')}</span></div>`;
+    // Header with logo + gradient
+    html += '<div class="report-header">';
+    html += '<div class="header-top">';
+    html += '<div class="brand"><img src="/sunblogo.webp" class="brand-logo" alt="SunnyBridge"></div>';
+    html += '<div class="header-website">www.sunnybridge.qzz.io</div>';
+    html += '</div>';
+    html += '<div class="report-title"><h1>体验课评估报告</h1>';
+    html += '<div class="subtitle">Trial Class Assessment Report</div></div>';
     html += '</div>';
 
+    // Student Info
+    html += '<div class="info-section">';
+    html += `<div class="info-item"><div class="info-label">学生姓名 / Student Name</div><div class="info-value">${esc(a.student_name||'')}${a.student_english_name?' ('+esc(a.student_english_name)+')':''}</div></div>`;
+    html += `<div class="info-item"><div class="info-label">授课教师 / Teacher</div><div class="info-value">${esc(a.teacher_name||'-')}</div></div>`;
+    html += `<div class="info-item"><div class="info-label">上课日期 / Date & Time</div><div class="info-value">${a.class_date||''} ${(a.start_time||'').substring(0,5)}-${(a.end_time||'').substring(0,5)}</div></div>`;
+    html += `<div class="info-item"><div class="info-label">课程科目 / Subject</div><div class="info-value">${esc(a.subject||'英语')}</div></div>`;
+    html += '</div>';
+
+    // Dimensions (精简后: 3个维度, 各2项)
     const dims = [
-      { icon: '🎧', title: '听力评估', items: [['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']], comments: a.listening_comments },
-      { icon: '🗣️', title: '口语评估', items: [['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']], comments: a.speaking_comments },
-      { icon: '📖', title: '阅读评估', items: [['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']], comments: a.reading_comments },
-      { icon: '✍️', title: '写作评估', items: [['writing_spelling','基础拼写'],['writing_sentences','简单句构建']], comments: a.writing_comments },
-      { icon: '🌟', title: '课堂表现', items: [['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']], comments: a.classroom_comments }
+      { icon: '🗣️', title: '口语表现 Speaking Performance', items: [['speaking_pronunciation','发音清晰度'],['speaking_communication','开口意愿']], comments: a.speaking_comments },
+      { icon: '🎧', title: '理解能力 Comprehension', items: [['listening_conversation','指令理解'],['listening_key_info','反应速度']], comments: a.listening_comments },
+      { icon: '🌟', title: '课堂表现 Classroom Performance', items: [['classroom_focus','专注力'],['classroom_interaction','师生互动']], comments: a.classroom_comments }
     ];
+
+    html += '<div class="dimensions">';
     dims.forEach(dim => {
-      html += '<div class="dim-section">';
-      html += `<div class="dim-header">${dim.icon} ${dim.title}</div>`;
+      html += '<div class="dim-card">';
+      html += `<div class="dim-header"><span class="dim-icon">${dim.icon}</span>${dim.title}</div>`;
       dim.items.forEach(item => {
         const val = a[item[0]] || 0;
         html += `<div class="dim-item"><span class="dim-label">${item[1]}</span>${starHTML(val)}</div>`;
@@ -826,67 +837,93 @@ export default function StudentDetail() {
       if (dim.comments) html += `<div class="dim-comments">评语：${esc(dim.comments)}</div>`;
       html += '</div>';
     });
-
-    html += '<div class="overall-section"><div class="dim-header">📋 综合评估</div>';
-    if (a.strengths) html += `<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">${esc(a.strengths)}</div></div>`;
-    if (a.improvements) html += `<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">${esc(a.improvements)}</div></div>`;
-    if (a.recommended_level) html += `<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">${esc(a.recommended_level)}</div></div>`;
     html += '</div>';
 
+    // Overall
+    html += '<div class="overall-section">';
+    html += '<div class="overall-title">📋 综合评估 Overall Assessment</div>';
+    if (a.recommended_level) html += `<div class="overall-item"><span class="overall-label">🎓 建议级别 Recommended Level</span><div class="overall-text">${esc(a.recommended_level)}</div></div>`;
+    if (a.strengths) html += `<div class="overall-item"><span class="overall-label">💪 强项 Strengths</span><div class="overall-text">${esc(a.strengths)}</div></div>`;
+    if (a.improvements) html += `<div class="overall-item"><span class="overall-label">📈 待提升 Areas to Improve</span><div class="overall-text">${esc(a.improvements)}</div></div>`;
+    html += '</div>';
+
+    // Teacher Message
     if (a.teacher_message) {
       html += '<div class="message-section">';
-      html += '<div class="message-header">💌 教师寄语</div>';
+      html += '<div class="message-header">💌 教师寄语 Teacher\'s Message</div>';
       html += `<div class="message-text">${esc(a.teacher_message)}</div>`;
       html += '</div>';
     }
 
-    html += '<div class="report-footer"><div>SunnyBridge 少儿英语 · Bridging Smiles, Building Futures</div><div class="date">' + new Date().toLocaleDateString('zh-CN') + '</div></div>';
-    html += '<div class="print-btn-area"><button onclick="window.print()" class="print-btn">🖨️ 导出 / 打印 PDF</button></div>';
+    // Footer
+    html += '<div class="report-footer">';
+    html += '<div class="footer-brand">SunnyBridge 少儿英语</div>';
+    html += '<div class="footer-slogan">Bridging Smiles, Building Futures</div>';
+    html += '<div class="footer-website">www.sunnybridge.qzz.io</div>';
+    html += '<div class="footer-date">' + new Date().toLocaleDateString('zh-CN') + '</div>';
+    html += '</div>';
+
+    // Print button
+    html += '<div class="print-btn-area"><button class="print-btn" onclick="window.print()">🖨️ 导出 / 打印 PDF</button></div>';
+
     html += '</div>';
     return html;
   }
 
   function getReportPrintCSS() {
     return `
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
-      body { font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f0f0f0; padding: 20px; margin: 0; color: #1a1a2e; }
-      .report-page { max-width: 760px; margin: 0 auto; background: white; padding: 48px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-      .report-header { text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #4B9FE0; }
-      .report-header .logo { font-size: 18px; font-weight: 700; color: #4B9FE0; letter-spacing: 2px; margin-bottom: 8px; }
-      .report-header h1 { font-size: 26px; color: #1C244B; margin: 0 0 6px; }
-      .report-header .subtitle { font-size: 14px; color: #94a3b8; letter-spacing: 1px; }
-      .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 28px; padding: 20px; background: #F7FAFC; border-radius: 12px; }
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap');
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f4f8; padding: 24px; color: #1C244B; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .report-page { max-width: 760px; margin: 0 auto; background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(28,36,75,0.1); overflow: hidden; position: relative; }
+      .report-header { background: linear-gradient(135deg, #4B9FE0 0%, #2E7AC4 100%); padding: 28px 48px 28px; color: #fff; position: relative; }
+      .report-header::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #F5A623, #E26B31); }
+      .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+      .brand-logo { height: 44px; width: auto; }
+      .header-website { font-size: 12px; opacity: 0.7; letter-spacing: 0.5px; }
+      .report-title { text-align: center; margin-top: 4px; }
+      .report-title h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; letter-spacing: 2px; }
+      .report-title .subtitle { font-size: 13px; opacity: 0.8; letter-spacing: 2px; text-transform: uppercase; }
+      .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 32px; padding: 24px 48px; background: #F7FAFC; border-bottom: 1px solid #E8EDF2; }
       .info-item { display: flex; flex-direction: column; gap: 2px; }
-      .info-item .label { font-size: 12px; color: #6b7f8f; font-weight: 500; }
-      .info-item .value { font-size: 15px; color: #1C244B; font-weight: 600; }
-      .dim-section { margin-bottom: 20px; padding: 16px 20px; border: 1px solid #e8edf2; border-radius: 10px; }
-      .dim-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f4f8; }
+      .info-label { font-size: 11px; color: #6B7F8F; font-weight: 500; letter-spacing: 0.5px; }
+      .info-value { font-size: 15px; color: #1C244B; font-weight: 600; }
+      .dimensions { padding: 28px 48px; }
+      .dim-card { background: #fff; border: 1px solid #E8EDF2; border-radius: 14px; padding: 18px 22px; margin-bottom: 14px; page-break-inside: avoid; }
+      .dim-header { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #F7FAFC; }
+      .dim-icon { font-size: 20px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #F7FAFC; border-radius: 8px; }
       .dim-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
       .dim-label { font-size: 14px; color: #475569; }
-      .stars-readonly { display: inline-flex; gap: 2px; }
+      .stars-readonly { display: inline-flex; gap: 3px; }
       .stars-readonly .star { font-size: 18px; color: #d1d5db; }
       .stars-readonly .star.active { color: #F5A623; }
-      .dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFAF5; border-left: 3px solid #F5A623; border-radius: 4px; font-size: 14px; color: #475569; line-height: 1.6; white-space: pre-wrap; }
-      .overall-section { margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 10px; }
+      .dim-comments { margin-top: 10px; padding: 10px 14px; background: #FFFBF4; border-left: 3px solid #F5A623; border-radius: 6px; font-size: 14px; color: #475569; line-height: 1.6; white-space: pre-wrap; }
+      .overall-section { margin: 0 48px 20px; padding: 22px 24px; background: linear-gradient(135deg, #F7FAFC, #FFFBF4); border-radius: 14px; border: 1px solid #E8EDF2; page-break-inside: avoid; }
+      .overall-title { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid rgba(75,159,224,0.1); }
       .overall-item { margin-bottom: 12px; }
       .overall-item:last-child { margin-bottom: 0; }
       .overall-label { display: inline-block; font-size: 14px; font-weight: 600; color: #1C244B; margin-bottom: 4px; }
-      .overall-text { font-size: 14px; color: #475569; line-height: 1.6; padding-left: 16px; white-space: pre-wrap; }
-      .message-section { margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #E8F4FD, #FFFAF5); border-radius: 12px; border: 1px solid #E0F2FE; }
+      .overall-text { font-size: 14px; color: #475569; line-height: 1.7; padding-left: 12px; white-space: pre-wrap; }
+      .message-section { margin: 0 48px 20px; padding: 22px 24px; background: linear-gradient(135deg, rgba(75,159,224,0.06), rgba(245,166,35,0.06)); border-radius: 14px; border: 1px solid rgba(75,159,224,0.15); page-break-inside: avoid; }
       .message-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 10px; }
-      .message-text { font-size: 15px; color: #475569; line-height: 1.8; white-space: pre-wrap; }
-      .report-footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e8edf2; font-size: 12px; color: #94a3b8; }
-      .report-footer .date { margin-top: 4px; }
-      .print-btn-area { text-align: center; margin-top: 24px; }
-      .print-btn { background: linear-gradient(135deg, #4B9FE0, #2E7AC4); color: white; border: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(75,159,224,0.3); }
-      .print-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(75,159,224,0.4); }
+      .message-text { font-size: 14px; color: #475569; line-height: 1.8; white-space: pre-wrap; }
+      .report-footer { text-align: center; padding: 24px 48px; border-top: 1px solid #E8EDF2; margin-top: 8px; }
+      .footer-brand { font-size: 13px; font-weight: 600; color: #1C244B; }
+      .footer-slogan { font-size: 11px; color: #6B7F8F; margin-top: 2px; letter-spacing: 1px; }
+      .footer-website { font-size: 12px; color: #4B9FE0; margin-top: 6px; font-weight: 500; }
+      .footer-date { font-size: 11px; color: #b0b8c4; margin-top: 8px; }
+      .print-btn-area { text-align: center; padding: 0 48px 32px; }
+      .print-btn { background: linear-gradient(135deg, #4B9FE0, #2E7AC4); color: #fff; border: none; padding: 12px 36px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(75,159,224,0.35); }
+      .print-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(75,159,224,0.45); }
       @media print {
-        body { background: white; padding: 0; }
-        .report-page { box-shadow: none; border-radius: 0; padding: 20px; max-width: 100%; }
+        body { background: #fff; padding: 0; }
+        .report-page { box-shadow: none; border-radius: 0; max-width: 100%; }
         .print-btn-area { display: none; }
-        .dim-section { page-break-inside: avoid; }
+        .report-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .dim-card { page-break-inside: avoid; }
         .overall-section { page-break-inside: avoid; }
         .message-section { page-break-inside: avoid; }
+        @page { margin: 1.5cm; }
       }
     `;
   }

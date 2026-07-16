@@ -1822,9 +1822,7 @@ function buildReportHTML(a) {
   // Header with logo + gradient
   h += '<div class="report-header">';
   h += '<div class="header-top">';
-  h += '<div class="brand"><div class="brand-icon">☀️</div>';
-  h += '<div><div class="brand-name">SunnyBridge</div>';
-  h += '<div class="brand-slogan">Bridging Smiles, Building Futures</div></div></div>';
+  h += '<div class="brand"><img src="sunblogo.webp" class="brand-logo" alt="SunnyBridge"></div>';
   h += '<div class="header-website">www.sunnybridge.qzz.io</div>';
   h += '</div>';
   h += '<div class="report-title"><h1>体验课评估报告</h1>';
@@ -1839,13 +1837,11 @@ function buildReportHTML(a) {
   h += '<div class="info-item"><div class="info-label">课程科目 / Subject</div><div class="info-value">' + escapeHtml(a.subject || '英语') + '</div></div>';
   h += '</div>';
 
-  // Dimensions
+  // Dimensions (精简后: 3个维度, 各2项)
   var dims = [
-    {icon:'🎧',title:'听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comments:a.listening_comments},
-    {icon:'🗣️',title:'口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comments:a.speaking_comments},
-    {icon:'📖',title:'阅读评估',items:[['reading_vocabulary','词汇量'],['reading_comprehension','阅读理解']],comments:a.reading_comments},
-    {icon:'✍️',title:'写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comments:a.writing_comments},
-    {icon:'🌟',title:'课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comments:a.classroom_comments}
+    {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口意愿']],comments:a.speaking_comments},
+    {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','指令理解'],['listening_key_info','反应速度']],comments:a.listening_comments},
+    {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_focus','专注力'],['classroom_interaction','师生互动']],comments:a.classroom_comments}
   ];
 
   h += '<div class="dimensions">';
@@ -1863,15 +1859,15 @@ function buildReportHTML(a) {
 
   // Overall
   h += '<div class="overall-section">';
-  h += '<div class="overall-title">📋 综合评估</div>';
-  if (a.strengths) h += '<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">' + escapeHtml(a.strengths) + '</div></div>';
-  if (a.improvements) h += '<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">' + escapeHtml(a.improvements) + '</div></div>';
-  if (a.recommended_level) h += '<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">' + escapeHtml(a.recommended_level) + '</div></div>';
+  h += '<div class="overall-title">📋 综合评估 Overall Assessment</div>';
+  if (a.recommended_level) h += '<div class="overall-item"><span class="overall-label">🎓 建议级别 Recommended Level</span><div class="overall-text">' + escapeHtml(a.recommended_level) + '</div></div>';
+  if (a.strengths) h += '<div class="overall-item"><span class="overall-label">💪 强项 Strengths</span><div class="overall-text">' + escapeHtml(a.strengths) + '</div></div>';
+  if (a.improvements) h += '<div class="overall-item"><span class="overall-label">📈 待提升 Areas to Improve</span><div class="overall-text">' + escapeHtml(a.improvements) + '</div></div>';
   h += '</div>';
 
   // Teacher Message
   if (a.teacher_message) {
-    h += '<div class="message-section"><div class="message-header">💌 教师寄语</div><div class="message-text">' + escapeHtml(a.teacher_message) + '</div></div>';
+    h += '<div class="message-section"><div class="message-header">💌 教师寄语 Teacher\'s Message</div><div class="message-text">' + escapeHtml(a.teacher_message) + '</div></div>';
   }
 
   // Footer
@@ -1897,15 +1893,12 @@ function getReportPrintCSS() {
   // Report page container
   css += '.report-page{max-width:760px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(28,36,75,0.1);overflow:hidden;position:relative;}';
   // Header
-  css += '.report-header{background:linear-gradient(135deg,#4B9FE0 0%,#2E7AC4 100%);padding:36px 48px 28px;color:#fff;position:relative;}';
+  css += '.report-header{background:linear-gradient(135deg,#4B9FE0 0%,#2E7AC4 100%);padding:28px 48px 28px;color:#fff;position:relative;}';
   css += '.report-header::after{content:"";position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#F5A623,#E26B31);}';
-  css += '.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}';
-  css += '.brand{display:flex;align-items:center;gap:8px;}';
-  css += '.brand-icon{font-size:28px;}';
-  css += '.brand-name{font-size:20px;font-weight:700;letter-spacing:0.5px;}';
-  css += '.brand-slogan{font-size:11px;opacity:0.8;margin-top:2px;letter-spacing:1px;}';
+  css += '.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}';
+  css += '.brand-logo{height:44px;width:auto;}';
   css += '.header-website{font-size:12px;opacity:0.7;letter-spacing:0.5px;}';
-  css += '.report-title{text-align:center;margin-top:8px;}';
+  css += '.report-title{text-align:center;margin-top:4px;}';
   css += '.report-title h1{font-size:24px;font-weight:700;margin-bottom:4px;letter-spacing:2px;}';
   css += '.report-title .subtitle{font-size:13px;opacity:0.8;letter-spacing:2px;text-transform:uppercase;}';
   // Info section
