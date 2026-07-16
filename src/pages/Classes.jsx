@@ -687,71 +687,103 @@ function Classes() {
                 <button
                   onClick={() => {
                     const dims = [
-                      {title:'🗣️ 口语表现',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口主动性']]},
-                      {title:'🎧 理解能力',items:[['listening_conversation','听懂指令的程度'],['listening_key_info','课堂反应速度']]},
-                      {title:'🌟 课堂表现',items:[['classroom_focus','专注度'],['classroom_interaction','与老师互动']]},
+                      {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口意愿']]},
+                      {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','指令理解'],['listening_key_info','反应速度']]},
+                      {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_focus','专注力'],['classroom_interaction','师生互动']]},
                     ];
                     const stars = (n) => [1,2,3,4,5].map(i => `<span class="star${i<=(n||0)?' active':''}">★</span>`).join('');
                     const esc = (s) => (s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
                     const win = window.open('', '_blank');
                     win.document.write(`<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>体验课评估报告</title>
 <style>
-body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f0f0;padding:20px;margin:0;color:#1a1a2e;}
-.report-page{max-width:760px;margin:0 auto;background:white;padding:48px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);}
-.report-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #4B9FE0;}
-.report-header .logo{font-size:18px;font-weight:700;color:#4B9FE0;letter-spacing:2px;margin-bottom:8px;}
-.report-header h1{font-size:26px;color:#1C244B;margin:0 0 6px;}
-.report-header .subtitle{font-size:14px;color:#94a3b8;}
-.info-section{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:28px;padding:20px;background:#F7FAFC;border-radius:12px;}
-.info-item{display:flex;flex-direction:column;gap:2px;}
-.info-item .label{font-size:12px;color:#6b7f8f;font-weight:500;}
-.info-item .value{font-size:15px;color:#1C244B;font-weight:600;}
-.dim-section{margin-bottom:20px;padding:16px 20px;border:1px solid #e8edf2;border-radius:10px;}
-.dim-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f4f8;}
-.dim-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
-.dim-label{font-size:14px;color:#475569;}
-.stars-readonly{display:inline-flex;gap:2px;}
-.stars-readonly .star{font-size:18px;color:#d1d5db;}
-.stars-readonly .star.active{color:#F5A623;}
-.dim-comments{margin-top:10px;padding:10px 14px;background:#FFFAF5;border-left:3px solid #F5A623;border-radius:4px;font-size:14px;color:#475569;line-height:1.6;white-space:pre-wrap;}
-.overall-section{margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:10px;}
-.overall-item{margin-bottom:12px;}
-.overall-item:last-child{margin-bottom:0;}
-.overall-label{display:inline-block;font-size:14px;font-weight:600;color:#1C244B;margin-bottom:4px;}
-.overall-text{font-size:14px;color:#475569;line-height:1.6;padding-left:16px;white-space:pre-wrap;}
-.message-section{margin-bottom:24px;padding:20px;background:linear-gradient(135deg,#E8F4FD,#FFFAF5);border-radius:12px;border:1px solid #E0F2FE;}
-.message-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:10px;}
-.message-text{font-size:15px;color:#475569;line-height:1.8;white-space:pre-wrap;}
-.report-footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #e8edf2;font-size:12px;color:#94a3b8;}
-@media print{body{background:white;padding:0;}.report-page{box-shadow:none;border-radius:0;padding:20px;max-width:100%;}.no-print{display:none;}.dim-section,.overall-section,.message-section{page-break-inside:avoid;}}
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f4f8; padding: 24px; color: #1C244B; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.report-page { max-width: 760px; margin: 0 auto; background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(28,36,75,0.1); overflow: hidden; position: relative; }
+.report-header { background: #fff; padding: 28px 48px 28px; color: #1C244B; position: relative; }
+.report-header::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #F5A623, #E26B31); }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.brand-logo { height: 44px; width: auto; }
+.header-website { font-size: 12px; color: #6B7F8F; letter-spacing: 0.5px; }
+.report-title { text-align: center; margin-top: 4px; }
+.report-title h1 { font-size: 24px; font-weight: 700; color: #1C244B; margin-bottom: 4px; letter-spacing: 2px; }
+.report-title .subtitle { font-size: 13px; color: #6B7F8F; letter-spacing: 2px; text-transform: uppercase; }
+.info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 32px; padding: 24px 48px; background: #F7FAFC; border-bottom: 1px solid #E8EDF2; }
+.info-item { display: flex; flex-direction: column; gap: 2px; }
+.info-label { font-size: 11px; color: #6B7F8F; font-weight: 500; letter-spacing: 0.5px; }
+.info-value { font-size: 15px; color: #1C244B; font-weight: 600; }
+.dimensions { padding: 28px 48px; }
+.dim-card { background: #fff; border: 1px solid #E8EDF2; border-radius: 14px; padding: 18px 22px; margin-bottom: 14px; page-break-inside: avoid; }
+.dim-header { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #F7FAFC; }
+.dim-icon { font-size: 20px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #F7FAFC; border-radius: 8px; }
+.dim-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.dim-label { font-size: 14px; color: #475569; }
+.stars-readonly { display: inline-flex; gap: 3px; }
+.stars-readonly .star { font-size: 18px; color: #d1d5db; }
+.stars-readonly .star.active { color: #F5A623; }
+.overall-section { margin: 0 48px 20px; padding: 22px 24px; background: linear-gradient(135deg, #F7FAFC, #FFFBF4); border-radius: 14px; border: 1px solid #E8EDF2; page-break-inside: avoid; }
+.overall-title { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid rgba(75,159,224,0.1); }
+.overall-item { margin-bottom: 12px; }
+.overall-item:last-child { margin-bottom: 0; }
+.overall-label { display: inline-block; font-size: 14px; font-weight: 600; color: #1C244B; margin-bottom: 4px; }
+.overall-text { font-size: 14px; color: #475569; line-height: 1.7; padding-left: 12px; white-space: pre-wrap; }
+.message-section { margin: 0 48px 20px; padding: 22px 24px; background: linear-gradient(135deg, rgba(75,159,224,0.06), rgba(245,166,35,0.06)); border-radius: 14px; border: 1px solid rgba(75,159,224,0.15); page-break-inside: avoid; }
+.message-header { font-size: 16px; font-weight: 600; color: #1C244B; margin-bottom: 10px; }
+.message-text { font-size: 14px; color: #475569; line-height: 1.8; white-space: pre-wrap; }
+.report-footer { text-align: center; padding: 24px 48px; border-top: 1px solid #E8EDF2; margin-top: 8px; }
+.footer-brand { font-size: 13px; font-weight: 600; color: #1C244B; }
+.footer-slogan { font-size: 11px; color: #6B7F8F; margin-top: 2px; letter-spacing: 1px; }
+.footer-website { font-size: 12px; color: #4B9FE0; margin-top: 6px; font-weight: 500; }
+.footer-date { font-size: 11px; color: #b0b8c4; margin-top: 8px; }
+.print-btn-area { text-align: center; padding: 0 48px 32px; }
+.print-btn { background: linear-gradient(135deg, #4B9FE0, #2E7AC4); color: #fff; border: none; padding: 12px 36px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(75,159,224,0.35); }
+.print-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(75,159,224,0.45); }
+@media print {
+  body { background: #fff; padding: 0; }
+  .report-page { box-shadow: none; border-radius: 0; max-width: 100%; }
+  .print-btn-area { display: none; }
+  .report-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .dim-card { page-break-inside: avoid; }
+  .overall-section { page-break-inside: avoid; }
+  .message-section { page-break-inside: avoid; }
+  @page { margin: 1.5cm; }
+}
 </style></head><body>
 <div class="report-page">
   <div class="report-header">
-    <div class="logo">SUNNYBRIDGE</div>
-    <h1>体验课评估报告</h1>
-    <div class="subtitle">Assessment Report</div>
+    <div class="header-top">
+      <div class="brand"><img src="/sunblogo.webp" class="brand-logo" alt="SunnyBridge"></div>
+      <div class="header-website">www.sunnybridge.qzz.io</div>
+    </div>
+    <div class="report-title"><h1>体验课评估报告</h1><div class="subtitle">Trial Class Assessment Report</div></div>
   </div>
   <div class="info-section">
-    <div class="info-item"><span class="label">学生</span><span class="value">${esc(showFeedbackModal.studentName||'未知')}</span></div>
-    <div class="info-item"><span class="label">日期</span><span class="value">${esc(showFeedbackModal.date||'-')}</span></div>
-    <div class="info-item"><span class="label">老师</span><span class="value">${esc(showFeedbackModal.teacherName||showFeedbackModal.teacher||'-')}</span></div>
-    <div class="info-item"><span class="label">科目</span><span class="value">${esc(a.subject||'英语')}</span></div>
+    <div class="info-item"><div class="info-label">学生姓名 / Student Name</div><div class="info-value">${esc(showFeedbackModal.studentName||'未知')}</div></div>
+    <div class="info-item"><div class="info-label">授课教师 / Teacher</div><div class="info-value">${esc(showFeedbackModal.teacherName||showFeedbackModal.teacher||'-')}</div></div>
+    <div class="info-item"><div class="info-label">上课日期 / Date</div><div class="info-value">${esc(showFeedbackModal.date||'-')}</div></div>
+    <div class="info-item"><div class="info-label">课程科目 / Subject</div><div class="info-value">${esc(a.subject||'英语')}</div></div>
   </div>
+  <div class="dimensions">
   ${dims.map(dim => `
-  <div class="dim-section">
-    <div class="dim-header">${dim.title}</div>
+  <div class="dim-card">
+    <div class="dim-header"><span class="dim-icon">${dim.icon}</span>${dim.title}</div>
     ${dim.items.map(item => `<div class="dim-item"><span class="dim-label">${item[1]}</span><span class="stars-readonly">${stars(a[item[0]])}</span></div>`).join('')}
   </div>`).join('')}
-  <div class="overall-section">
-    <div class="overall-item"><span class="overall-label">🎓 建议级别</span><span class="overall-text">${esc(a.recommended_level||'')}</span></div>
-    <div class="overall-item"><span class="overall-label">💪 孩子的亮点</span><div class="overall-text">${esc(a.strengths||'')}</div></div>
-    <div class="overall-item"><span class="overall-label">📈 建议重点提升</span><div class="overall-text">${esc(a.improvements||'')}</div></div>
   </div>
-  ${a.teacher_message ? `<div class="message-section"><div class="message-header">💌 老师寄语</div><div class="message-text">${esc(a.teacher_message)}</div></div>` : ''}
-  <div class="report-footer"><div>SunnyBridge 阳光桥在线英语</div><div class="date">生成日期：${new Date().toLocaleDateString('zh-CN')}</div></div>
-</div>
-<div class="no-print" style="text-align:center;margin:20px 0;">
-  <button onclick="window.print()" style="background:linear-gradient(135deg,#4B9FE0,#2E7AC4);color:white;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(75,159,224,0.3);">🖨️ 打印 / 导出 PDF</button>
+  <div class="overall-section">
+    <div class="overall-title">📋 综合评估 Overall Assessment</div>
+    ${a.recommended_level ? `<div class="overall-item"><span class="overall-label">🎓 建议级别 Recommended Level</span><div class="overall-text">${esc(a.recommended_level)}</div></div>` : ''}
+    ${a.strengths ? `<div class="overall-item"><span class="overall-label">💪 强项 Strengths</span><div class="overall-text">${esc(a.strengths)}</div></div>` : ''}
+    ${a.improvements ? `<div class="overall-item"><span class="overall-label">📈 待提升 Areas to Improve</span><div class="overall-text">${esc(a.improvements)}</div></div>` : ''}
+  </div>
+  ${a.teacher_message ? `<div class="message-section"><div class="message-header">💌 教师寄语 Teacher's Message</div><div class="message-text">${esc(a.teacher_message)}</div></div>` : ''}
+  <div class="report-footer">
+    <div class="footer-brand">SunnyBridge 少儿英语</div>
+    <div class="footer-slogan">Bridging Smiles, Building Futures</div>
+    <div class="footer-website">www.sunnybridge.qzz.io</div>
+    <div class="footer-date">${new Date().toLocaleDateString('zh-CN')}</div>
+  </div>
+  <div class="print-btn-area"><button class="print-btn" onclick="window.print()">🖨️ 导出 / 打印 PDF</button></div>
 </div>
 </body></html>`);
                     win.document.close();
