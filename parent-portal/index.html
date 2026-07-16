@@ -1813,19 +1813,33 @@ function buildReportHTML(a) {
     for (var i = 1; i <= 5; i++) h += '<span class="star ' + (i <= val ? 'active' : '') + '">★</span>';
     return h + '</span>';
   }
-  
+
   var sName = a.student_name || '';
   var enName = a.student_english_name || '';
-  
+
   var h = '<div class="report-page">';
-  h += '<div class="report-header"><div class="logo">SunnyBridge</div><h1>体验课评估报告</h1><div class="subtitle">Trial Class Assessment Report</div></div>';
-  h += '<div class="info-section">';
-  h += '<div class="info-item"><span class="label">学生姓名</span><span class="value">' + escapeHtml(sName) + (enName ? ' (' + escapeHtml(enName) + ')' : '') + '</span></div>';
-  h += '<div class="info-item"><span class="label">授课教师</span><span class="value">' + escapeHtml(a.teacher_name || '-') + '</span></div>';
-  h += '<div class="info-item"><span class="label">上课日期</span><span class="value">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '-' + formatTime(a.end_time) + '</span></div>';
-  h += '<div class="info-item"><span class="label">课程科目</span><span class="value">' + escapeHtml(a.subject || '英语') + '</span></div>';
+
+  // Header with logo + gradient
+  h += '<div class="report-header">';
+  h += '<div class="header-top">';
+  h += '<div class="brand"><div class="brand-icon">☀️</div>';
+  h += '<div><div class="brand-name">SunnyBridge</div>';
+  h += '<div class="brand-slogan">Bridging Smiles, Building Futures</div></div></div>';
+  h += '<div class="header-website">www.sunnybridge.qzz.io</div>';
   h += '</div>';
-  
+  h += '<div class="report-title"><h1>体验课评估报告</h1>';
+  h += '<div class="subtitle">Trial Class Assessment Report</div></div>';
+  h += '</div>';
+
+  // Student Info
+  h += '<div class="info-section">';
+  h += '<div class="info-item"><div class="info-label">学生姓名 / Student Name</div><div class="info-value">' + escapeHtml(sName) + (enName ? ' (' + escapeHtml(enName) + ')' : '') + '</div></div>';
+  h += '<div class="info-item"><div class="info-label">授课教师 / Teacher</div><div class="info-value">' + escapeHtml(a.teacher_name || '-') + '</div></div>';
+  h += '<div class="info-item"><div class="info-label">上课日期 / Date & Time</div><div class="info-value">' + (a.class_date || '') + ' ' + formatTime(a.start_time) + '-' + formatTime(a.end_time) + '</div></div>';
+  h += '<div class="info-item"><div class="info-label">课程科目 / Subject</div><div class="info-value">' + escapeHtml(a.subject || '英语') + '</div></div>';
+  h += '</div>';
+
+  // Dimensions
   var dims = [
     {icon:'🎧',title:'听力评估',items:[['listening_conversation','日常对话理解'],['listening_key_info','关键信息抓取']],comments:a.listening_comments},
     {icon:'🗣️',title:'口语评估',items:[['speaking_pronunciation','发音与流利度'],['speaking_communication','表达能力']],comments:a.speaking_comments},
@@ -1833,8 +1847,11 @@ function buildReportHTML(a) {
     {icon:'✍️',title:'写作评估',items:[['writing_spelling','基础拼写'],['writing_sentences','简单句构建']],comments:a.writing_comments},
     {icon:'🌟',title:'课堂表现',items:[['classroom_participation','参与度'],['classroom_focus','专注力'],['classroom_interaction','互动意愿']],comments:a.classroom_comments}
   ];
+
+  h += '<div class="dimensions">';
   dims.forEach(function(dim) {
-    h += '<div class="dim-section"><div class="dim-header">' + dim.icon + ' ' + dim.title + '</div>';
+    h += '<div class="dim-card">';
+    h += '<div class="dim-header"><span class="dim-icon">' + dim.icon + '</span>' + dim.title + '</div>';
     dim.items.forEach(function(item) {
       var val = a[item[0]] || 0;
       h += '<div class="dim-item"><span class="dim-label">' + item[1] + '</span>' + starHTML(val) + '</div>';
@@ -1842,64 +1859,102 @@ function buildReportHTML(a) {
     if (dim.comments) h += '<div class="dim-comments">评语：' + escapeHtml(dim.comments) + '</div>';
     h += '</div>';
   });
-  
-  h += '<div class="overall-section"><div class="dim-header">📋 综合评估</div>';
+  h += '</div>';
+
+  // Overall
+  h += '<div class="overall-section">';
+  h += '<div class="overall-title">📋 综合评估</div>';
   if (a.strengths) h += '<div class="overall-item"><span class="overall-label">💪 强项</span><div class="overall-text">' + escapeHtml(a.strengths) + '</div></div>';
   if (a.improvements) h += '<div class="overall-item"><span class="overall-label">📈 待提升</span><div class="overall-text">' + escapeHtml(a.improvements) + '</div></div>';
   if (a.recommended_level) h += '<div class="overall-item"><span class="overall-label">🎓 建议级别</span><div class="overall-text">' + escapeHtml(a.recommended_level) + '</div></div>';
   h += '</div>';
-  
+
+  // Teacher Message
   if (a.teacher_message) {
     h += '<div class="message-section"><div class="message-header">💌 教师寄语</div><div class="message-text">' + escapeHtml(a.teacher_message) + '</div></div>';
   }
-  
-  h += '<div class="report-footer"><div>SunnyBridge 少儿英语 · Bridging Smiles, Building Futures</div><div class="date">' + new Date().toLocaleDateString('zh-CN') + '</div></div>';
-  h += '<div class="print-btn-area"><button onclick="window.print()" class="print-btn">🖨️ 导出 / 打印 PDF</button></div>';
+
+  // Footer
+  h += '<div class="report-footer">';
+  h += '<div class="footer-brand">SunnyBridge 少儿英语</div>';
+  h += '<div class="footer-slogan">Bridging Smiles, Building Futures</div>';
+  h += '<div class="footer-website">www.sunnybridge.qzz.io</div>';
+  h += '<div class="footer-date">' + new Date().toLocaleDateString('zh-CN') + '</div>';
+  h += '</div>';
+
+  // Print button
+  h += '<div class="print-btn-area"><button class="print-btn" onclick="window.print()">🖨️ 导出 / 打印 PDF</button></div>';
+
   h += '</div>';
   return h;
 }
 
 function getReportPrintCSS() {
   var css = '';
-  css += '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap");';
-  css += 'body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f0f0;padding:20px;margin:0;color:#1a1a2e;}';
-  css += '.report-page{max-width:760px;margin:0 auto;background:white;padding:48px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);}';
-  css += '.report-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #4B9FE0;}';
-  css += '.report-header .logo{font-size:18px;font-weight:700;color:#4B9FE0;letter-spacing:2px;margin-bottom:8px;}';
-  css += '.report-header h1{font-size:26px;color:#1C244B;margin:0 0 6px;}';
-  css += '.report-header .subtitle{font-size:14px;color:#94a3b8;letter-spacing:1px;}';
-  css += '.info-section{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:28px;padding:20px;background:#F7FAFC;border-radius:12px;}';
+  css += '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap");';
+  css += '* { margin:0; padding:0; box-sizing:border-box; }';
+  css += 'body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;padding:24px;color:#1C244B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}';
+  // Report page container
+  css += '.report-page{max-width:760px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(28,36,75,0.1);overflow:hidden;position:relative;}';
+  // Header
+  css += '.report-header{background:linear-gradient(135deg,#4B9FE0 0%,#2E7AC4 100%);padding:36px 48px 28px;color:#fff;position:relative;}';
+  css += '.report-header::after{content:"";position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#F5A623,#E26B31);}';
+  css += '.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}';
+  css += '.brand{display:flex;align-items:center;gap:8px;}';
+  css += '.brand-icon{font-size:28px;}';
+  css += '.brand-name{font-size:20px;font-weight:700;letter-spacing:0.5px;}';
+  css += '.brand-slogan{font-size:11px;opacity:0.8;margin-top:2px;letter-spacing:1px;}';
+  css += '.header-website{font-size:12px;opacity:0.7;letter-spacing:0.5px;}';
+  css += '.report-title{text-align:center;margin-top:8px;}';
+  css += '.report-title h1{font-size:24px;font-weight:700;margin-bottom:4px;letter-spacing:2px;}';
+  css += '.report-title .subtitle{font-size:13px;opacity:0.8;letter-spacing:2px;text-transform:uppercase;}';
+  // Info section
+  css += '.info-section{display:grid;grid-template-columns:1fr 1fr;gap:16px 32px;padding:24px 48px;background:#F7FAFC;border-bottom:1px solid #E8EDF2;}';
   css += '.info-item{display:flex;flex-direction:column;gap:2px;}';
-  css += '.info-item .label{font-size:12px;color:#6b7f8f;font-weight:500;}';
-  css += '.info-item .value{font-size:15px;color:#1C244B;font-weight:600;}';
-  css += '.dim-section{margin-bottom:20px;padding:16px 20px;border:1px solid #e8edf2;border-radius:10px;}';
-  css += '.dim-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f4f8;}';
+  css += '.info-label{font-size:11px;color:#6B7F8F;font-weight:500;letter-spacing:0.5px;}';
+  css += '.info-value{font-size:15px;color:#1C244B;font-weight:600;}';
+  // Dimensions
+  css += '.dimensions{padding:28px 48px;}';
+  css += '.dim-card{background:#fff;border:1px solid #E8EDF2;border-radius:14px;padding:18px 22px;margin-bottom:14px;page-break-inside:avoid;}';
+  css += '.dim-header{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:#1C244B;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #F7FAFC;}';
+  css += '.dim-icon{font-size:20px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:#F7FAFC;border-radius:8px;}';
   css += '.dim-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}';
   css += '.dim-label{font-size:14px;color:#475569;}';
-  css += '.stars-readonly{display:inline-flex;gap:2px;}';
+  css += '.stars-readonly{display:inline-flex;gap:3px;}';
   css += '.stars-readonly .star{font-size:18px;color:#d1d5db;}';
   css += '.stars-readonly .star.active{color:#F5A623;}';
-  css += '.dim-comments{margin-top:10px;padding:10px 14px;background:#FFFAF5;border-left:3px solid #F5A623;border-radius:4px;font-size:14px;color:#475569;line-height:1.6;white-space:pre-wrap;}';
-  css += '.overall-section{margin-bottom:20px;padding:20px;background:#f8fafc;border-radius:10px;}';
+  css += '.dim-comments{margin-top:10px;padding:10px 14px;background:#FFFBF4;border-left:3px solid #F5A623;border-radius:6px;font-size:14px;color:#475569;line-height:1.6;white-space:pre-wrap;}';
+  // Overall
+  css += '.overall-section{margin:0 48px 20px;padding:22px 24px;background:linear-gradient(135deg,#F7FAFC,#FFFBF4);border-radius:14px;border:1px solid #E8EDF2;page-break-inside:avoid;}';
+  css += '.overall-title{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid rgba(75,159,224,0.1);}';
   css += '.overall-item{margin-bottom:12px;}';
   css += '.overall-item:last-child{margin-bottom:0;}';
   css += '.overall-label{display:inline-block;font-size:14px;font-weight:600;color:#1C244B;margin-bottom:4px;}';
-  css += '.overall-text{font-size:14px;color:#475569;line-height:1.6;padding-left:16px;white-space:pre-wrap;}';
-  css += '.message-section{margin-bottom:24px;padding:20px;background:linear-gradient(135deg,#E8F4FD,#FFFAF5);border-radius:12px;border:1px solid #E0F2FE;}';
+  css += '.overall-text{font-size:14px;color:#475569;line-height:1.7;padding-left:12px;white-space:pre-wrap;}';
+  // Teacher message
+  css += '.message-section{margin:0 48px 20px;padding:22px 24px;background:linear-gradient(135deg,rgba(75,159,224,0.06),rgba(245,166,35,0.06));border-radius:14px;border:1px solid rgba(75,159,224,0.15);page-break-inside:avoid;}';
   css += '.message-header{font-size:16px;font-weight:600;color:#1C244B;margin-bottom:10px;}';
-  css += '.message-text{font-size:15px;color:#475569;line-height:1.8;white-space:pre-wrap;}';
-  css += '.report-footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid #e8edf2;font-size:12px;color:#94a3b8;}';
-  css += '.report-footer .date{margin-top:4px;}';
-  css += '.print-btn-area{text-align:center;margin-top:24px;}';
-  css += '.print-btn{background:linear-gradient(135deg,#4B9FE0,#2E7AC4);color:white;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(75,159,224,0.3);}';
-  css += '.print-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(75,159,224,0.4);}';
+  css += '.message-text{font-size:14px;color:#475569;line-height:1.8;white-space:pre-wrap;}';
+  // Footer
+  css += '.report-footer{text-align:center;padding:24px 48px;border-top:1px solid #E8EDF2;margin-top:8px;}';
+  css += '.footer-brand{font-size:13px;font-weight:600;color:#1C244B;}';
+  css += '.footer-slogan{font-size:11px;color:#6B7F8F;margin-top:2px;letter-spacing:1px;}';
+  css += '.footer-website{font-size:12px;color:#4B9FE0;margin-top:6px;font-weight:500;}';
+  css += '.footer-date{font-size:11px;color:#b0b8c4;margin-top:8px;}';
+  // Print button
+  css += '.print-btn-area{text-align:center;padding:0 48px 32px;}';
+  css += '.print-btn{background:linear-gradient(135deg,#4B9FE0,#2E7AC4);color:#fff;border:none;padding:12px 36px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(75,159,224,0.35);}';
+  css += '.print-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(75,159,224,0.45);}';
+  // Print rules
   css += '@media print{';
-  css += 'body{background:white;padding:0;}';
-  css += '.report-page{box-shadow:none;border-radius:0;padding:20px;max-width:100%;}';
+  css += 'body{background:#fff;padding:0;}';
+  css += '.report-page{box-shadow:none;border-radius:0;max-width:100%;}';
   css += '.print-btn-area{display:none;}';
-  css += '.dim-section{page-break-inside:avoid;}';
+  css += '.report-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;}';
+  css += '.dim-card{page-break-inside:avoid;}';
   css += '.overall-section{page-break-inside:avoid;}';
   css += '.message-section{page-break-inside:avoid;}';
+  css += '@page{margin:1.5cm;}';
   css += '}';
   return css;
 }
