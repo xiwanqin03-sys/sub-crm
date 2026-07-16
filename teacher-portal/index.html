@@ -72,16 +72,17 @@
       </h2>
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Time</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Student</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Subject</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
-            </tr>
-          </thead>
-          <tbody id="upcoming-body" class="divide-y divide-gray-200"></tbody>
+         <thead class="bg-gray-50">
+         <tr>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Date</th>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Time</th>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Duration</th>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Student</th>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Subject</th>
+           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Status</th>
+         </tr>
+        </thead>
+        <tbody id="upcoming-body" class="divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </section>
@@ -622,6 +623,11 @@ function renderUpcoming(classes) {
     html += '<tr>';
     html += '<td class="px-4 py-3 text-sm">' + c.date + ' <span class="text-purple-500 font-medium">' + getDayOfWeek(c.date) + '</span></td>';
     html += '<td class="px-4 py-3 text-sm">' + formatTime(c.start_time) + '</td>';
+    var durationMin = Math.round((c.hours || 0) * 60);
+    var durationLabel = durationMin ? durationMin + ' min' : '-';
+    var durationColor = durationMin === 25 ? 'text-orange-600' : durationMin === 50 ? 'text-blue-600' : 'text-gray-600';
+    if (c.is_trial) durationLabel = '🎁 ' + durationLabel;
+    html += '<td class="px-4 py-3 text-sm ' + durationColor + ' font-medium">' + durationLabel + '</td>';
     html += '<td class="px-4 py-3 text-sm font-medium">' + formatStudentName(c) + '</td>';
     html += '<td class="px-4 py-3 text-sm">' + (c.subject || 'English') + '</td>';
     html += '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full ' + (STATUS_COLORS[c.status] || '') + '">' + (STATUS_LABELS[c.status] || c.status) + '</span></td>';
