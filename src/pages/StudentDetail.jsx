@@ -876,14 +876,14 @@ export default function StudentDetail() {
       * { margin:0; padding:0; box-sizing:border-box; }
       body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f4f8; padding: 24px; color: #1C244B; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .report-page { max-width: 760px; margin: 0 auto; background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(28,36,75,0.1); overflow: hidden; position: relative; }
-      .report-header { background: linear-gradient(135deg, #4B9FE0 0%, #2E7AC4 100%); padding: 28px 48px 28px; color: #fff; position: relative; }
+      .report-header { background: #fff; padding: 28px 48px 28px; color: #1C244B; position: relative; }
       .report-header::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #F5A623, #E26B31); }
       .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
       .brand-logo { height: 44px; width: auto; }
-      .header-website { font-size: 12px; opacity: 0.7; letter-spacing: 0.5px; }
+      .header-website { font-size: 12px; color: #6B7F8F; letter-spacing: 0.5px; }
       .report-title { text-align: center; margin-top: 4px; }
-      .report-title h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; letter-spacing: 2px; }
-      .report-title .subtitle { font-size: 13px; opacity: 0.8; letter-spacing: 2px; text-transform: uppercase; }
+      .report-title h1 { font-size: 24px; font-weight: 700; color: #1C244B; margin-bottom: 4px; letter-spacing: 2px; }
+      .report-title .subtitle { font-size: 13px; color: #6B7F8F; letter-spacing: 2px; text-transform: uppercase; }
       .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 32px; padding: 24px 48px; background: #F7FAFC; border-bottom: 1px solid #E8EDF2; }
       .info-item { display: flex; flex-direction: column; gap: 2px; }
       .info-label { font-size: 11px; color: #6B7F8F; font-weight: 500; letter-spacing: 0.5px; }
