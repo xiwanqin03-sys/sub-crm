@@ -8,6 +8,13 @@
  *   GET /suggest            → ⭐ CRM 最常用: 根据 textbook_code + unit_number 推荐内容
  *   GET /content/:code/:num → 单元内容 (vocab/patterns/grammar)
  *   POST /content/:code/:num → 写入/更新单元内容 (Admin, AI提取后)
+ *
+ *   POST /upload            → 上传 PDF 到 R2 (multipart/form-data)
+ *   GET  /pdfs               → 列出 R2 中的 PDF 文件
+ *   GET  /pdf/:key           → 从 R2 下载 PDF (返回文件流)
+ *   DELETE /pdf/:key         → 删除 R2 中的 PDF
+ *   POST /extract            → ⭐ 上传 PDF + 调 LLM 提取 → 返回 JSON (不存库)
+ *   POST /extract/:code/:num → ⭐ 上传 PDF + 调 LLM 提取 + 自动写入 unit_content
  */
 import { Hono } from 'hono';
 
@@ -120,10 +127,14 @@ textbooks.get('/', async (c) => {
   return c.json({ data });
 });
 
+// ⚠️ 静态路径路由必须在 /:code 之前,否则会被 /:code 捕获
+// (R2 upload / pdfs / pdf / extract 等已在 /:code 之前声明)
+
 // ============================================================
-// GET /:code — 单本教材详情 + 单元列表
+// GET /book/:code — 单本教材详情 + 单元列表
+// 用 /book/:code 路径,避免和 /pdfs /upload 等静态路径冲突
 // ============================================================
-textbooks.get('/:code', async (c) => {
+textbooks.get('/book/:code', async (c) => {
   const DB = c.env.DB;
   const code = c.req.param('code');
 
@@ -234,5 +245,303 @@ textbooks.post('/content/:code/:num', async (c) => {
 function safeParse(str) {
   try { return JSON.parse(str || '[]'); } catch { return []; }
 }
+
+// ============================================================
+// LLM 提取 Prompt (同 scripts/extract_textbook.py)
+// ============================================================
+const EXTRACTION_PROMPT = `You are a textbook content extractor. Given the text content of a language textbook unit, extract vocabulary, sentence patterns, and grammar points into structured JSON.
+
+Return ONLY valid JSON (no markdown fences, no explanation) in this exact schema:
+
+{
+  "vocab": [
+    {"word": "apple", "translation": "苹果", "is_core": true, "difficulty": 1}
+  ],
+  "patterns": [
+    {"pattern": "I like apples.", "translation": "我喜欢苹果。", "is_core": true}
+  ],
+  "grammar": [
+    {"point": "Present Simple", "example": "She plays tennis.", "is_core": true}
+  ]
+}
+
+Rules:
+- "is_core": true if the item appears prominently in the unit's main vocabulary list or is a target pattern/grammar; false if supplementary.
+- "difficulty": 1 (basic/critical), 2 (intermediate), 3 (advanced).
+- If a translation is provided in parentheses or list items, include it; otherwise leave translation as null.
+- Clean up bullet artifacts (e.g., (cid:127), •, -) from words/patterns.
+- If no vocab/patterns/grammar is found, return an empty array for that field.
+- Return ONLY the JSON object. No code fences, no preamble.`;
+
+// ============================================================
+// 调 LLM 做结构化提取
+// ============================================================
+async function callLLM(c, textContent) {
+  const baseUrl = c.env.LLM_BASE_URL || 'https://api.openai.com/v1';
+  const apiKey = c.env.LLM_API_KEY;
+  const model = c.env.LLM_MODEL || 'gpt-4o';
+
+  if (!apiKey) {
+    throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
+  }
+
+  const resp = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: EXTRACTION_PROMPT },
+        { role: 'user', content: `Here is the textbook unit content:\n\n${textContent}` }
+      ],
+      temperature: 0.1,
+      max_tokens: 4096
+    })
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`LLM API error ${resp.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  let raw = data.choices?.[0]?.message?.content || '';
+  // 去掉 ```json 包裹
+  raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500) };
+  }
+}
+
+// 从 PDF ArrayBuffer 提取文字 (简单方案:用多模态 LLM 直接读 PDF base64)
+// gpt-4o / claude-3.5 都支持 PDF input via base64
+async function callLLMWithPDF(c, pdfBuffer, filename) {
+  const baseUrl = c.env.LLM_BASE_URL || 'https://api.openai.com/v1';
+  const apiKey = c.env.LLM_API_KEY;
+  const model = c.env.LLM_MODEL || 'gpt-4o';
+
+  if (!apiKey) {
+    throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
+  }
+
+  // 转 base64
+  const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+  const dataUrl = `data:application/pdf;base64,${pdfBase64}`;
+
+  const resp = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: EXTRACTION_PROMPT },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: `Please extract vocabulary, patterns, and grammar from this textbook PDF (${filename}).` },
+            { type: 'file', file: { filename, file_data: dataUrl } }
+          ]
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 4096
+    })
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`LLM API error ${resp.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  let raw = data.choices?.[0]?.message?.content || '';
+  raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500) };
+  }
+}
+
+// ============================================================
+// POST /upload — 上传 PDF 到 R2
+// multipart/form-data, field name: "pdf"
+// 可选: textbook_code, unit_number (会作为 R2 key 前缀)
+// ============================================================
+textbooks.post('/upload', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND', message: 'R2 bucket not configured' } }, 500);
+
+  const formData = await c.req.formData();
+  const file = formData.get('pdf');
+  if (!file || !file.name) {
+    return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing pdf file' } }, 400);
+  }
+
+  const textbookCode = formData.get('textbook_code') || 'unknown';
+  const unitNumber = formData.get('unit_number') || '0';
+  const key = `${textbookCode}/Unit${unitNumber}_${file.name}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  await R2.put(key, arrayBuffer, {
+    httpMetadata: { contentType: file.type || 'application/pdf' }
+  });
+
+  return c.json({
+    data: {
+      key,
+      filename: file.name,
+      size: arrayBuffer.byteLength,
+      textbook_code: textbookCode,
+      unit_number: unitNumber
+    }
+  });
+});
+
+// ============================================================
+// GET /pdfs — 列出 R2 中的 PDF
+// ============================================================
+textbooks.get('/pdfs', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND', message: 'R2 bucket not configured' } }, 500);
+
+  const listed = await R2.list();
+  const files = listed.objects.map(obj => ({
+    key: obj.key,
+    size: obj.size,
+    uploaded: obj.uploaded?.toISOString()
+  }));
+
+  return c.json({ data: files });
+});
+
+// ============================================================
+// GET /pdf/:key — 下载 PDF (key 用 URL 编码,可能含 /)
+// ============================================================
+textbooks.get('/pdf/:key', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
+
+  const key = decodeURIComponent(c.req.param('key'));
+  const object = await R2.get(key);
+  if (!object) return c.json({ error: { code: 'NOT_FOUND', message: 'PDF not found' } }, 404);
+
+  return new Response(object.body, {
+    headers: {
+      'Content-Type': object.httpMetadata?.contentType || 'application/pdf',
+      'Content-Disposition': `inline; filename="${key.split('/').pop()}"`
+    }
+  });
+});
+
+// ============================================================
+// DELETE /pdf/:key — 删除 R2 中的 PDF
+// ============================================================
+textbooks.delete('/pdf/:key', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
+
+  const key = decodeURIComponent(c.req.param('key'));
+  await R2.delete(key);
+  return c.json({ data: { deleted: key } });
+});
+
+// ============================================================
+// POST /extract — 上传 PDF → 调 LLM → 返回 JSON (不存库)
+// 用途: Admin 页面"预览提取结果"按钮
+// ============================================================
+textbooks.post('/extract', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
+
+  const formData = await c.req.formData();
+  const file = formData.get('pdf');
+  if (!file) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing pdf' } }, 400);
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await callLLMWithPDF(c, arrayBuffer, file.name || 'upload.pdf');
+    return c.json({ data: result });
+  } catch (err) {
+    return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
+  }
+});
+
+// ============================================================
+// POST /extract/:code/:num — 上传 PDF → R2 + LLM 提取 + 写入 unit_content
+// 用途: Admin 页面"提取并保存"按钮
+// ============================================================
+textbooks.post('/extract/:code/:num', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  const num = parseInt(c.req.param('num'));
+
+  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
+
+  // 查 unit_id
+  const unit = await DB.prepare(`
+    SELECT id FROM textbook_units WHERE textbook_code = ? AND unit_number = ?
+  `).bind(code, num).first();
+  if (!unit) return c.json({ error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
+
+  const formData = await c.req.formData();
+  const file = formData.get('pdf');
+  if (!file) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing pdf' } }, 400);
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const filename = file.name || `Unit${num}.pdf`;
+
+    // 1. 上传到 R2
+    const r2Key = `${code}/Unit${num}_${filename}`;
+    await R2.put(r2Key, arrayBuffer, {
+      httpMetadata: { contentType: 'application/pdf' }
+    });
+
+    // 2. 调 LLM 提取
+    const content = await callLLMWithPDF(c, arrayBuffer, filename);
+
+    // 3. 写入 unit_content
+    const vocab = JSON.stringify(content.vocab || []);
+    const patterns = JSON.stringify(content.patterns || []);
+    const grammar = JSON.stringify(content.grammar || []);
+
+    const existing = await DB.prepare('SELECT id FROM unit_content WHERE unit_id = ?').bind(unit.id).first();
+    if (existing) {
+      await DB.prepare(`
+        UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now')
+        WHERE unit_id = ?
+      `).bind(vocab, patterns, grammar, unit.id).run();
+    } else {
+      await DB.prepare(`
+        INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))
+      `).bind(unit.id, code, num, vocab, patterns, grammar).run();
+    }
+
+    return c.json({
+      data: {
+        textbook_code: code,
+        unit_number: num,
+        r2_key: r2Key,
+        content,
+        saved: true
+      }
+    });
+  } catch (err) {
+    return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
+  }
+});
 
 export default textbooks;

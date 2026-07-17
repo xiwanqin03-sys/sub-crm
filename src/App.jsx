@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import PasswordProtect from './components/PasswordProtect';
-import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, Building2, Receipt, Package } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings, Calendar, GraduationCap, CalendarDays, Building2, Receipt, Package, Book } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
@@ -17,6 +17,7 @@ import OrgLogin from './pages/OrgLogin';
 import OrgPortal from './pages/OrgPortal';
 import OrgSettlements from './pages/OrgSettlements';
 import OrgPackages from './pages/OrgPackages';
+import Textbooks from './pages/Textbooks';
 
 function Sidebar() {
   return (
@@ -127,6 +128,17 @@ function Sidebar() {
           <span>课时包</span>
         </NavLink>
         <NavLink
+          to="/textbooks"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Book size={20} />
+          <span>教材库</span>
+        </NavLink>
+        <NavLink
           to="/settings"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -183,6 +195,7 @@ function App() {
                     <Route path="/organizations" element={<Organizations />} />
                     <Route path="/org-settlements" element={<OrgSettlements />} />
                     <Route path="/org-packages" element={<OrgPackages />} />
+                    <Route path="/textbooks" element={<Textbooks />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/parent" element={<ParentView />} />
                     <Route path="/parent/:studentId" element={<ParentView />} />
