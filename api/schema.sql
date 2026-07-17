@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS classes (
   teacher TEXT,
   teacher_id INTEGER,
   subject TEXT,
-  hours REAL NOT NULL DEFAULT 1 CHECK (hours > 0),
+  hours REAL NOT NULL DEFAULT 1 CHECK (hours >= 0),
   date TEXT NOT NULL DEFAULT (date('now')),
   start_time TEXT,
   end_time TEXT,

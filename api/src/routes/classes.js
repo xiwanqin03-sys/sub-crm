@@ -331,7 +331,7 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     data.teacher || null,
     data.teacher_id || null,
     data.subject || null,
-    await resolveClassHours(DB, data, organizationId),
+    data.is_trial ? 0 : await resolveClassHours(DB, data, organizationId),
     data.date || new Date().toISOString().split('T')[0],
     data.start_time || null,
     data.end_time || null,
