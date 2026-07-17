@@ -1338,19 +1338,17 @@ function showViewFeedback(idx) {
   document.getElementById('feedback-modal-subject').textContent = cls.subject || '-';
 
   var esc = function(s) { return s ? escapeHtml(s) : ''; };
-  var perfItems = [
-    ['fb_perf_speaking', '开口积极性'],
-    ['fb_perf_pronunciation', '发音准确度'],
-    ['fb_perf_comprehension', '理解新内容速度'],
-    ['fb_perf_exercise', '完成练习情况']
-  ];
-  var starsHtml = function(val) {
-    var h = '<span style="font-size:18px;letter-spacing:1px;">';
-    for (var i = 1; i <= 5; i++) {
-      h += '<span style="color:' + (i <= (val||0) ? '#F5A623' : '#d1d5db') + ';">★</span>';
-    }
-    h += '</span>';
-    return h;
+  var errorsHtml = function(jsonStr, label, icon) {
+    try {
+      var errs = JSON.parse(jsonStr || '[]');
+      if (!errs.length) return '';
+      var h = '<div class="modal-feedback__group"><label>' + icon + ' ' + label + '</label><div class="modal-feedback__box">';
+      errs.forEach(function(e) {
+        h += '<div style="padding:4px 0;color:#555;"><span style="color:#ef4444;">✗ ' + esc(e.wrong) + '</span> <span style="color:#999;">→</span> <span style="color:#22c55e;">✓ ' + esc(e.right) + '</span></div>';
+      });
+      h += '</div></div>';
+      return h;
+    } catch(ex) { return ''; }
   };
 
   var html = '';
@@ -1370,23 +1368,18 @@ function showViewFeedback(idx) {
     html += '</div></div>';
   }
 
-  // ⭐️ 今日表现
-  if (perfItems.some(function(p) { return cls[p[0]]; })) {
-    html += '<div class="modal-feedback__group"><label>⭐️ 今日表现</label><div class="modal-feedback__box">';
-    perfItems.forEach(function(item) {
-      html += '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#555;">' + item[1] + '</span>' + starsHtml(cls[item[0]]) + '</div>';
-    });
-    html += '</div></div>';
-  }
+  // 🗣️ 发音纠正
+  html += errorsHtml(cls.fb_pronunciation_errors, '发音纠正', '🗣️');
+
+  // 📝 语法纠正
+  html += errorsHtml(cls.fb_grammar_errors, '语法纠正', '📝');
 
   // 📋 课后总结
-  if (cls.fb_highlight || cls.fb_practice || cls.fb_homework || cls.fb_next_preview || cls.fb_teacher_message) {
+  if (cls.fb_teacher_message || cls.fb_homework || cls.fb_next_preview) {
     html += '<div class="modal-feedback__group"><label>📋 课后总结</label><div class="modal-feedback__box">';
-    if (cls.fb_highlight) html += '<div style="margin-bottom:8px;"><b>💪 今日亮点</b><br>' + esc(cls.fb_highlight) + '</div>';
-    if (cls.fb_practice) html += '<div style="margin-bottom:8px;"><b>📈 需要继续练习</b><br>' + esc(cls.fb_practice) + '</div>';
+    if (cls.fb_teacher_message) html += '<div style="margin-bottom:8px;padding:8px;background:#eff6ff;border-radius:8px;"><b>💌 老师反馈</b><br>' + esc(cls.fb_teacher_message) + '</div>';
     if (cls.fb_homework) html += '<div style="margin-bottom:8px;"><b>📝 课后作业</b><br>' + esc(cls.fb_homework) + '</div>';
     if (cls.fb_next_preview) html += '<div style="margin-bottom:8px;"><b>🎯 下节课预告</b><br>' + esc(cls.fb_next_preview) + '</div>';
-    if (cls.fb_teacher_message) html += '<div style="padding:8px;background:#eff6ff;border-radius:8px;"><b>💌 老师寄语</b><br>' + esc(cls.fb_teacher_message) + '</div>';
     html += '</div></div>';
   }
 
@@ -1489,27 +1482,6 @@ function spCountVocab(classes) {
   return Object.keys(words).length;
 }
 
-function spPerfAvg(classes) {
-  var sums = { speaking: 0, pronunciation: 0, comprehension: 0, exercise: 0 };
-  var cnt = 0;
-  classes.forEach(function(c) {
-    if (c.fb_perf_speaking || c.fb_perf_pronunciation || c.fb_perf_comprehension || c.fb_perf_exercise) {
-      sums.speaking += c.fb_perf_speaking || 0;
-      sums.pronunciation += c.fb_perf_pronunciation || 0;
-      sums.comprehension += c.fb_perf_comprehension || 0;
-      sums.exercise += c.fb_perf_exercise || 0;
-      cnt++;
-    }
-  });
-  if (cnt === 0) return null;
-  return {
-    speaking: sums.speaking / cnt,
-    pronunciation: sums.pronunciation / cnt,
-    comprehension: sums.comprehension / cnt,
-    exercise: sums.exercise / cnt
-  };
-}
-
 function renderStudyProfile(student, allClasses) {
   if (!student) return;
   var myClasses = (allClasses || []).filter(function(c) {
@@ -1577,9 +1549,9 @@ function renderStudyProfile(student, allClasses) {
   months.forEach(function(month) {
     histHtml += '<div class="sp-month-header">' + month + '</div>';
     monthGroups[month].forEach(function(c) {
-      var hasFb = c.fb_vocab || c.fb_patterns || c.fb_grammar || c.fb_highlight || c.fb_practice ||
+      var hasFb = c.fb_vocab || c.fb_patterns || c.fb_grammar ||
+                  c.fb_pronunciation_errors || c.fb_grammar_errors ||
                   c.fb_homework || c.fb_teacher_message || c.fb_next_preview ||
-                  c.fb_perf_speaking || c.fb_perf_pronunciation || c.fb_perf_comprehension || c.fb_perf_exercise ||
                   c.content || c.homework;
       var isTrialWithReport = c.is_trial === 1 && window_allAssessments && window_allAssessments.some(function(a) { return parseInt(a.class_id) === parseInt(c.id); });
       var globalIdx = window_allPastClasses ? window_allPastClasses.indexOf(c) : -1;
@@ -1598,8 +1570,30 @@ function renderStudyProfile(student, allClasses) {
         }
         if (c.fb_vocab) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📚 词汇</div><div class="sp-feedback-text">' + spEsc(c.fb_vocab) + '</div></div>';
         if (c.fb_patterns) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💬 句型</div><div class="sp-feedback-text">' + spEsc(c.fb_patterns) + '</div></div>';
+        // 发音纠正
+        if (c.fb_pronunciation_errors) {
+          try {
+            var pErrs = JSON.parse(c.fb_pronunciation_errors);
+            if (pErrs.length) {
+              histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">🗣️ 发音纠正</div><div class="sp-feedback-text">';
+              pErrs.forEach(function(e) { histHtml += '<div style="color:#555;">✗ ' + spEsc(e.wrong) + ' → ✓ ' + spEsc(e.right) + '</div>'; });
+              histHtml += '</div></div>';
+            }
+          } catch(ex) {}
+        }
+        // 语法纠正
+        if (c.fb_grammar_errors) {
+          try {
+            var gErrs = JSON.parse(c.fb_grammar_errors);
+            if (gErrs.length) {
+              histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📝 语法纠正</div><div class="sp-feedback-text">';
+              gErrs.forEach(function(e) { histHtml += '<div style="color:#555;">✗ ' + spEsc(e.wrong) + ' → ✓ ' + spEsc(e.right) + '</div>'; });
+              histHtml += '</div></div>';
+            }
+          } catch(ex) {}
+        }
         if (c.fb_homework) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">📝 作业</div><div class="sp-feedback-text">' + spEsc(c.fb_homework) + '</div></div>';
-        if (c.fb_teacher_message) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💌 老师寄语</div><div class="sp-feedback-text" style="background:rgba(75,159,224,0.06);padding:6px 8px;border-radius:6px;">' + spEsc(c.fb_teacher_message) + '</div></div>';
+        if (c.fb_teacher_message) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">💌 老师反馈</div><div class="sp-feedback-text" style="background:rgba(75,159,224,0.06);padding:6px 8px;border-radius:6px;">' + spEsc(c.fb_teacher_message) + '</div></div>';
         // Old format fallback
         if (!c.fb_vocab && !c.fb_homework) {
           if (c.content) histHtml += '<div class="sp-feedback-group"><div class="sp-feedback-label">上课内容</div><div class="sp-feedback-text">' + spEsc(c.content) + '</div></div>';

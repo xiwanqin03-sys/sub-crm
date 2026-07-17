@@ -169,20 +169,35 @@
       <div><label class="block text-xs text-gray-500 mb-1">Grammar Focus</label><textarea id="fb-grammar" rows="2" placeholder="Grammar points..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
     </div>
   </div>
-  <!-- ⭐️ Performance -->
+  <!-- 🗣️ Pronunciation Corrections -->
   <div class="border rounded-lg p-3">
-    <h3 class="font-semibold text-gray-800 text-sm mb-3">⭐️ Performance</h3>
-    <div id="fb-perf-list" class="space-y-2"></div>
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-semibold text-gray-800 text-sm">🗣️ Pronunciation Corrections</h3>
+      <div class="flex gap-2">
+        <button type="button" onclick="setNoErrors('pron')" class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">No errors today</button>
+        <button type="button" onclick="addErrorRow('pron')" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">+ Add row</button>
+      </div>
+    </div>
+    <div id="fb-pron-errors" class="space-y-2"></div>
+  </div>
+  <!-- 📝 Grammar Corrections -->
+  <div class="border rounded-lg p-3">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-semibold text-gray-800 text-sm">📝 Grammar Corrections</h3>
+      <div class="flex gap-2">
+        <button type="button" onclick="setNoErrors('gram')" class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">No errors today</button>
+        <button type="button" onclick="addErrorRow('gram')" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">+ Add row</button>
+      </div>
+    </div>
+    <div id="fb-gram-errors" class="space-y-2"></div>
   </div>
   <!-- Summary sections -->
   <div class="border rounded-lg p-3 bg-purple-50">
     <h3 class="font-semibold text-gray-800 text-sm mb-3">📋 Summary</h3>
     <div class="space-y-2">
-      <div><label class="block text-xs text-gray-500 mb-1">💪 Highlight</label><textarea id="fb-highlight" rows="2" placeholder="What the student did well..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
-      <div><label class="block text-xs text-gray-500 mb-1">📈 Needs Practice</label><textarea id="fb-practice" rows="2" placeholder="What needs review/practice..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
+      <div><label class="block text-xs text-gray-500 mb-1">💌 Teacher's Feedback</label><textarea id="fb-message" rows="4" placeholder="Line 1: Praise the student&#10;Line 2: Describe a specific highlight&#10;Line 3: Suggest practice focus" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
       <div><label class="block text-xs text-gray-500 mb-1">📝 Homework</label><textarea id="fb-homework" rows="2" placeholder="Homework details..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
       <div><label class="block text-xs text-gray-500 mb-1">🎯 Next Lesson Preview</label><textarea id="fb-next" rows="2" placeholder="What will be covered next..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
-      <div><label class="block text-xs text-gray-500 mb-1">💌 Teacher's Message</label><textarea id="fb-message" rows="2" placeholder="A personal note to student/parents..." class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></textarea></div>
     </div>
   </div>
   <div id="status-field">
@@ -382,19 +397,18 @@ function showViewFeedback(idx) {
   document.getElementById('view-class-info').innerHTML = info;
 
   var esc = function(s) { return s ? escapeHtml(s) : ''; };
-  var starsHtml = function(val) {
-    var h = '<span class="stars-readonly text-lg">';
-    for (var i = 1; i <= 5; i++) h += '<span class="star' + (i <= (val||0) ? ' active' : '') + '">★</span>';
-    h += '</span>';
-    return h;
+  var errorsHtml = function(jsonStr, title, icon) {
+    try {
+      var errs = JSON.parse(jsonStr || '[]');
+      if (!errs.length) return '';
+      var h = '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">' + icon + ' ' + title + '</div>';
+      errs.forEach(function(e) {
+        h += '<div class="py-1 text-sm"><span class="text-red-500">✗ ' + esc(e.wrong) + '</span> <span class="text-gray-400">→</span> <span class="text-green-600">✓ ' + esc(e.right) + '</span></div>';
+      });
+      h += '</div>';
+      return h;
+    } catch(e) { return ''; }
   };
-
-  var perfItems = [
-    ['fb_perf_speaking', 'Speaking Initiative'],
-    ['fb_perf_pronunciation', 'Pronunciation Accuracy'],
-    ['fb_perf_comprehension', 'Comprehension Speed'],
-    ['fb_perf_exercise', 'Exercise Completion']
-  ];
 
   var html = '';
 
@@ -414,23 +428,18 @@ function showViewFeedback(idx) {
     html += '</div>';
   }
 
-  // Performance
-  if (perfItems.some(function(p) { return cls[p[0]]; })) {
-    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">⭐️ Performance</div>';
-    perfItems.forEach(function(item) {
-      html += '<div class="flex items-center justify-between py-1"><span class="text-sm text-gray-600">' + item[1] + '</span>' + starsHtml(cls[item[0]]) + '</div>';
-    });
-    html += '</div>';
-  }
+  // Pronunciation Corrections
+  html += errorsHtml(cls.fb_pronunciation_errors, 'Pronunciation Corrections', '🗣️');
+
+  // Grammar Corrections
+  html += errorsHtml(cls.fb_grammar_errors, 'Grammar Corrections', '📝');
 
   // Summary
-  if (cls.fb_highlight || cls.fb_practice || cls.fb_homework || cls.fb_next_preview || cls.fb_teacher_message) {
+  if (cls.fb_teacher_message || cls.fb_homework || cls.fb_next_preview) {
     html += '<div class="border rounded-lg p-3 bg-purple-50"><div class="font-medium text-gray-700 text-sm mb-2">📋 Summary</div>';
-    if (cls.fb_highlight) html += '<div class="mb-2 text-sm"><b>💪 Highlight:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_highlight) + '</div></div>';
-    if (cls.fb_practice) html += '<div class="mb-2 text-sm"><b>📈 Needs Practice:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_practice) + '</div></div>';
+    if (cls.fb_teacher_message) html += '<div class="mb-2 text-sm"><b>💌 Teacher\'s Feedback:</b><div class="text-gray-600 mt-1 whitespace-pre-wrap">' + esc(cls.fb_teacher_message) + '</div></div>';
     if (cls.fb_homework) html += '<div class="mb-2 text-sm"><b>📝 Homework:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_homework) + '</div></div>';
     if (cls.fb_next_preview) html += '<div class="mb-2 text-sm"><b>🎯 Next Lesson:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_next_preview) + '</div></div>';
-    if (cls.fb_teacher_message) html += '<div class="mt-2 p-2 bg-blue-50 rounded text-sm"><b>💌 Teacher\'s Message:</b><div class="text-gray-600 mt-1">' + esc(cls.fb_teacher_message) + '</div></div>';
     html += '</div>';
   }
 
@@ -872,33 +881,14 @@ function openFeedback(cls) {
   document.getElementById('fb-vocab').value = cls.fb_vocab || '';
   document.getElementById('fb-patterns').value = cls.fb_patterns || '';
   document.getElementById('fb-grammar').value = cls.fb_grammar || '';
-  document.getElementById('fb-highlight').value = cls.fb_highlight || '';
-  document.getElementById('fb-practice').value = cls.fb_practice || '';
   document.getElementById('fb-homework').value = cls.fb_homework || '';
   document.getElementById('fb-next').value = cls.fb_next_preview || '';
   document.getElementById('fb-message').value = cls.fb_teacher_message || '';
 
-  // Render performance star ratings
-  var perfItems = [
-    { key: 'fb_perf_speaking', label: 'Speaking Initiative' },
-    { key: 'fb_perf_pronunciation', label: 'Pronunciation Accuracy' },
-    { key: 'fb_perf_comprehension', label: 'Comprehension Speed' },
-    { key: 'fb_perf_exercise', label: 'Exercise Completion' }
-  ];
-  var perfHtml = '';
-  perfItems.forEach(function(item) {
-    var val = cls[item.key] || 0;
-    perfHtml += '<div class="flex items-center justify-between py-1">';
-    perfHtml += '<span class="text-sm text-gray-600">' + item.label + '</span>';
-    perfHtml += '<div class="fb-star-rating" data-name="' + item.key + '">';
-    for (var s = 1; s <= 5; s++) {
-      perfHtml += '<span class="star' + (s <= val ? ' active' : '') + '" data-val="' + s + '">★</span>';
-    }
-    perfHtml += '<input type="hidden" value="' + (val || '') + '">';
-    perfHtml += '</div>';
-    perfHtml += '</div>';
-  });
-  document.getElementById('fb-perf-list').innerHTML = perfHtml;
+  // Render pronunciation error rows
+  renderErrorRows('pron', cls.fb_pronunciation_errors);
+  // Render grammar error rows
+  renderErrorRows('gram', cls.fb_grammar_errors);
 
   var statusValue = cls.status === 'scheduled' ? 'completed' : (cls.status || 'completed');
   document.getElementById('input-status').value = statusValue;
@@ -919,6 +909,42 @@ function closeModal() {
   selectedClass = null;
 }
 
+// ===== Error row helpers (pronunciation / grammar corrections) =====
+function renderErrorRows(type, jsonStr) {
+  var container = document.getElementById(type === 'pron' ? 'fb-pron-errors' : 'fb-gram-errors');
+  container.innerHTML = '';
+  try {
+    var errs = JSON.parse(jsonStr || '[]');
+    errs.forEach(function(e) { appendErrorRow(type, e.wrong || '', e.right || ''); });
+  } catch(ex) {}
+}
+
+function addErrorRow(type) {
+  appendErrorRow(type, '', '');
+}
+
+function appendErrorRow(type, wrong, right) {
+  var container = document.getElementById(type === 'pron' ? 'fb-pron-errors' : 'fb-gram-errors');
+  var row = document.createElement('div');
+  row.className = 'error-row flex items-center gap-2';
+  row.innerHTML =
+    '<input type="text" class="err-wrong flex-1 px-2 py-1.5 text-sm border border-red-200 rounded focus:ring-2 focus:ring-red-400" placeholder="✗ Wrong" value="' + escapeAttr(wrong) + '">' +
+    '<span class="text-gray-400 text-sm">→</span>' +
+    '<input type="text" class="err-right flex-1 px-2 py-1.5 text-sm border border-green-200 rounded focus:ring-2 focus:ring-green-400" placeholder="✓ Correct" value="' + escapeAttr(right) + '">' +
+    '<button type="button" class="text-red-400 hover:text-red-600" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>';
+  container.appendChild(row);
+}
+
+function setNoErrors(type) {
+  var container = document.getElementById(type === 'pron' ? 'fb-pron-errors' : 'fb-gram-errors');
+  container.innerHTML = '';
+  appendErrorRow(type, 'No errors today', type === 'pron' ? 'Great pronunciation!' : 'Good grammar!');
+}
+
+function escapeAttr(s) {
+  return (s || '').replace(/&/g,'&').replace(/"/g,'"').replace(/</g,'<').replace(/>/g,'>');
+}
+
 // ===== Submit Feedback =====
 document.getElementById('feedback-form').addEventListener('submit', async function(e) {
   e.preventDefault();
@@ -933,12 +959,20 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
     }
   }
 
-  // Collect performance stars
-  var perfData = {};
-  document.querySelectorAll('#fb-perf-list .fb-star-rating').forEach(function(rating) {
-    var name = rating.getAttribute('data-name');
-    var hidden = rating.querySelector('input[type="hidden"]');
-    perfData[name] = hidden.value ? parseInt(hidden.value) : null;
+  // Collect pronunciation errors
+  var pronErrors = [];
+  document.querySelectorAll('#fb-pron-errors .error-row').forEach(function(row) {
+    var wrong = row.querySelector('.err-wrong').value;
+    var right = row.querySelector('.err-right').value;
+    if (wrong || right) pronErrors.push({ wrong: wrong, right: right });
+  });
+
+  // Collect grammar errors
+  var gramErrors = [];
+  document.querySelectorAll('#fb-gram-errors .error-row').forEach(function(row) {
+    var wrong = row.querySelector('.err-wrong').value;
+    var right = row.querySelector('.err-right').value;
+    if (wrong || right) gramErrors.push({ wrong: wrong, right: right });
   });
 
   var data = {
@@ -948,15 +982,11 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
     fb_vocab: document.getElementById('fb-vocab').value,
     fb_patterns: document.getElementById('fb-patterns').value,
     fb_grammar: document.getElementById('fb-grammar').value,
-    fb_perf_speaking: perfData.fb_perf_speaking,
-    fb_perf_pronunciation: perfData.fb_perf_pronunciation,
-    fb_perf_comprehension: perfData.fb_perf_comprehension,
-    fb_perf_exercise: perfData.fb_perf_exercise,
-    fb_highlight: document.getElementById('fb-highlight').value,
-    fb_practice: document.getElementById('fb-practice').value,
+    fb_pronunciation_errors: pronErrors.length ? JSON.stringify(pronErrors) : null,
+    fb_grammar_errors: gramErrors.length ? JSON.stringify(gramErrors) : null,
+    fb_teacher_message: document.getElementById('fb-message').value,
     fb_homework: document.getElementById('fb-homework').value,
     fb_next_preview: document.getElementById('fb-next').value,
-    fb_teacher_message: document.getElementById('fb-message').value,
     status: document.getElementById('input-status').value
   };
 

@@ -68,22 +68,18 @@ export const classSchema = z.object({
   is_trial: z.number().int().optional().default(0),
   status: z.enum(['scheduled', 'completed', 'cancelled', 'absent']).default('completed'),
   organization_id: z.number().int().positive().optional().nullable(),
-  // 课后反馈结构化字段
+  // 课后反馈结构化字段 (011 重构: 去星级评分, 加发音/语法纠正)
   fb_lesson_level: z.string().optional().nullable().transform(v => v || null),
   fb_unit: z.string().optional().nullable().transform(v => v || null),
   fb_lesson: z.string().optional().nullable().transform(v => v || null),
   fb_vocab: z.string().optional().nullable().transform(v => v || null),
   fb_patterns: z.string().optional().nullable().transform(v => v || null),
   fb_grammar: z.string().optional().nullable().transform(v => v || null),
-  fb_perf_speaking: z.number().int().min(1).max(5).optional().nullable(),
-  fb_perf_pronunciation: z.number().int().min(1).max(5).optional().nullable(),
-  fb_perf_comprehension: z.number().int().min(1).max(5).optional().nullable(),
-  fb_perf_exercise: z.number().int().min(1).max(5).optional().nullable(),
-  fb_highlight: z.string().optional().nullable().transform(v => v || null),
-  fb_practice: z.string().optional().nullable().transform(v => v || null),
-  fb_homework: z.string().optional().nullable().transform(v => v || null),
-  fb_next_preview: z.string().optional().nullable().transform(v => v || null),
-  fb_teacher_message: z.string().optional().nullable().transform(v => v || null),
+  fb_pronunciation_errors: z.string().optional().nullable().transform(v => v || null),  // JSON: [{wrong,right}]
+  fb_grammar_errors: z.string().optional().nullable().transform(v => v || null),         // JSON: [{wrong,right}]
+  fb_teacher_message: z.string().optional().nullable().transform(v => v || null),        // 问候+亮点+练习建议
+  fb_homework: z.string().optional().nullable().transform(v => v || null),               // 课后作业(选填)
+  fb_next_preview: z.string().optional().nullable().transform(v => v || null),           // 下节课预告(选填)
 });
 
 export const classUpdateSchema = classSchema.partial();

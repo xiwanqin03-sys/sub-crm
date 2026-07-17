@@ -141,15 +141,11 @@ const data = results.results?.map(cls => ({
   fb_vocab: cls.fb_vocab,
   fb_patterns: cls.fb_patterns,
   fb_grammar: cls.fb_grammar,
-  fb_perf_speaking: cls.fb_perf_speaking,
-  fb_perf_pronunciation: cls.fb_perf_pronunciation,
-  fb_perf_comprehension: cls.fb_perf_comprehension,
-  fb_perf_exercise: cls.fb_perf_exercise,
-  fb_highlight: cls.fb_highlight,
-  fb_practice: cls.fb_practice,
+  fb_pronunciation_errors: cls.fb_pronunciation_errors,
+  fb_grammar_errors: cls.fb_grammar_errors,
+  fb_teacher_message: cls.fb_teacher_message,
   fb_homework: cls.fb_homework,
   fb_next_preview: cls.fb_next_preview,
-  fb_teacher_message: cls.fb_teacher_message,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -208,15 +204,11 @@ const data = results.results?.map(cls => ({
   fb_vocab: cls.fb_vocab,
   fb_patterns: cls.fb_patterns,
   fb_grammar: cls.fb_grammar,
-  fb_perf_speaking: cls.fb_perf_speaking,
-  fb_perf_pronunciation: cls.fb_perf_pronunciation,
-  fb_perf_comprehension: cls.fb_perf_comprehension,
-  fb_perf_exercise: cls.fb_perf_exercise,
-  fb_highlight: cls.fb_highlight,
-  fb_practice: cls.fb_practice,
+  fb_pronunciation_errors: cls.fb_pronunciation_errors,
+  fb_grammar_errors: cls.fb_grammar_errors,
+  fb_teacher_message: cls.fb_teacher_message,
   fb_homework: cls.fb_homework,
   fb_next_preview: cls.fb_next_preview,
-  fb_teacher_message: cls.fb_teacher_message,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -270,15 +262,11 @@ return c.json(success({
   fb_vocab: cls.fb_vocab,
   fb_patterns: cls.fb_patterns,
   fb_grammar: cls.fb_grammar,
-  fb_perf_speaking: cls.fb_perf_speaking,
-  fb_perf_pronunciation: cls.fb_perf_pronunciation,
-  fb_perf_comprehension: cls.fb_perf_comprehension,
-  fb_perf_exercise: cls.fb_perf_exercise,
-  fb_highlight: cls.fb_highlight,
-  fb_practice: cls.fb_practice,
+  fb_pronunciation_errors: cls.fb_pronunciation_errors,
+  fb_grammar_errors: cls.fb_grammar_errors,
+  fb_teacher_message: cls.fb_teacher_message,
   fb_homework: cls.fb_homework,
   fb_next_preview: cls.fb_next_preview,
-  fb_teacher_message: cls.fb_teacher_message,
 }));
 });
 

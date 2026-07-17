@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, BookOpen, CheckCircle, XCircle, Calendar, Edit } from 'lucide-react';
+import { Clock, User, BookOpen, CheckCircle, XCircle, Calendar, Edit, Plus, X } from 'lucide-react';
 import { teacherOps, classOps, packageOps } from '../store';
 
 const STATUS_LABELS = {
@@ -17,6 +17,13 @@ const STATUS_COLORS = {
   absent: 'bg-red-100 text-red-800'
 };
 
+const PRACTICE_TEMPLATES = [
+  '复习今天学的词汇，每个写5遍并造一个句子',
+  '听课本录音3遍，跟读重点句型',
+  '用今天学的句型和家长进行5分钟对话练习',
+  '预习下一课生词，查出发音和意思',
+];
+
 export default function TeacherPortal() {
   const { teacherId } = useParams();
   const [teacher, setTeacher] = useState(null);
@@ -26,12 +33,11 @@ export default function TeacherPortal() {
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({
-    content: '',
-    homework: '',
-    notes: '',
-    status: 'completed'
-  });
+
+  // 反馈表单状态
+  const [feedbackForm, setFeedbackForm] = useState({});
+  const [pronErrors, setPronErrors] = useState([]);
+  const [gramErrors, setGramErrors] = useState([]);
 
   useEffect(() => {
     loadTeacherData();
@@ -67,49 +73,51 @@ export default function TeacherPortal() {
 
   const handleOpenFeedback = (cls) => {
     setSelectedClass(cls);
-    // 编辑反馈时保留原有状态，新提交反馈时默认为 completed
     setFeedbackForm({
-      content: cls.content || '',
-      homework: cls.homework || '',
-      notes: cls.notes || '',
+      fb_lesson_level: cls.fb_lesson_level || '',
+      fb_unit: cls.fb_unit || '',
+      fb_lesson: cls.fb_lesson || '',
+      fb_vocab: cls.fb_vocab || '',
+      fb_patterns: cls.fb_patterns || '',
+      fb_grammar: cls.fb_grammar || '',
+      fb_teacher_message: cls.fb_teacher_message || '',
+      fb_homework: cls.fb_homework || '',
+      fb_next_preview: cls.fb_next_preview || '',
       status: cls.status || 'completed'
     });
+    // 回填发音/语法纠错
+    try { setPronErrors(JSON.parse(cls.fb_pronunciation_errors || '[]')); } catch { setPronErrors([]); }
+    try { setGramErrors(JSON.parse(cls.fb_grammar_errors || '[]')); } catch { setGramErrors([]); }
     setShowFeedbackModal(true);
   };
 
   const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     try {
-      // 更新上课记录
       await classOps.update(selectedClass.id, {
         ...feedbackForm,
+        fb_pronunciation_errors: pronErrors.length ? JSON.stringify(pronErrors) : null,
+        fb_grammar_errors: gramErrors.length ? JSON.stringify(gramErrors) : null,
         status: feedbackForm.status
       });
-      
-      // 只有当原状态为「已预约」且新状态为「已完成」时才扣除课时（编辑反馈时不扣课时）
+
       if (selectedClass.status === 'scheduled' && feedbackForm.status === 'completed' && selectedClass.student_id) {
-      const hoursToDeduct = selectedClass.hours || 1;
-      console.log('扣除课时，学生ID:', selectedClass.student_id, '课时:', hoursToDeduct);
-      
-      const res = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/students/${selectedClass.student_id}/use-hours`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'sunnybridge-dev-key-2024'
-        },
-        body: JSON.stringify({ hours: hoursToDeduct })
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json();
-        console.error('扣除课时失败:', errData);
-        throw new Error(errData?.error?.message || '扣除课时失败');
+        const hoursToDeduct = selectedClass.hours || 1;
+        const res = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/students/${selectedClass.student_id}/use-hours`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'sunnybridge-dev-key-2024'
+          },
+          body: JSON.stringify({ hours: hoursToDeduct })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData?.error?.message || '扣除课时失败');
+        }
       }
-      
-      const result = await res.json();
-      console.log('课时扣除成功:', result);
-    }
-      
+
       setShowFeedbackModal(false);
       setSelectedClass(null);
       loadTeacherData();
@@ -123,6 +131,15 @@ export default function TeacherPortal() {
     if (!time) return '';
     return time.substring(0, 5);
   };
+
+  // 发音/语法纠错行操作
+  const addPronError = () => setPronErrors([...pronErrors, { wrong: '', right: '' }]);
+  const removePronError = (i) => setPronErrors(pronErrors.filter((_, idx) => idx !== i));
+  const updatePronError = (i, field, val) => setPronErrors(pronErrors.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
+
+  const addGramError = () => setGramErrors([...gramErrors, { wrong: '', right: '' }]);
+  const removeGramError = (i) => setGramErrors(gramErrors.filter((_, idx) => idx !== i));
+  const updateGramError = (i, field, val) => setGramErrors(gramErrors.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">加载中...</div>;
@@ -317,7 +334,7 @@ export default function TeacherPortal() {
       {/* 反馈弹窗 */}
       {showFeedbackModal && selectedClass && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{selectedClass.status !== 'scheduled' ? '编辑上课反馈' : '提交上课反馈'}</h2>
             <div className="bg-gray-50 rounded-lg p-3 mb-4">
               <div className="text-sm text-gray-600 space-y-1">
@@ -329,37 +346,227 @@ export default function TeacherPortal() {
               </div>
             </div>
             <form onSubmit={handleSubmitFeedback} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">上课内容</label>
-                <textarea
-                  value={feedbackForm.content}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, content: e.target.value })}
-                  rows={3}
-                  placeholder="本节课学了什么..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
+              {/* Block 1: 课程信息 */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <div className="font-medium text-gray-700 text-sm">📚 课程信息</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">CEFR等级</label>
+                    <input
+                      type="text"
+                      value={feedbackForm.fb_lesson_level || ''}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_lesson_level: e.target.value })}
+                      placeholder="如: Pre-A1"
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Unit</label>
+                    <input
+                      type="text"
+                      value={feedbackForm.fb_unit || ''}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_unit: e.target.value })}
+                      placeholder="Unit"
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Lesson</label>
+                    <input
+                      type="text"
+                      value={feedbackForm.fb_lesson || ''}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_lesson: e.target.value })}
+                      placeholder="Lesson"
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">今日词汇</label>
+                  <textarea
+                    value={feedbackForm.fb_vocab || ''}
+                    onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_vocab: e.target.value })}
+                    rows={2}
+                    placeholder="apple, banana, cat..."
+                    className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">今日句型</label>
+                  <textarea
+                    value={feedbackForm.fb_patterns || ''}
+                    onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_patterns: e.target.value })}
+                    rows={2}
+                    placeholder="I like... / Can I have...?"
+                    className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">语法重点</label>
+                  <input
+                    type="text"
+                    value={feedbackForm.fb_grammar || ''}
+                    onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_grammar: e.target.value })}
+                    placeholder="如: Present Simple"
+                    className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">作业布置</label>
+
+              {/* Block 2: 发音纠正 */}
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium text-gray-700 text-sm">🗣️ 发音纠正</div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPronErrors([{ wrong: 'No errors today', right: 'Great pronunciation!' }])}
+                      className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                    >
+                      今日无错误
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addPronError}
+                      className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> 添加一行
+                    </button>
+                  </div>
+                </div>
+                {pronErrors.length === 0 && (
+                  <p className="text-xs text-gray-400">点击"添加一行"记录发音纠正，或"今日无错误"</p>
+                )}
+                {pronErrors.map((err, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={err.wrong}
+                      onChange={(e) => updatePronError(i, 'wrong', e.target.value)}
+                      placeholder="✗ 错误发音"
+                      className="flex-1 px-2 py-1.5 text-sm border border-red-200 rounded focus:ring-2 focus:ring-red-400"
+                    />
+                    <span className="text-gray-400 text-sm">→</span>
+                    <input
+                      type="text"
+                      value={err.right}
+                      onChange={(e) => updatePronError(i, 'right', e.target.value)}
+                      placeholder="✓ 正确发音"
+                      className="flex-1 px-2 py-1.5 text-sm border border-green-200 rounded focus:ring-2 focus:ring-green-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePronError(i)}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Block 3: 语法纠正 */}
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium text-gray-700 text-sm">📝 语法纠正</div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGramErrors([{ wrong: 'No errors today', right: 'Good grammar!' }])}
+                      className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                    >
+                      今日无错误
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addGramError}
+                      className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> 添加一行
+                    </button>
+                  </div>
+                </div>
+                {gramErrors.length === 0 && (
+                  <p className="text-xs text-gray-400">点击"添加一行"记录语法纠正，或"今日无错误"</p>
+                )}
+                {gramErrors.map((err, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={err.wrong}
+                      onChange={(e) => updateGramError(i, 'wrong', e.target.value)}
+                      placeholder="✗ 错误句子"
+                      className="flex-1 px-2 py-1.5 text-sm border border-red-200 rounded focus:ring-2 focus:ring-red-400"
+                    />
+                    <span className="text-gray-400 text-sm">→</span>
+                    <input
+                      type="text"
+                      value={err.right}
+                      onChange={(e) => updateGramError(i, 'right', e.target.value)}
+                      placeholder="✓ 正确句子"
+                      className="flex-1 px-2 py-1.5 text-sm border border-green-200 rounded focus:ring-2 focus:ring-green-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGramError(i)}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Block 4: 老师反馈 */}
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="font-medium text-gray-700 text-sm">💌 老师反馈</div>
                 <textarea
-                  value={feedbackForm.homework}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, homework: e.target.value })}
+                  value={feedbackForm.fb_teacher_message || ''}
+                  onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_teacher_message: e.target.value })}
+                  rows={5}
+                  placeholder="第一句：肯定孩子今天的表现&#10;第二句：描述一个具体亮点&#10;第三句：建议重点练习的方向"
+                  className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-400">提示：第一句肯定表现 → 第二句具体亮点 → 第三句练习建议</p>
+              </div>
+
+              {/* Block 5: 课后作业 */}
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="font-medium text-gray-700 text-sm">📝 课后作业（选填）</div>
+                <textarea
+                  value={feedbackForm.fb_homework || ''}
+                  onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_homework: e.target.value })}
                   rows={2}
-                  placeholder="课后作业..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="课后练习建议..."
+                  className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
                 />
+                <div className="flex flex-wrap gap-1">
+                  {PRACTICE_TEMPLATES.map((tpl, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setFeedbackForm({ ...feedbackForm, fb_homework: (feedbackForm.fb_homework || '') + (feedbackForm.fb_homework ? '\n' : '') + tpl })}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                    >
+                      {tpl}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+
+              {/* Block 6: 下节课预告 */}
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="font-medium text-gray-700 text-sm">🎯 下节课预告（选填）</div>
                 <textarea
-                  value={feedbackForm.notes}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, notes: e.target.value })}
+                  value={feedbackForm.fb_next_preview || ''}
+                  onChange={(e) => setFeedbackForm({ ...feedbackForm, fb_next_preview: e.target.value })}
                   rows={2}
-                  placeholder="学生表现、需要改进的地方..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="下节课将学习..."
+                  className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
                 />
               </div>
-              {/* 课程状态：仅在新提交反馈时显示，编辑时不显示 */}
+
+              {/* 课程状态 */}
               {selectedClass.status === 'scheduled' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">课程状态</label>
