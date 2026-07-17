@@ -28,6 +28,7 @@ import orgPackages from './routes/org-packages.js';
 import orgSettlements from './routes/org-settlements.js';
 import assessments from './routes/assessments.js';
 import progressReports from './routes/progressReports.js';
+import textbooks from './routes/textbooks.js';
 
 const app = new Hono();
 
@@ -90,6 +91,7 @@ app.route('/api/v1/org-settlements', orgSettlements);
 app.route('/api/v1/org', authRoute);
 app.route('/api/v1/assessments', assessments);
 app.route('/api/v1/progress-reports', progressReports);
+app.route('/api/v1/textbooks', textbooks);
 
 // 404 处理
 app.notFound(notFound);

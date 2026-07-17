@@ -207,3 +207,51 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT OR IGNORE INTO settings (key, value) VALUES ('school_name', '阳光桥在线英语');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('currency', 'CNY');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('timezone', 'Asia/Shanghai');
+
+-- ============================================
+-- 13. 教材库 (textbooks / textbook_units / unit_content)
+-- ============================================
+CREATE TABLE IF NOT EXISTS textbooks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  series TEXT,
+  publisher TEXT,
+  level TEXT,
+  total_units INTEGER DEFAULT 0,
+  description TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS textbook_units (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  textbook_id INTEGER NOT NULL REFERENCES textbooks(id) ON DELETE CASCADE,
+  textbook_code TEXT NOT NULL,
+  unit_number INTEGER NOT NULL,
+  unit_title TEXT,
+  lesson_count INTEGER DEFAULT 1,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(textbook_code, unit_number)
+);
+
+CREATE TABLE IF NOT EXISTS unit_content (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  unit_id INTEGER NOT NULL REFERENCES textbook_units(id) ON DELETE CASCADE,
+  textbook_code TEXT NOT NULL,
+  unit_number INTEGER NOT NULL,
+  vocab TEXT,
+  patterns TEXT,
+  grammar TEXT,
+  extracted_by TEXT DEFAULT 'manual',
+  extracted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(unit_id)
+);
+
+-- classes 表新增教材关联字段
+-- ALTER TABLE classes ADD COLUMN textbook_code TEXT;
+-- ALTER TABLE classes ADD COLUMN unit_number INTEGER;
