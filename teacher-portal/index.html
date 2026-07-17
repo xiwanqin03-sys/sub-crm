@@ -1058,8 +1058,8 @@ function renderAssessmentView(cls, a) {
 
   var dims = [
     {title:'🗣️ Speaking Performance',items:[['speaking_pronunciation','Pronunciation Clarity'],['speaking_communication','Willingness to Speak']]},
-    {title:'🎧 Comprehension',items:[['listening_conversation','Understanding Instructions'],['listening_key_info','Response Speed']]},
-    {title:'🌟 Classroom Performance',items:[['classroom_focus','Focus'],['classroom_interaction','Teacher Interaction']]},
+    {title:'🎧 Comprehension',items:[['listening_conversation','Comprehension & Response']]},
+    {title:'🌟 Classroom Performance',items:[['classroom_interaction','Engagement & Interaction']]},
   ];
 
   var html = '<div id="assessment-modal" class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">';
@@ -1127,19 +1127,17 @@ function renderAssessmentForm(cls, existingData) {
   html += '<div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600">' + info + '</div>';
   html += '<form id="assessment-form" class="space-y-4">';
 
-  // Assessment dimensions — 3 dimensions, 6 items, no per-dimension comments
+  // Assessment dimensions — 3 dimensions, 4 items
   var dimensions = [
     { key: 'speaking', icon: '🗣️', title: 'Speaking Performance', items: [
       { key: 'speaking_pronunciation', label: 'Pronunciation Clarity' },
       { key: 'speaking_communication', label: 'Willingness to Speak' }
     ] },
     { key: 'listening', icon: '🎧', title: 'Comprehension', items: [
-      { key: 'listening_conversation', label: 'Understanding Instructions' },
-      { key: 'listening_key_info', label: 'Response Speed' }
+      { key: 'listening_conversation', label: 'Comprehension & Response' }
     ] },
     { key: 'classroom', icon: '🌟', title: 'Classroom Performance', items: [
-      { key: 'classroom_focus', label: 'Focus' },
-      { key: 'classroom_interaction', label: 'Teacher Interaction' }
+      { key: 'classroom_interaction', label: 'Engagement & Interaction' }
     ] }
   ];
   
@@ -1221,7 +1219,7 @@ function renderAssessmentForm(cls, existingData) {
     overlay.setAttribute('data-existing-id', existingData.id);
     window_existingAssessment = existingData;
     // Fill stars
-    var starFields = ['speaking_pronunciation','speaking_communication','listening_conversation','listening_key_info','classroom_focus','classroom_interaction'];
+    var starFields = ['speaking_pronunciation','speaking_communication','listening_conversation','classroom_interaction'];
     starFields.forEach(function(key) {
       if (existingData[key]) {
         var rating = overlay.querySelector('.star-rating[data-name="' + key + '"]');
@@ -1256,7 +1254,7 @@ function renderAssessmentForm(cls, existingData) {
     var data = {};
     fd.forEach(function(val, key) {
       if (val !== '') {
-        if (['speaking_pronunciation','speaking_communication','listening_conversation','listening_key_info','classroom_focus','classroom_interaction'].includes(key)) {
+        if (['speaking_pronunciation','speaking_communication','listening_conversation','classroom_interaction'].includes(key)) {
           data[key] = parseInt(val);
         } else {
           data[key] = val;

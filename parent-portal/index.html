@@ -1660,10 +1660,8 @@ function renderStudyProfile(student, allClasses) {
     var dims = [
       ['speaking_pronunciation', '发音清晰度'],
       ['speaking_communication', '开口主动性'],
-      ['listening_conversation', '听懂指令'],
-      ['listening_key_info', '课堂反应'],
-      ['classroom_focus', '专注度'],
-      ['classroom_interaction', '互动']
+      ['listening_conversation', '理解与反应'],
+      ['classroom_interaction', '参与度与互动']
     ];
     dims.forEach(function(d) {
       if (a[d[0]]) {
@@ -1831,11 +1829,11 @@ function buildReportHTML(a) {
   h += '<div class="info-item"><div class="info-label">课程科目 / Subject</div><div class="info-value">' + escapeHtml(a.subject || '英语') + '</div></div>';
   h += '</div>';
 
-  // Dimensions (精简后: 3个维度, 各2项)
+  // Dimensions (精简后: 3个维度, 4项)
   var dims = [
-    {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口意愿']],comments:a.speaking_comments},
-    {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','指令理解'],['listening_key_info','反应速度']],comments:a.listening_comments},
-    {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_focus','专注力'],['classroom_interaction','师生互动']],comments:a.classroom_comments}
+    {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度 Pronunciation Clarity'],['speaking_communication','开口意愿 Willingness to Speak']],comments:a.speaking_comments},
+    {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','理解与反应 Comprehension & Response']],comments:a.listening_comments},
+    {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_interaction','参与度与互动 Engagement & Interaction']],comments:a.classroom_comments}
   ];
 
   h += '<div class="dimensions">';

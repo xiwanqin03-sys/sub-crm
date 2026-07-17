@@ -592,8 +592,8 @@ function Classes() {
             {isTrialReport && a ? (() => {
               const dims = [
                 {title:'🗣️ 口语表现',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口主动性']]},
-                {title:'🎧 理解能力',items:[['listening_conversation','听懂指令的程度'],['listening_key_info','课堂反应速度']]},
-                {title:'🌟 课堂表现',items:[['classroom_focus','专注度'],['classroom_interaction','与老师互动']]},
+                {title:'🎧 理解能力',items:[['listening_conversation','理解与反应']]},
+                {title:'🌟 课堂表现',items:[['classroom_interaction','参与度与互动']]},
               ];
               return (
                 <div className="space-y-3">
@@ -698,9 +698,9 @@ function Classes() {
                 <button
                   onClick={() => {
                     const dims = [
-                      {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度'],['speaking_communication','开口意愿']]},
-                      {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','指令理解'],['listening_key_info','反应速度']]},
-                      {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_focus','专注力'],['classroom_interaction','师生互动']]},
+                      {icon:'🗣️',title:'口语表现 Speaking Performance',items:[['speaking_pronunciation','发音清晰度 Pronunciation Clarity'],['speaking_communication','开口意愿 Willingness to Speak']]},
+                      {icon:'🎧',title:'理解能力 Comprehension',items:[['listening_conversation','理解与反应 Comprehension & Response']]},
+                      {icon:'🌟',title:'课堂表现 Classroom Performance',items:[['classroom_interaction','参与度与互动 Engagement & Interaction']]},
                     ];
                     const stars = (n) => [1,2,3,4,5].map(i => `<span class="star${i<=(n||0)?' active':''}">★</span>`).join('');
                     const esc = (s) => (s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
