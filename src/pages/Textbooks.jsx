@@ -77,10 +77,12 @@ export default function Textbooks() {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       setTotalPages(pdf.numPages);
+      pdfDocRef.current = pdf;  // 保存 pdf 文档,后续切批不用重新解析
+      setPdfFileRef(file);  // 保留 file 引用
 
       // 整本书模式按批次渲染 (batchStart..batchStart+BATCH_SIZE),单 unit 模式渲染前 8 页
       const startPage = bookMode ? (batchStart + 1) : 1;
-      const maxPages = bookMode ? Math.min(BATCH_SIZE, pdf.numPages - batchStart) : Math.min(8, pdf.numPages);
+      const maxPages = bookMode ? Math.min(BATCH_SIZE, pdf.numPages - batchStart) : Math.min(BATCH_SIZE, pdf.numPages);
       const images = [];
       for (let i = 0; i < maxPages; i++) {
         const pageNum = startPage + i;
@@ -134,7 +136,7 @@ export default function Textbooks() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [batchStart, setBatchStart] = useState(0);  // 当前批次的起始页码 (0=第一页)
-  const BATCH_SIZE = 20;
+  const BATCH_SIZE = 8;  // z.ai GLM-4.6V 一次最多处理 8 页图片
   const [totalPages, setTotalPages] = useState(0);  // 整本书总页数
 
   // 当前批次的图片 (computed from renderedImages + batchStart)
@@ -144,6 +146,8 @@ export default function Textbooks() {
     if (renderedImages.length === 0) { alert('请先选择 PDF 并等待渲染'); return; }
     setExtracting(true); setExtractError(''); setPreviewUnits(null);
     try {
+      // 发到后端的图片最多 8 页 (z.ai GLM-4.6V 上限)
+      // BATCH_SIZE=8, 渲染也是 8,所以这里直接全部发
       const fd = new FormData();
       renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${batchStart + i + 1}.png`));
       const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/preview-book/${selectedBook.code}`, {
@@ -179,17 +183,54 @@ export default function Textbooks() {
     setTimeout(() => handleNextBatch(), 100);
   };
 
-  // 翻到下一批 (重新渲染页 21-40 / 41-60 ...)
+  // 翻到下一批 (重新渲染页 batchStart+8 ~ batchStart+16 ...) — 直接调 pdfjs
+  // 需要保存 file 引用以便重渲染不同页面
+  const [pdfFileRef, setPdfFileRef] = useState(null);
+  const pdfDocRef = useRef(null);  // 保留已加载的 pdf 文档避免重复解析
+
   const handleNextBatch = async () => {
     const nextStart = batchStart + BATCH_SIZE;
     if (nextStart >= totalPages) {
-      alert('🎉 已经处理完整本书所有页!\n累积 ' + accumulatedUnits.length + ' 个 unit,请点页面上的 "全部保存到数据库" 按钮');
+      alert(`🎉 已处理完整本书所有页!\n累积 ${accumulatedUnits.length} 个 unit,请点页面上的 "全部保存到数据库" 按钮`);
       return;
     }
     setBatchStart(nextStart);
-    // 重新调用 handleFileChange 让 PDF.js 渲染下一批
-    // (这里简化用 PDF.js 直接渲染 — 用户点 "AI 识别下一批" 按钮触发)
-    alert('已切换到第 ' + (nextStart + 1) + ' 页起的下一批. 请点 "🤖 识别下一批" 继续');
+
+    // 直接重新渲染下一批 (无需让用户再选 PDF)
+    if (!pdfDocRef.current) {
+      alert('PDF 已卸载,请重新选 PDF 继续 (batchStart 已加 ' + BATCH_SIZE + ', 即下一批从 ' + (nextStart+1) + ' 页起)');
+      return;
+    }
+    setRendering(true);
+    try {
+      const pdf = pdfDocRef.current;
+      const startPage = nextStart + 1;
+      const maxPages = Math.min(BATCH_SIZE, pdf.numPages - nextStart);
+      const images = [];
+      for (let i = 0; i < maxPages; i++) {
+        const pageNum = startPage + i;
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.85));
+        images.push({ blob, url: URL.createObjectURL(blob) });
+      }
+      // revoke 旧图的 URL 避免内存泄漏
+      renderedImages.forEach(img => URL.revokeObjectURL(img.url));
+      setRenderedImages(images);
+      if (pdf.numPages > nextStart + BATCH_SIZE) {
+        setRenderError(`当前批次: 第 ${nextStart+1}-${nextStart + images.length} 页 (共 ${pdf.numPages} 页). 还剩 ${pdf.numPages - nextStart - images.length} 页未处理`);
+      } else {
+        setRenderError(`最后一批次: 第 ${nextStart+1}-${nextStart + images.length} 页 (共 ${pdf.numPages} 页)`);
+      }
+    } catch (err) {
+      setRenderError('下一批 PDF 渲染失败: ' + err.message);
+    }
+    setRendering(false);
   };
 
   // 一次性把累积的所有 unit 写入 D1
