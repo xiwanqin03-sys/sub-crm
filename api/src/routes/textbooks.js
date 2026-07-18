@@ -588,8 +588,8 @@ async function callLLMWithImages(c, imageFiles) {
   const baseUrl = c.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
   const apiKey = c.env.LLM_API_KEY;
   const model = c.env.LLM_MODEL || 'glm-4.6v-flash';
-  // 免费限流时的 fallback 模型列表
-  const fallbackModels = ['glm-4v', 'glm-4.6v'];
+  // 免费限流时的 fallback 模型列表 (z.ai 平台上可用的视觉模型)
+  const fallbackModels = ['glm-4.6v-flash', 'glm-4.6', 'glm-4.5'];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
