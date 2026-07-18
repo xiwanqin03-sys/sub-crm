@@ -107,22 +107,27 @@ export default function Textbooks() {
     setRendering(false);
   };
 
-  // 触发上传图片 + LLM 提取 (预览,不保存)
+  // 触发上传图片 + LLM 提取 (单 Unit 模式: 不写库,先弹校对 Modal)
   const handleExtractPreview = async () => {
     if (renderedImages.length === 0) { alert('请先选择 PDF 文件并等待转换为图片'); return; }
-    setExtracting(true); setExtractError(''); setExtractResult(null);
+    setExtracting(true); setExtractError(''); setPreviewUnits(null);
     try {
       const fd = new FormData();
       renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${i+1}.png`));
-      const url = `/textbooks/extract/${selectedBook.code}/${selectedUnit.unit_number}`;
+      const url = `/textbooks/preview-unit/${selectedBook.code}/${selectedUnit.unit_number}`;
       const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1${url}`, {
         method: 'POST',
         headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' },
         body: fd
       });
       const resp = await r.json();
-      if (resp.data) { setExtractResult(resp.data.content || resp.data); alert('✅ 提取并保存, 单元已标记已录入'); openUnit(selectedUnit); }
-      else { setExtractError(resp.error?.message || '提取失败'); }
+      if (resp.data) {
+        // /preview-unit 返回单个 unit 对象,放进 array 复用整本书的校对 Modal
+        setPreviewUnits([resp.data]);
+        setShowReviewModal(true);
+      } else {
+        setExtractError(resp.error?.message || '提取失败');
+      }
     } catch (e) { setExtractError(e.message); }
     setExtracting(false);
   };
@@ -539,7 +544,9 @@ export default function Textbooks() {
                         min={0} max={99}
                         value={unit.unit_number}
                         onChange={(e) => updateUnitField(idx, 'unit_number', parseInt(e.target.value) || 0)}
-                        className="w-16 px-2 py-1 border rounded text-sm"
+                        disabled={!bookMode}
+                        className="w-16 px-2 py-1 border rounded text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                        title={bookMode ? '可改 unit 编号' : '单 Unit 模式下 unit 编号锁定'}
                       />
                       <label className="text-sm font-medium text-gray-700">Title</label>
                       <input
@@ -658,31 +665,47 @@ export default function Textbooks() {
             {/* Modal footer */}
             <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between gap-3">
               <div className="text-sm text-gray-500">
-                本批 {previewUnits.length} 个 unit (累积已完成 {accumulatedUnits.length} 个)
+                {bookMode
+                  ? `本批 ${previewUnits.length} 个 unit (累积已完成 ${accumulatedUnits.length} 个)`
+                  : `当前 Unit ${selectedUnit?.unit_number}: ${selectedUnit?.unit_title}`}
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setShowReviewModal(false); setPreviewUnits(null); }}
                   className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
                   disabled={committing}
-                >取消 (丢弃本批结果)</button>
-                <button
-                  onClick={handleAppendBatch}
-                  disabled={committing || previewUnits.length === 0}
-                  className="px-4 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <CheckCircle size={14} />
-                  确认这批 + 切下一批 →
-                </button>
-                {/* 也可以立即把本批和累积的全部一次性 commit */}
-                <button
-                  onClick={handleCommitAll}
-                  disabled={committing}
-                  className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
-                >
-                  {committing ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                  ✅ 确认全部保存到数据库 ({accumulatedUnits.length + (previewUnits?.length || 0)} 个)
-                </button>
+                >取消 (丢弃本次结果)</button>
+                {bookMode ? (
+                  <>
+                    {/* 整本书模式: 切下一批 + 全部保存双按钮 */}
+                    <button
+                      onClick={handleAppendBatch}
+                      disabled={committing || previewUnits.length === 0}
+                      className="px-4 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <CheckCircle size={14} />
+                      确认这批 + 切下一批 →
+                    </button>
+                    <button
+                      onClick={handleCommitAll}
+                      disabled={committing}
+                      className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+                    >
+                      {committing ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      ✅ 全部保存到数据库 ({accumulatedUnits.length + (previewUnits?.length || 0)} 个)
+                    </button>
+                  </>
+                ) : (
+                  /* 单 Unit 模式: 直接保存到当前 unit */
+                  <button
+                    onClick={handleCommitAll}
+                    disabled={committing || previewUnits.length === 0}
+                    className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {committing ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                    {committing ? '保存中...' : `✅ 保存到 Unit ${selectedUnit?.unit_number}`}
+                  </button>
+                )}
               </div>
             </div>
           </div>

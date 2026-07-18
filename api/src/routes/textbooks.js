@@ -729,6 +729,40 @@ Rules:
 }
 
 // ============================================================
+// POST /preview-unit/:code/:num — 单 Unit 模式图片 → AI 识别 → 返回 JSON (不写库)
+// 用途: Admin 单 Unit 模式"AI 识别"按钮 — 先输出到前端校对,确认后才保存
+// Form: images[] (多页图片,属于选定的这一个 unit)
+// ============================================================
+textbooks.post('/preview-unit/:code/:num', async (c) => {
+  const code = c.req.param('code');
+  const num = parseInt(c.req.param('num'));
+
+  const formData = await c.req.formData();
+  const images = formData.getAll('images').filter(f => f && f.name);
+  if (images.length === 0) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[]' } }, 400);
+
+  // 校验 unit 存在
+  const unit = await c.env.DB.prepare(`
+    SELECT id, unit_title FROM textbook_units WHERE textbook_code = ? AND unit_number = ?
+  `).bind(code, num).first();
+  if (!unit) return c.json({ error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
+
+  try {
+    // 单 Unit prompt 提取 (返回 vocab/patterns/grammar 对象,不是 array)
+    const content = await callLLMWithImages(c, images, { bookMode: false, maxPages: 8 });
+    return c.json({ data: {
+      unit_number: num,
+      unit_title: unit.unit_title || '',
+      vocab: content.vocab || [],
+      patterns: content.patterns || [],
+      grammar: content.grammar || []
+    }});
+  } catch (err) {
+    return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
+  }
+});
+
+// ============================================================
 // POST /preview-book/:code — 整本书图片 → AI 识别 → 返回 array (不写库)
 // 用途: Admin 整本书模式"AI 识别"按钮 — 先输出到前端校对,确认后才保存
 // Form: images[] (多页图片)
@@ -740,7 +774,7 @@ textbooks.post('/preview-book/:code', async (c) => {
   if (images.length === 0) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[]' } }, 400);
 
   try {
-    const bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 20 });
+    const bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 8 });
     if (!Array.isArray(bookContent)) {
       return c.json({ error: { code: 'LLM_PARSE_ERROR', message: 'LLM 返回不是 unit 数组', _raw: JSON.stringify(bookContent).substring(0, 300) } }, 502);
     }
