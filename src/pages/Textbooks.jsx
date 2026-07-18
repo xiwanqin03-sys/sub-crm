@@ -1,16 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Book, FileText, Upload, Sparkles, Loader, CheckCircle, XCircle, Trash2, ChevronRight, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import { request } from '../store/api';
-import * as pdfjsLib from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export default function Textbooks() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBook, setSelectedBook] = useState(null);  // { code, name, units }
-  const [selectedUnit, setSelectedUnit] = useState(null);  // { unit_number, unit_title }
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState(null);
 
   useEffect(() => { loadBooks(); }, []);
 
@@ -70,16 +66,20 @@ export default function Textbooks() {
       return;
     }
 
-    // PDF → 用 pdfjs 渲染每页为 PNG
+    // PDF → 用 pdfjs 渲染每页为 PNG (动态加载,避免顶层 PDF worker 未初始化)
     setRendering(true);
     try {
+      const pdfjsLib = await import('pdfjs-dist');
+      const workerMod = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default;
+
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const images = [];
-      const maxPages = Math.min(pdf.numPages, 8);  // 最多 8 页
+      const maxPages = Math.min(pdf.numPages, 8);
       for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });  // 1.5x 缩放,平衡清晰度和大小
+        const viewport = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -92,6 +92,7 @@ export default function Textbooks() {
       if (pdf.numPages > 8) setRenderError(`PDF 有 ${pdf.numPages} 页,只处理前 8 页`);
     } catch (err) {
       setRenderError('PDF 渲染失败: ' + err.message);
+      console.error('PDF render error:', err);
     }
     setRendering(false);
   };
