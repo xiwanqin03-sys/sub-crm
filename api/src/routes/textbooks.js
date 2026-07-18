@@ -584,12 +584,13 @@ textbooks.post('/extract/:code/:num', async (c) => {
 // Vision LLM: 用图片直接读
 // 默认 glm-4.6v-flash (免费视觉模型,有限流)
 // 限流时自动 fallback 到 glm-4v (付费,但稳定)
-async function callLLMWithImages(c, imageFiles) {
-  const baseUrl = c.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+// ============================================================
+async function callLLMWithImages(c, imageFiles, opts = {}) {
+  const baseUrl = c.env.LLM_BASE_URL || 'https://api.z.ai/api/paas/v4';
   const apiKey = c.env.LLM_API_KEY;
   const model = c.env.LLM_MODEL || 'glm-4.6v-flash';
   // 免费限流时的 fallback 模型列表 (z.ai 平台上可用的视觉模型)
-  const fallbackModels = ['glm-4.6v-flash', 'glm-4.6', 'glm-4.5'];
+  const fallbackModels = model.includes('flash') ? ['glm-4.6v-flash', 'glm-4.6', 'glm-4.5'] : [model];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
@@ -613,9 +614,10 @@ async function callLLMWithImages(c, imageFiles) {
   }
 
   const imageContents = [];
+  const maxPages = opts.maxPages || 8;
   for (let i = 0; i < imageFiles.length; i++) {
     const f = imageFiles[i];
-    if (i >= 8) break;
+    if (i >= maxPages) break;
     const buf = await f.arrayBuffer();
     const b64 = arrayBufferToBase64(buf);
     const mime = f.type || 'image/png';
@@ -625,16 +627,45 @@ async function callLLMWithImages(c, imageFiles) {
     });
   }
 
-  const userContent = [
-    { type: 'text', text: `Please extract vocabulary, sentence patterns, and grammar from these textbook page images (${imageFiles.length} pages).` },
-    ...imageContents
-  ];
+  // 单元模式 vs 整本书模式
+  const prompt = opts.bookMode
+    ? `You are given ${imageFiles.length} pages from a textbook. Identify which unit each page belongs to (look for "Unit N" or chapter headings in the page content), then extract vocabulary, patterns, and grammar PER UNIT, not per page.
+
+Return ONLY valid JSON array (no fences, no preamble). Each element is one unit:
+
+[
+  {
+    "unit_number": 1,
+    "unit_title": "Friends",
+    "vocab": [{"word":"friend","translation":"朋友","is_core":true,"difficulty":1}],
+    "patterns": [{"pattern":"What is your name?","translation":"你叫什么名字？","is_core":true}],
+    "grammar": [{"point":"Subject pronouns","example":"I am Tom.","is_core":true}]
+  },
+  ...
+]
+
+Rules:
+- One entry per unit visible in the images, sorted by unit_number ascending
+- is_core=true for items prominently in the unit's target vocabulary list
+- difficulty: 1 (basic/critical), 2 (intermediate), 3 (advanced)
+- Clean up bullet artifacts (cid:127, •, -) from words/patterns
+- If a page is a cover/TOC/review without target vocabulary, skip it (don't create a unit)
+- If multiple pages belong to the same unit, merge them into one unit entry
+- Return ONLY the JSON array. No fences, no explanation.`
+    : EXTRACTION_PROMPT;
+
+  const userContent = opts.bookMode
+    ? imageContents  // book mode: just images are enough
+    : [
+        { type: 'text', text: `Please extract vocabulary, sentence patterns, and grammar from these textbook page images (${imageFiles.length} pages).` },
+        ...imageContents
+      ];
 
   async function tryCall(m) {
     const resp = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: EXTRACTION_PROMPT }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: 2048 })
+      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: prompt }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: opts.bookMode ? 4096 : 2048 })
     });
     return resp;
   }
@@ -680,5 +711,81 @@ async function callLLMWithImages(c, imageFiles) {
 
   throw new Error(`所有模型都失败: ${lastError}`);
 }
+
+// ============================================================
+// POST /extract-book/:code — 整本书图片 → AI 识别每个 unit → 全部写入 D1
+// Form: images[] (多页图片)
+// ============================================================
+textbooks.post('/extract-book/:code', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+
+  const formData = await c.req.formData();
+  const images = formData.getAll('images').filter(f => f && f.name);
+  const pdf = formData.get('pdf');  // 可选,有就存到 R2 备份
+
+  if (images.length === 0) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[]' } }, 400);
+
+  // 查这本书所有 unit 列表,用于稍后匹配
+  const units = await DB.prepare(`
+    SELECT id, unit_number FROM textbook_units
+    WHERE textbook_code = ? AND is_active = 1
+    ORDER BY unit_number ASC
+  `).bind(code).all();
+  const unitMap = new Map();
+  (units.results || []).forEach(u => unitMap.set(u.unit_number, u.id));
+
+  // 调 LLM book mode
+  let bookContent;  // [{unit_number, vocab, patterns, grammar}]
+  try {
+    bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 20 });
+    // 如果返回的不是 array,说明 LLM 输出失败
+    if (!Array.isArray(bookContent)) {
+      return c.json({ error: { code: 'LLM_PARSE_ERROR', message: 'LLM 返回不是 unit 数组', _raw: JSON.stringify(bookContent).substring(0, 200) } }, 502);
+    }
+  } catch (err) {
+    return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
+  }
+
+  // R2 备份
+  let r2Key = '';
+  if (pdf) {
+    r2Key = `${code}/whole_book_${pdf.name}`;
+    await R2.put(r2Key, await pdf.arrayBuffer(), { httpMetadata: { contentType: 'application/pdf' } });
+  }
+
+  // 写入每个 unit 的 content
+  const written = [];
+  for (const item of bookContent) {
+    const unitId = unitMap.get(item.unit_number);
+    if (!unitId) continue;  // unit_number 不在预定义列表,跳过
+
+    const vocab = JSON.stringify(item.vocab || []);
+    const patterns = JSON.stringify(item.patterns || []);
+    const grammar = JSON.stringify(item.grammar || []);
+
+    const existing = await DB.prepare('SELECT id FROM unit_content WHERE unit_id = ?').bind(unitId).first();
+    if (existing) {
+      await DB.prepare(`UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now') WHERE unit_id = ?`)
+        .bind(vocab, patterns, grammar, unitId).run();
+    } else {
+      await DB.prepare(`INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at) VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))`)
+        .bind(unitId, code, item.unit_number, vocab, patterns, grammar).run();
+    }
+    written.push({ unit_number: item.unit_number, vocab_count: (item.vocab||[]).length, patterns_count: (item.patterns||[]).length });
+  }
+
+  return c.json({
+    data: {
+      textbook_code: code,
+      pages_sent: images.length,
+      units_detected: bookContent.length,
+      units_written: written.length,
+      written,
+      r2_key: r2Key
+    }
+  });
+});
 
 export default textbooks;

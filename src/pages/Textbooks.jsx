@@ -53,6 +53,7 @@ export default function Textbooks() {
   const [renderedImages, setRenderedImages] = useState([]);  // [{blob, url}]
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState('');
+  const [bookMode, setBookMode] = useState(false);  // false=单unit, true=整本书
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -75,8 +76,8 @@ export default function Textbooks() {
 
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const maxPages = Math.min(pdf.numPages, bookMode ? 20 : 8);
       const images = [];
-      const maxPages = Math.min(pdf.numPages, 8);
       for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 1.5 });
@@ -111,8 +112,33 @@ export default function Textbooks() {
         body: fd
       });
       const resp = await r.json();
-      if (resp.data) { setExtractResult(resp.data.content || resp.data); }
+      if (resp.data) { setExtractResult(resp.data.content || resp.data); alert('✅ 提取并保存, 单元已标记已录入'); openUnit(selectedUnit); }
       else { setExtractError(resp.error?.message || '提取失败'); }
+    } catch (e) { setExtractError(e.message); }
+    setExtracting(false);
+  };
+
+  // 整本书模式: 上传前20页图片 → AI 自动分单元 → 写入所有 unit
+  const handleExtractBook = async () => {
+    if (renderedImages.length === 0) { alert('请先选择 PDF 并等待渲染'); return; }
+    setExtracting(true); setExtractError(''); setExtractResult(null);
+    try {
+      const fd = new FormData();
+      renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${i+1}.png`));
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/extract-book/${selectedBook.code}`, {
+        method: 'POST',
+        headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' },
+        body: fd
+      });
+      const resp = await r.json();
+      if (resp.data) {
+        const d = resp.data;
+        alert(`✅ 识别完成!\n发了 ${d.pages_sent} 页 → 识别 ${d.units_detected} 个 unit → 已写入 ${d.units_written} 个:\n${d.written.map(w => `  Unit ${w.unit_number}: ${w.vocab_count} 词, ${w.patterns_count} 句型`).join('\n')}`);
+        openBook(selectedBook.code);  // 刷新 unit 列表状态
+        setSelectedUnit(null);
+      } else {
+        setExtractError(resp.error?.message || '整本书识别失败');
+      }
     } catch (e) { setExtractError(e.message); }
     setExtracting(false);
   };
@@ -217,10 +243,16 @@ export default function Textbooks() {
         </div>
       )}
 
-      {/* PDF 上传 + 提取 */}
+      {/* PDF 上传 + 提取 (含单 unit + 整本书 两种模式) */}
       <div className="border-2 border-dashed rounded-lg p-6 mb-6">
         <div className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <Sparkles size={18} className="text-purple-600" /> AI 提取 (PDF → 词汇/句型/语法)
+          <Sparkles size={18} className="text-purple-600" /> AI 提取
+          <span className="text-xs text-gray-500 ml-2">
+            模式: <span className="font-medium">{bookMode ? '📚 整本书 (自动分单元)' : '📄 当前 Unit'}</span>
+            <button onClick={() => setBookMode(!bookMode)} className="ml-2 text-primary-600 underline">
+              切换到 {bookMode ? '单 unit' : '整本书'} 模式
+            </button>
+          </span>
         </div>
         <div className="flex items-center gap-3 mb-3">
           <input
@@ -231,15 +263,19 @@ export default function Textbooks() {
             className="text-sm"
           />
           <button
-            onClick={handleExtractPreview}
+            onClick={bookMode ? handleExtractBook : handleExtractPreview}
             disabled={extracting || rendering || renderedImages.length === 0}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm flex items-center gap-2"
           >
             {extracting ? <Loader className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            {extracting ? 'AI 识别中... (10-30 秒)' : '🤖 AI 提取并保存'}
+            {extracting ? 'AI 识别中... (10-60 秒)' : bookMode ? '🤖 整本书识别并写入所有 unit' : '🤖 AI 提取并保存'}
           </button>
         </div>
-        <p className="text-xs text-gray-500 mb-2">PDF 先在浏览器内渲染为图片,再发送给视觉 AI 识别。支持扫描版 PDF。</p>
+        <p className="text-xs text-gray-500 mb-2">
+          {bookMode
+            ? '整本书模式: 上传整本书 PDF → 浏览器渲染前 20 页 → AI 自动识别每个 unit 的内容 → 全部写入数据库对应 unit'
+            : '单 Unit 模式: 上传 PDF → 浏览器渲染每页 → AI 提取词汇/句型/语法 → 仅写入当前选定的 unit'}
+        </p>
         {renderError && <div className="mt-2 text-sm text-amber-600">⚠️ {renderError}</div>}
         {rendering && <div className="mt-2 text-sm text-gray-500 flex items-center gap-2"><Loader size={14} className="animate-spin" /> 正在把 PDF 转图片...</div>}
         {renderedImages.length > 0 && (
