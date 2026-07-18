@@ -589,10 +589,13 @@ async function callLLMWithImages(c, imageFiles, opts = {}) {
   const baseUrl = c.env.LLM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
   const apiKey = c.env.LLM_API_KEY;
   const model = c.env.LLM_MODEL || 'google/gemma-3n-e4b-it';
-  // 限流时的 fallback 模型列表 (NVIDIA NIM 上可用的视觉模型)
-  // gemma-3n-e4b-it: Gemma 3n 视觉版,质量高
-  // llama-3.2-11b-vision / 90b-vision: Llama 视觉版,准确度更高但慢
-  const fallbackModels = ['google/gemma-3n-e4b-it', 'meta/llama-3.2-11b-vision-instruct', 'meta/llama-3.2-90b-vision-instruct'];
+  // Fallback 模型列表 (NVIDIA NIM 上可用的视觉模型)
+  // 主模型 gemma-3n-e4b-it: 8 页稳定,~50s/批, 输出 JSON 准确
+  // fallback 1) nemotron-3-nano-omni-30b-a3b-reasoning: Omni 原生多模态,慢但准
+  // fallback 2) llama-3.2-11b-vision-instruct: 视觉模型(单图,8 页不行,最后兜底)
+  // 注: deepseek-v4-flash / nemotron-3-ultra-550b-a55b 不是视觉模型,不能读图片
+  // 注: llama-3.2-*-vision 限制 1 张图,无法处理 8 页
+  const fallbackModels = ['google/gemma-3n-e4b-it', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', 'meta/llama-3.2-11b-vision-instruct'];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
@@ -679,7 +682,7 @@ Rules:
     const resp = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: prompt }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: opts.bookMode ? 8192 : 4096 })
+      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: prompt }, { role: 'user', content: userContent }], temperature: 0, max_tokens: opts.bookMode ? 4096 : 2048 })
     });
     return resp;
   }
