@@ -2,20 +2,21 @@
  * CORS 中间件
  */
 export const cors = async (c, next) => {
-  // 允许的来源（生产环境应配置具体域名）
+  // 允许的来源(生产环境应配置具体域名)
   const allowedOrigins = c.env.ALLOWED_ORIGINS ? c.env.ALLOWED_ORIGINS.split(',') : ['*'];
   const origin = c.req.header('Origin') || '';
 
-  // 检查 origin 是否在允许列表中
+  // 检查 origin 是否在允许列表中 (默认 * 允许所有来源)
   const isAllowed = allowedOrigins.includes('*') || allowedOrigins.includes(origin);
+  const allowHeaderValue = isAllowed ? (origin || '*') : null;
 
-  if (isAllowed) {
-    c.res.headers.set('Access-Control-Allow-Origin', origin || '*');
-  }
-
+  // 预先设置所有 CORS 头 (即使后续路由报错,响应也会带 CORS)
   c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-api-key, X-User-Role, X-Organization-Id');
   c.res.headers.set('Access-Control-Max-Age', '86400');
+  if (allowHeaderValue) {
+    c.res.headers.set('Access-Control-Allow-Origin', allowHeaderValue);
+  }
 
   // 处理预检请求
   if (c.req.method === 'OPTIONS') {
@@ -23,6 +24,12 @@ export const cors = async (c, next) => {
   }
 
   await next();
+
+  // 异常返回后,确保 CORS 头仍在响应上 (重要!)
+  // 因为下游路由可能直接 c.json(...) 走默认头 (覆盖 middleware 设置)
+  if (allowHeaderValue && !c.res.headers.get('Access-Control-Allow-Origin')) {
+    c.res.headers.set('Access-Control-Allow-Origin', allowHeaderValue);
+  }
 };
 
 /**
