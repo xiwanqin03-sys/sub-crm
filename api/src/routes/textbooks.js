@@ -589,8 +589,10 @@ async function callLLMWithImages(c, imageFiles, opts = {}) {
   const baseUrl = c.env.LLM_BASE_URL || 'https://api.z.ai/api/paas/v4';
   const apiKey = c.env.LLM_API_KEY;
   const model = c.env.LLM_MODEL || 'glm-4.6v-flash';
-  // 免费限流时的 fallback 模型列表 (z.ai 平台上可用的视觉模型)
-  const fallbackModels = model.includes('flash') ? ['glm-4.6v-flash', 'glm-4.6', 'glm-4.5'] : [model];
+  // 限流时的 fallback 模型列表 (z.ai 平台上的视觉模型)
+  // glm-4.6v 付费版,glm-4.6v-flash 免费版但限流
+  // glm-4v/z.ai 不存在;glm-4.5/glm-4.6 不支持图片输入,不要加
+  const fallbackModels = ['glm-4.6v-flash', 'glm-4.6v'];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
@@ -629,28 +631,40 @@ async function callLLMWithImages(c, imageFiles, opts = {}) {
 
   // 单元模式 vs 整本书模式
   const prompt = opts.bookMode
-    ? `You are given ${imageFiles.length} pages from a textbook. Identify which unit each page belongs to (look for "Unit N" or chapter headings in the page content), then extract vocabulary, patterns, and grammar PER UNIT, not per page.
+    ? `You are given ${imageFiles.length} pages from a language textbook. Identify which unit each page belongs to, then extract vocabulary, patterns, and grammar PER UNIT.
+
+IMPORTANT — Unit identification rules:
+- "Welcome" / "Intro" / "Starter" pages (greetings, alphabet, numbers 1-10, classroom objects intro) belong to unit_number = 0 (NOT Unit 1)
+- "Review" / "Show What You Know" / "Checkpoints" pages belong to the LAST unit_number in the book (e.g., Unit 10)
+- Cover page, Table of Contents, title page → SKIP (don't create a unit)
+- Pages explicitly labeled "Unit 1", "Unit 2" etc. → use that unit_number
 
 Return ONLY valid JSON array (no fences, no preamble). Each element is one unit:
 
 [
   {
+    "unit_number": 0,
+    "unit_title": "Welcome",
+    "vocab": [{"word":"hello","translation":"你好","is_core":true,"difficulty":1}],
+    "patterns": [{"pattern":"Hi, I'm Tom.","translation":"你好,我是 Tom。","is_core":true}],
+    "grammar": []
+  },
+  {
     "unit_number": 1,
-    "unit_title": "Friends",
-    "vocab": [{"word":"friend","translation":"朋友","is_core":true,"difficulty":1}],
-    "patterns": [{"pattern":"What is your name?","translation":"你叫什么名字？","is_core":true}],
-    "grammar": [{"point":"Subject pronouns","example":"I am Tom.","is_core":true}]
+    "unit_title": "Hello!",
+    "vocab": [{"word":"paper","translation":"纸","is_core":true,"difficulty":1}],
+    "patterns": [...],
+    "grammar": [...]
   },
   ...
 ]
 
 Rules:
-- One entry per unit visible in the images, sorted by unit_number ascending
+- Merge all pages of the same unit into ONE entry (not one per page)
+- unit_number=0 for Welcome/Intro, 1-10 for real units, ~99 for end-of-book review if not labeled
 - is_core=true for items prominently in the unit's target vocabulary list
 - difficulty: 1 (basic/critical), 2 (intermediate), 3 (advanced)
 - Clean up bullet artifacts (cid:127, •, -) from words/patterns
-- If a page is a cover/TOC/review without target vocabulary, skip it (don't create a unit)
-- If multiple pages belong to the same unit, merge them into one unit entry
 - Return ONLY the JSON array. No fences, no explanation.`
     : EXTRACTION_PROMPT;
 
