@@ -727,53 +727,57 @@ Rules:
 }
 
 // ============================================================
-// POST /extract-book/:code — 整本书图片 → AI 识别每个 unit → 全部写入 D1
+// POST /preview-book/:code — 整本书图片 → AI 识别 → 返回 array (不写库)
+// 用途: Admin 整本书模式"AI 识别"按钮 — 先输出到前端校对,确认后才保存
 // Form: images[] (多页图片)
 // ============================================================
-textbooks.post('/extract-book/:code', async (c) => {
-  const R2 = c.env.TEXTBOOKS_R2;
-  const DB = c.env.DB;
-  const code = c.req.param('code');
-
+textbooks.post('/preview-book/:code', async (c) => {
   const formData = await c.req.formData();
   const images = formData.getAll('images').filter(f => f && f.name);
-  const pdf = formData.get('pdf');  // 可选,有就存到 R2 备份
 
   if (images.length === 0) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[]' } }, 400);
 
-  // 查这本书所有 unit 列表,用于稍后匹配
-  const units = await DB.prepare(`
-    SELECT id, unit_number FROM textbook_units
-    WHERE textbook_code = ? AND is_active = 1
-    ORDER BY unit_number ASC
-  `).bind(code).all();
-  const unitMap = new Map();
-  (units.results || []).forEach(u => unitMap.set(u.unit_number, u.id));
-
-  // 调 LLM book mode
-  let bookContent;  // [{unit_number, vocab, patterns, grammar}]
   try {
-    bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 20 });
-    // 如果返回的不是 array,说明 LLM 输出失败
+    const bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 20 });
     if (!Array.isArray(bookContent)) {
-      return c.json({ error: { code: 'LLM_PARSE_ERROR', message: 'LLM 返回不是 unit 数组', _raw: JSON.stringify(bookContent).substring(0, 200) } }, 502);
+      return c.json({ error: { code: 'LLM_PARSE_ERROR', message: 'LLM 返回不是 unit 数组', _raw: JSON.stringify(bookContent).substring(0, 300) } }, 502);
     }
+    return c.json({ data: { units: bookContent, pages_sent: images.length } });
   } catch (err) {
     return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
   }
+});
 
-  // R2 备份
-  let r2Key = '';
-  if (pdf) {
-    r2Key = `${code}/whole_book_${pdf.name}`;
-    await R2.put(r2Key, await pdf.arrayBuffer(), { httpMetadata: { contentType: 'application/pdf' } });
-  }
+// ============================================================
+// POST /commit-units/:code — 接收校对后的 unit array → 写入 D1
+// Body JSON: { units: [{unit_number, unit_title, vocab, patterns, grammar}, ...] }
+// 用途: Admin 校对完点"确认保存到此 unit"
+// ============================================================
+textbooks.post('/commit-units/:code', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
 
-  // 写入每个 unit 的 content
+  let body;
+  try { body = await c.req.json(); } catch { return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body' } }, 400); }
+
+  const units = Array.isArray(body.units) ? body.units : (Array.isArray(body) ? body : null);
+  if (!units) return c.json({ error: { code: 'BAD_REQUEST', message: 'Expected { units: [...] } body' } }, 400);
+
+  // 查这本书所有 unit 列表 (含 Welcome=0)
+  const dbUnits = await DB.prepare(`
+    SELECT id, unit_number FROM textbook_units WHERE textbook_code = ? ORDER BY unit_number ASC
+  `).bind(code).all();
+  const unitMap = new Map();
+  (dbUnits.results || []).forEach(u => unitMap.set(u.unit_number, u.id));
+
   const written = [];
-  for (const item of bookContent) {
+  const skipped = [];
+  for (const item of units) {
     const unitId = unitMap.get(item.unit_number);
-    if (!unitId) continue;  // unit_number 不在预定义列表,跳过
+    if (!unitId) {
+      skipped.push({ unit_number: item.unit_number, reason: 'unit_number 不在预定义列表' });
+      continue;
+    }
 
     const vocab = JSON.stringify(item.vocab || []);
     const patterns = JSON.stringify(item.patterns || []);
@@ -781,25 +785,19 @@ textbooks.post('/extract-book/:code', async (c) => {
 
     const existing = await DB.prepare('SELECT id FROM unit_content WHERE unit_id = ?').bind(unitId).first();
     if (existing) {
-      await DB.prepare(`UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now') WHERE unit_id = ?`)
-        .bind(vocab, patterns, grammar, unitId).run();
+      await DB.prepare(
+        `UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now') WHERE unit_id = ?`
+      ).bind(vocab, patterns, grammar, unitId).run();
     } else {
-      await DB.prepare(`INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at) VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))`)
-        .bind(unitId, code, item.unit_number, vocab, patterns, grammar).run();
+      await DB.prepare(
+        `INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))`
+      ).bind(unitId, code, item.unit_number, vocab, patterns, grammar).run();
     }
-    written.push({ unit_number: item.unit_number, vocab_count: (item.vocab||[]).length, patterns_count: (item.patterns||[]).length });
+    written.push({ unit_number: item.unit_number, unit_title: item.unit_title, vocab_count: (item.vocab || []).length, patterns_count: (item.patterns || []).length });
   }
 
-  return c.json({
-    data: {
-      textbook_code: code,
-      pages_sent: images.length,
-      units_detected: bookContent.length,
-      units_written: written.length,
-      written,
-      r2_key: r2Key
-    }
-  });
+  return c.json({ data: { textbook_code: code, units_received: units.length, units_written: written.length, units_skipped: skipped, written } });
 });
 
 export default textbooks;

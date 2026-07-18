@@ -118,29 +118,75 @@ export default function Textbooks() {
     setExtracting(false);
   };
 
-  // 整本书模式: 上传前20页图片 → AI 自动分单元 → 写入所有 unit
+  // 整本书模式: 上传前20页图片 → AI 自动分单元 → 先返回预览 (不写库)
+  // 用户在前端校对后再点 "确认保存" 调 commit-units 才写库
+  const [previewUnits, setPreviewUnits] = useState(null);  // AI 识别出的 unit array
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [committing, setCommitting] = useState(false);
+
   const handleExtractBook = async () => {
     if (renderedImages.length === 0) { alert('请先选择 PDF 并等待渲染'); return; }
-    setExtracting(true); setExtractError(''); setExtractResult(null);
+    setExtracting(true); setExtractError(''); setPreviewUnits(null);
     try {
       const fd = new FormData();
       renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${i+1}.png`));
-      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/extract-book/${selectedBook.code}`, {
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/preview-book/${selectedBook.code}`, {
         method: 'POST',
         headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' },
         body: fd
       });
       const resp = await r.json();
-      if (resp.data) {
-        const d = resp.data;
-        alert(`✅ 识别完成!\n发了 ${d.pages_sent} 页 → 识别 ${d.units_detected} 个 unit → 已写入 ${d.units_written} 个:\n${d.written.map(w => `  Unit ${w.unit_number}: ${w.vocab_count} 词, ${w.patterns_count} 句型`).join('\n')}`);
-        openBook(selectedBook.code);  // 刷新 unit 列表状态
-        setSelectedUnit(null);
+      if (resp.data?.units) {
+        setPreviewUnits(resp.data.units);
+        setShowReviewModal(true);
       } else {
         setExtractError(resp.error?.message || '整本书识别失败');
       }
     } catch (e) { setExtractError(e.message); }
     setExtracting(false);
+  };
+
+  // 用户校对完点 "确认保存" → 写入 D1
+  const handleCommitUnits = async () => {
+    if (!previewUnits || previewUnits.length === 0) { alert('没有可保存的内容'); return; }
+    setCommitting(true);
+    try {
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/commit-units/${selectedBook.code}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+        body: JSON.stringify({ units: previewUnits })
+      });
+      const resp = await r.json();
+      if (resp.data) {
+        const d = resp.data;
+        alert(`✅ 已保存!\n识别 ${d.units_received} 个 unit → 写入 ${d.units_written} 个:\n${(d.written || []).map(w => `  Unit ${w.unit_number} (${w.unit_title||''}): ${w.vocab_count} 词, ${w.patterns_count} 句型`).join('\n')}`);
+        setShowReviewModal(false);
+        setPreviewUnits(null);
+        openBook(selectedBook.code);
+        setSelectedUnit(null);
+      } else {
+        alert(resp.error?.message || '保存失败');
+      }
+    } catch (e) { alert('保存失败: ' + e.message); }
+    setCommitting(false);
+  };
+
+  // 编辑 previewUnits 的辅助函数
+  const updateUnitField = (idx, field, value) => {
+    setPreviewUnits(prev => prev.map((u, i) => i === idx ? { ...u, [field]: value } : u));
+  };
+  const removeVocab = (unitIdx, vocabIdx) => {
+    setPreviewUnits(prev => prev.map((u, i) => i === unitIdx ? { ...u, vocab: (u.vocab || []).filter((_, j) => j !== vocabIdx) } : u));
+  };
+  const removePattern = (unitIdx, patIdx) => {
+    setPreviewUnits(prev => prev.map((u, i) => i === unitIdx ? { ...u, patterns: (u.patterns || []).filter((_, j) => j !== patIdx) } : u));
+  };
+  const removeGrammar = (unitIdx, gIdx) => {
+    setPreviewUnits(prev => prev.map((u, i) => i === unitIdx ? { ...u, grammar: (u.grammar || []).filter((_, j) => j !== gIdx) } : u));
+  };
+  const removeUnit = (idx) => {
+    if (!confirm('删除此单元全部内容?')) return;
+    setPreviewUnits(prev => prev.filter((_, i) => i !== idx));
   };
 
   // 保存提取结果到 D1 (用 extract 返回的已存的内容, 或者用校对后的)
@@ -321,6 +367,187 @@ export default function Textbooks() {
           </ul>
         )}
       </div>
+
+      {/* 🎯 校对 Modal — AI 识别完成后弹出,用户可编辑 unit_number/vocab/patterns/grammar */}
+      {showReviewModal && previewUnits && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-auto">
+            {/* Modal header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <CheckCircle size={20} className="text-amber-500" />
+                  AI 识别结果校对
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  AI 识别出 {previewUnits.length} 个 unit。请检查以下内容,
+                  可改 unit_number / 删错词 / 删整个 unit,
+                  然后点 "确认保存" 才会写入数据库。
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowReviewModal(false); setPreviewUnits(null); }}
+                className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+              >×</button>
+            </div>
+
+            {/* Modal body — 各 unit 校对区 */}
+            <div className="p-6 space-y-4">
+              {previewUnits.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  AI 没识别出任何 unit (可能是封面/目录页),请重新上传含词汇内容的 PDF 页
+                </div>
+              ) : (
+                previewUnits.map((unit, idx) => (
+                  <div key={idx} className="border rounded-lg p-4 bg-amber-50 border-amber-200">
+                    {/* Unit header */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <label className="text-sm font-medium text-gray-700">Unit #</label>
+                      <input
+                        type="number"
+                        min={0} max={99}
+                        value={unit.unit_number}
+                        onChange={(e) => updateUnitField(idx, 'unit_number', parseInt(e.target.value) || 0)}
+                        className="w-16 px-2 py-1 border rounded text-sm"
+                      />
+                      <label className="text-sm font-medium text-gray-700">Title</label>
+                      <input
+                        type="text"
+                        value={unit.unit_title || ''}
+                        onChange={(e) => updateUnitField(idx, 'unit_title', e.target.value)}
+                        className="flex-1 px-2 py-1 border rounded text-sm"
+                      />
+                      <button
+                        onClick={() => removeUnit(idx)}
+                        className="px-2 py-1 text-xs text-red-600 border border-red-300 rounded hover:bg-red-50 flex items-center gap-1"
+                      >
+                        <Trash2 size={12} /> 删除此 unit
+                      </button>
+                    </div>
+
+                    {/* Vocab */}
+                    <div className="mb-2">
+                      <div className="text-xs font-medium text-gray-700 mb-1">📚 词汇 ({(unit.vocab || []).length})</div>
+                      <div className="space-y-1">
+                        {(unit.vocab || []).map((v, vi) => (
+                          <div key={vi} className="flex items-center gap-2 bg-white px-2 py-1 rounded text-sm">
+                            <input
+                              type="checkbox"
+                              checked={v.is_core || false}
+                              onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, vocab: u.vocab.map((vv,j) => j===vi ? {...vv, is_core: e.target.checked} : vv)} : u))}
+                              className="w-3 h-3"
+                              title="核心词汇"
+                            />
+                            <input
+                              type="text"
+                              value={v.word}
+                              onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, vocab: u.vocab.map((vv,j) => j===vi ? {...vv, word: e.target.value} : vv)} : u))}
+                              className="flex-1 px-1 py-0.5 border rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={v.translation || ''}
+                              placeholder="翻译"
+                              onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, vocab: u.vocab.map((vv,j) => j===vi ? {...vv, translation: e.target.value} : vv)} : u))}
+                              className="w-24 px-1 py-0.5 border rounded text-sm"
+                            />
+                            <button
+                              onClick={() => removeVocab(idx, vi)}
+                              className="text-red-500 hover:bg-red-100 px-1 rounded text-xs"
+                            >×</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Patterns */}
+                    {(unit.patterns || []).length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-xs font-medium text-gray-700 mb-1">💬 句型 ({(unit.patterns || []).length})</div>
+                        <div className="space-y-1">
+                          {(unit.patterns || []).map((p, pi) => (
+                            <div key={pi} className="flex items-center gap-2 bg-white px-2 py-1 rounded text-sm">
+                              <input
+                                type="text"
+                                value={p.pattern}
+                                onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, patterns: u.patterns.map((pp,j) => j===pi ? {...pp, pattern: e.target.value} : pp)} : u))}
+                                className="flex-1 px-1 py-0.5 border rounded text-sm"
+                              />
+                              <input
+                                type="text"
+                                value={p.translation || ''}
+                                placeholder="翻译"
+                                onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, patterns: u.patterns.map((pp,j) => j===pi ? {...pp, translation: e.target.value} : pp)} : u))}
+                                className="w-32 px-1 py-0.5 border rounded text-sm"
+                              />
+                              <button
+                                onClick={() => removePattern(idx, pi)}
+                                className="text-red-500 hover:bg-red-100 px-1 rounded text-xs"
+                              >×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Grammar */}
+                    {(unit.grammar || []).length > 0 && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-700 mb-1">📐 语法 ({(unit.grammar || []).length})</div>
+                        <div className="space-y-1">
+                          {(unit.grammar || []).map((g, gi) => (
+                            <div key={gi} className="flex items-center gap-2 bg-white px-2 py-1 rounded text-sm">
+                              <input
+                                type="text"
+                                value={g.point}
+                                onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, grammar: u.grammar.map((gg,j) => j===gi ? {...gg, point: e.target.value} : gg)} : u))}
+                                className="flex-1 px-1 py-0.5 border rounded text-sm"
+                              />
+                              <input
+                                type="text"
+                                value={g.example || ''}
+                                placeholder="例句"
+                                onChange={(e) => setPreviewUnits(prev => prev.map((u,i) => i===idx ? {...u, grammar: u.grammar.map((gg,j) => j===gi ? {...gg, example: e.target.value} : gg)} : u))}
+                                className="w-48 px-1 py-0.5 border rounded text-sm"
+                              />
+                              <button
+                                onClick={() => removeGrammar(idx, gi)}
+                                className="text-red-500 hover:bg-red-100 px-1 rounded text-xs"
+                              >×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between gap-3">
+              <div className="text-sm text-gray-500">
+                共 {previewUnits.length} 个 unit,可继续编辑或删除
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowReviewModal(false); setPreviewUnits(null); }}
+                  className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
+                  disabled={committing}
+                >取消 (不保存)</button>
+                <button
+                  onClick={handleCommitUnits}
+                  disabled={committing || previewUnits.length === 0}
+                  className="px-4 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {committing ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                  {committing ? '保存中...' : '✅ 确认保存到数据库'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
