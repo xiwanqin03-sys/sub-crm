@@ -586,13 +586,13 @@ textbooks.post('/extract/:code/:num', async (c) => {
 // 限流时自动 fallback 到 glm-4v (付费,但稳定)
 // ============================================================
 async function callLLMWithImages(c, imageFiles, opts = {}) {
-  const baseUrl = c.env.LLM_BASE_URL || 'https://api.z.ai/api/paas/v4';
+  const baseUrl = c.env.LLM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
   const apiKey = c.env.LLM_API_KEY;
-  const model = c.env.LLM_MODEL || 'glm-4.6v-flash';
-  // 限流时的 fallback 模型列表 (z.ai 平台上的视觉模型)
-  // glm-4.6v 付费版,glm-4.6v-flash 免费版但限流
-  // glm-4v/z.ai 不存在;glm-4.5/glm-4.6 不支持图片输入,不要加
-  const fallbackModels = ['glm-4.6v-flash', 'glm-4.6v'];
+  const model = c.env.LLM_MODEL || 'google/gemma-3n-e4b-it';
+  // 限流时的 fallback 模型列表 (NVIDIA NIM 上可用的视觉模型)
+  // gemma-3n-e4b-it: Gemma 3n 视觉版,质量高
+  // llama-3.2-11b-vision / 90b-vision: Llama 视觉版,准确度更高但慢
+  const fallbackModels = ['google/gemma-3n-e4b-it', 'meta/llama-3.2-11b-vision-instruct', 'meta/llama-3.2-90b-vision-instruct'];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
@@ -679,11 +679,10 @@ Rules:
     const resp = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: prompt }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: opts.bookMode ? 4096 : 2048 })
+      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: prompt }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: opts.bookMode ? 8192 : 4096 })
     });
     return resp;
   }
-
   // 按优先级尝试所有模型,429 限流就 fallback
   const modelsToTry = [model, ...fallbackModels.filter(m => m !== model)];
   let lastError = '';

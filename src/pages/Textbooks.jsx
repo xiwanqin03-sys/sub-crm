@@ -136,7 +136,7 @@ export default function Textbooks() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [batchStart, setBatchStart] = useState(0);  // 当前批次的起始页码 (0=第一页)
-  const BATCH_SIZE = 8;  // z.ai GLM-4.6V 一次最多处理 8 页图片
+  const BATCH_SIZE = 5;  // NIM gemma-3n 单次最多稳定处理 5 页图片 (8 页会 503 超时)
   const [totalPages, setTotalPages] = useState(0);  // 整本书总页数
 
   // 当前批次的图片 (computed from renderedImages + batchStart)
