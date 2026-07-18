@@ -582,12 +582,14 @@ textbooks.post('/extract/:code/:num', async (c) => {
 
 // ============================================================
 // Vision LLM: 用图片直接读
-// 模型: meta/llama-3.2-90b-vision-instruct (NVIDIA NIM) 或 glm-4v (智谱)
-// ============================================================
+// 默认 glm-4.6v-flash (免费视觉模型,有限流)
+// 限流时自动 fallback 到 glm-4v (付费,但稳定)
 async function callLLMWithImages(c, imageFiles) {
-  const baseUrl = c.env.LLM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
+  const baseUrl = c.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
   const apiKey = c.env.LLM_API_KEY;
-  const model = c.env.LLM_MODEL || 'meta/llama-3.2-90b-vision-instruct';
+  const model = c.env.LLM_MODEL || 'glm-4.6v-flash';
+  // 免费限流时的 fallback 模型列表
+  const fallbackModels = ['glm-4v', 'glm-4.6v'];
 
   if (!apiKey) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
@@ -613,7 +615,7 @@ async function callLLMWithImages(c, imageFiles) {
   const imageContents = [];
   for (let i = 0; i < imageFiles.length; i++) {
     const f = imageFiles[i];
-    if (i >= 8) break;  // 最多 8 页,避免超出 token 限制
+    if (i >= 8) break;
     const buf = await f.arrayBuffer();
     const b64 = arrayBufferToBase64(buf);
     const mime = f.type || 'image/png';
@@ -623,43 +625,60 @@ async function callLLMWithImages(c, imageFiles) {
     });
   }
 
-  // 拼成多模态 content
   const userContent = [
     { type: 'text', text: `Please extract vocabulary, sentence patterns, and grammar from these textbook page images (${imageFiles.length} pages).` },
     ...imageContents
   ];
 
-  const resp = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: EXTRACTION_PROMPT },
-        { role: 'user', content: userContent }
-      ],
-      temperature: 0.1,
-      max_tokens: 2048
-    })
-  });
+  async function tryCall(m) {
+    const resp = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: m, messages: [{ role: 'system', content: EXTRACTION_PROMPT }, { role: 'user', content: userContent }], temperature: 0.1, max_tokens: 2048 })
+    });
+    return resp;
+  }
 
-  if (!resp.ok) {
+  // 按优先级尝试所有模型,429 限流就 fallback
+  const modelsToTry = [model, ...fallbackModels.filter(m => m !== model)];
+  let lastError = '';
+  for (const m of modelsToTry) {
+    let resp;
+    try { resp = await tryCall(m); } catch (err) { lastError = err.message; continue; }
+
+    if (resp.ok) {
+      const data = await resp.json();
+      let raw = data.choices?.[0]?.message?.content || '';
+      raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+      try { return JSON.parse(raw); }
+      catch { return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500), _model: m }; }
+    }
+
+    if (resp.status === 429) {
+      // 限流 → 重试 + fallback
+      await new Promise(r => setTimeout(r, 3000));
+      try { resp = await tryCall(m); } catch (err) { lastError = err.message; continue; }
+      if (resp.ok) {
+        const data = await resp.json();
+        let raw = data.choices?.[0]?.message?.content || '';
+        raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+        try { return JSON.parse(raw); }
+        catch { return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500), _model: m }; }
+      }
+      if (resp.status === 429) {
+        // 当前模型限流,换下一个
+        lastError = `${m} 限流(429)`;
+        continue;
+      }
+    }
+
+    // 非限流错误 → 报告并 fallback
     const errText = await resp.text();
-    throw new Error(`LLM API error ${resp.status}: ${errText.substring(0, 200)}`);
+    lastError = `LLM API ${resp.status} ${m}: ${errText.substring(0, 100)}`;
+    // 但模型不存在之类的错误(404) 就跳到 fallback
   }
 
-  const data = await resp.json();
-  let raw = data.choices?.[0]?.message?.content || '';
-  raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500) };
-  }
+  throw new Error(`所有模型都失败: ${lastError}`);
 }
 
 export default textbooks;
