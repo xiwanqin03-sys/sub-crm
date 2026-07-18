@@ -319,8 +319,8 @@ async function callLLM(c, textContent) {
   }
 }
 
-// 从 PDF ArrayBuffer 提取文字 (简单方案:用多模态 LLM 直接读 PDF base64)
-// gpt-4o / claude-3.5 都支持 PDF input via base64
+// 从 PDF ArrayBuffer 提取文字 (用 unpdf,Workers 兼容)
+// 然后把文字喂给 LLM 做结构化提取
 async function callLLMWithPDF(c, pdfBuffer, filename) {
   const baseUrl = c.env.LLM_BASE_URL || 'https://api.openai.com/v1';
   const apiKey = c.env.LLM_API_KEY;
@@ -330,10 +330,17 @@ async function callLLMWithPDF(c, pdfBuffer, filename) {
     throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
   }
 
-  // 转 base64
-  const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
-  const dataUrl = `data:application/pdf;base64,${pdfBase64}`;
+  // 1. unpdf 提取文字
+  const { extractText, getDocumentProxy } = await import('unpdf');
+  const pdfBytes = new Uint8Array(pdfBuffer);
+  const pdf = await getDocumentProxy(pdfBytes);
+  const { text: pdfText } = await extractText(pdf, { mergePages: true });
 
+  if (!pdfText || pdfText.trim().length === 0) {
+    throw new Error('PDF 提取不到文字 (可能是扫描版 PDF,需要 OCR)');
+  }
+
+  // 2. 调 LLM
   const resp = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -344,13 +351,7 @@ async function callLLMWithPDF(c, pdfBuffer, filename) {
       model,
       messages: [
         { role: 'system', content: EXTRACTION_PROMPT },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: `Please extract vocabulary, patterns, and grammar from this textbook PDF (${filename}).` },
-            { type: 'file', file: { filename, file_data: dataUrl } }
-          ]
-        }
+        { role: 'user', content: `Here is the textbook unit content (extracted from PDF ${filename}):\n\n${pdfText}` }
       ],
       temperature: 0.1,
       max_tokens: 4096
