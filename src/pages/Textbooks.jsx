@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Book, FileText, Upload, Sparkles, Loader, CheckCircle, XCircle, Trash2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Book, FileText, Upload, Sparkles, Loader, CheckCircle, XCircle, Trash2, ChevronRight, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import { request } from '../store/api';
+import * as pdfjsLib from 'pdfjs-dist';
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export default function Textbooks() {
   const [books, setBooks] = useState([]);
@@ -49,14 +53,56 @@ export default function Textbooks() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
-  // 触发上传 + LLM 提取 (预览,不保存)
+  // 浏览器端 PDF 转图片 (PDF.js render 到 canvas,导出 PNG blob)
+  const [renderedImages, setRenderedImages] = useState([]);  // [{blob, url}]
+  const [rendering, setRendering] = useState(false);
+  const [renderError, setRenderError] = useState('');
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRenderedImages([]); setRenderError(''); setRenderError('');
+    setExtractResult(null); setExtractError('');
+
+    if (!file.type.includes('pdf')) {
+      // 非PDF,直接当图片用
+      setRenderedImages([{ blob: file, url: URL.createObjectURL(file) }]);
+      return;
+    }
+
+    // PDF → 用 pdfjs 渲染每页为 PNG
+    setRendering(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const images = [];
+      const maxPages = Math.min(pdf.numPages, 8);  // 最多 8 页
+      for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });  // 1.5x 缩放,平衡清晰度和大小
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.85));
+        images.push({ blob, url: URL.createObjectURL(blob) });
+      }
+      setRenderedImages(images);
+      if (pdf.numPages > 8) setRenderError(`PDF 有 ${pdf.numPages} 页,只处理前 8 页`);
+    } catch (err) {
+      setRenderError('PDF 渲染失败: ' + err.message);
+    }
+    setRendering(false);
+  };
+
+  // 触发上传图片 + LLM 提取 (预览,不保存)
   const handleExtractPreview = async () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) { alert('请先选择 PDF 文件'); return; }
+    if (renderedImages.length === 0) { alert('请先选择 PDF 文件并等待转换为图片'); return; }
     setExtracting(true); setExtractError(''); setExtractResult(null);
     try {
       const fd = new FormData();
-      fd.append('pdf', file);
+      renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${i+1}.png`));
       const url = `/textbooks/extract/${selectedBook.code}/${selectedUnit.unit_number}`;
       const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1${url}`, {
         method: 'POST',
@@ -176,17 +222,35 @@ export default function Textbooks() {
           <Sparkles size={18} className="text-purple-600" /> AI 提取 (PDF → 词汇/句型/语法)
         </div>
         <div className="flex items-center gap-3 mb-3">
-          <input type="file" accept=".pdf" ref={fileInputRef} className="text-sm" />
+          <input
+            type="file"
+            accept=".pdf,image/*"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="text-sm"
+          />
           <button
             onClick={handleExtractPreview}
-            disabled={extracting}
+            disabled={extracting || rendering || renderedImages.length === 0}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm flex items-center gap-2"
           >
             {extracting ? <Loader className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            {extracting ? '提取中... (可能需要 10-30 秒)' : '🤖 AI 提取并保存'}
+            {extracting ? 'AI 识别中... (10-30 秒)' : '🤖 AI 提取并保存'}
           </button>
         </div>
-        <p className="text-xs text-gray-500">上传 PDF → 自动调用 LLM 分析 → 写入数据库 (R2 备份 PDF)</p>
+        <p className="text-xs text-gray-500 mb-2">PDF 先在浏览器内渲染为图片,再发送给视觉 AI 识别。支持扫描版 PDF。</p>
+        {renderError && <div className="mt-2 text-sm text-amber-600">⚠️ {renderError}</div>}
+        {rendering && <div className="mt-2 text-sm text-gray-500 flex items-center gap-2"><Loader size={14} className="animate-spin" /> 正在把 PDF 转图片...</div>}
+        {renderedImages.length > 0 && (
+          <div className="mt-3 p-3 bg-gray-50 rounded grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {renderedImages.map((img, i) => (
+              <div key={i} className="relative">
+                <img src={img.url} alt={`page ${i+1}`} className="w-full h-auto rounded border" style={{maxHeight: '120px', objectFit: 'contain', backgroundColor: '#fff'}} />
+                <span className="text-xs text-gray-600 absolute top-1 left-1 bg-white/80 px-1 rounded">P{i+1}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {extractError && <div className="mt-2 text-sm text-red-600">❌ {extractError}</div>}
       </div>
 

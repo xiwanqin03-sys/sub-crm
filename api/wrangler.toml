@@ -10,9 +10,11 @@ workers_dev = true
 API_VERSION = "v1"
 DEBUG = "false"
 RESEND_API_KEY = "re_7ZfLM9p9_27LogrTCeuFi37jHdPDKhNEV"
-# LLM 配置 (OpenAI 兼容,切换提供商只改这三个)
+# LLM 配置 (OpenAI 兼容)
+# 当前用智谱 GLM-4V (视觉模型,能直接读扫描版 PDF 的图片)
+# 文字版教材可改用 glm-4.7-flash,扫描版必须用 glm-4v (支持 image_url 多模态输入)
 LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
-LLM_MODEL = "GLM-4.7-Flash"
+LLM_MODEL = "glm-4v"
 # LLM_API_KEY 用 wrangler secret 配置,不放这里
 
 # D1 数据库配置

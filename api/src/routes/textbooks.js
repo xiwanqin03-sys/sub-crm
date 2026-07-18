@@ -354,7 +354,7 @@ async function callLLMWithPDF(c, pdfBuffer, filename) {
         { role: 'user', content: `Here is the textbook unit content (extracted from PDF ${filename}):\n\n${pdfText}` }
       ],
       temperature: 0.1,
-      max_tokens: 4096
+      max_tokens: 2048
     })
   });
 
@@ -458,29 +458,50 @@ textbooks.delete('/pdf/:key', async (c) => {
 });
 
 // ============================================================
-// POST /extract — 上传 PDF → 调 LLM → 返回 JSON (不存库)
+// POST /extract — 上传图片(可多张) → 调 vision LLM → 返回 JSON (不存库)
 // 用途: Admin 页面"预览提取结果"按钮
+// Form fields: images[] (FileList,1-8张) 可选 textbook_code unit_number
 // ============================================================
 textbooks.post('/extract', async (c) => {
-  const R2 = c.env.TEXTBOOKS_R2;
-  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
-
   const formData = await c.req.formData();
-  const file = formData.get('pdf');
-  if (!file) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing pdf' } }, 400);
 
+  // 收集所有 images[] 文件
+  const images = formData.getAll('images').filter(f => f && f.name);
+
+  if (images.length === 0) {
+    // 兼容: 也许传的是 pdf 字段? Workers 端 unpdf 解析试一下
+    const pdf = formData.get('pdf');
+    if (!pdf) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[] or pdf' } }, 400);
+
+    // fallback unpdf 文字提取
+    try {
+      const arrayBuffer = await pdf.arrayBuffer();
+      const { extractText, getDocumentProxy } = await import('unpdf');
+      const pdfBytes = new Uint8Array(arrayBuffer);
+      const pdfDoc = await getDocumentProxy(pdfBytes);
+      const { text: pdfText } = await extractText(pdfDoc, { mergePages: true });
+      if (pdfText && pdfText.trim().length > 0) {
+        const result = await callLLM(c, pdfText);
+        return c.json({ data: result, _method: 'unpdf' });
+      }
+      return c.json({ error: { code: 'NO_TEXT', message: 'PDF 提取不到文字 (可能是扫描版,需用浏览器先转图片后上传)' } }, 400);
+    } catch (err) {
+      return c.json({ error: { code: 'UNPDF_ERROR', message: err.message } }, 500);
+    }
+  }
+
+  // 有图片 → 调 vision LLM
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await callLLMWithPDF(c, arrayBuffer, file.name || 'upload.pdf');
-    return c.json({ data: result });
+    const result = await callLLMWithImages(c, images);
+    return c.json({ data: result, _method: 'vision' });
   } catch (err) {
     return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
   }
 });
 
 // ============================================================
-// POST /extract/:code/:num — 上传 PDF → R2 + LLM 提取 + 写入 unit_content
-// 用途: Admin 页面"提取并保存"按钮
+// POST /extract/:code/:num — 上传图片 → R2 备份 + vision LLM 提取 + 写入 unit_content
+// 用途: Admin 页面"AI 提取并保存"按钮 (扫描版 PDF 转图片后)
 // ============================================================
 textbooks.post('/extract/:code/:num', async (c) => {
   const R2 = c.env.TEXTBOOKS_R2;
@@ -488,7 +509,9 @@ textbooks.post('/extract/:code/:num', async (c) => {
   const code = c.req.param('code');
   const num = parseInt(c.req.param('num'));
 
-  if (!R2) return c.json({ error: { code: 'R2_NOT_BOUND' } }, 500);
+  const formData = await c.req.formData();
+  const images = formData.getAll('images').filter(f => f && f.name);
+  const pdf = formData.get('pdf');  // 也允许多传 PDF 原文件 (备份用)
 
   // 查 unit_id
   const unit = await DB.prepare(`
@@ -496,53 +519,147 @@ textbooks.post('/extract/:code/:num', async (c) => {
   `).bind(code, num).first();
   if (!unit) return c.json({ error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
 
-  const formData = await c.req.formData();
-  const file = formData.get('pdf');
-  if (!file) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing pdf' } }, 400);
-
+  let content;
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const filename = file.name || `Unit${num}.pdf`;
-
-    // 1. 上传到 R2
-    const r2Key = `${code}/Unit${num}_${filename}`;
-    await R2.put(r2Key, arrayBuffer, {
-      httpMetadata: { contentType: 'application/pdf' }
-    });
-
-    // 2. 调 LLM 提取
-    const content = await callLLMWithPDF(c, arrayBuffer, filename);
-
-    // 3. 写入 unit_content
-    const vocab = JSON.stringify(content.vocab || []);
-    const patterns = JSON.stringify(content.patterns || []);
-    const grammar = JSON.stringify(content.grammar || []);
-
-    const existing = await DB.prepare('SELECT id FROM unit_content WHERE unit_id = ?').bind(unit.id).first();
-    if (existing) {
-      await DB.prepare(`
-        UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now')
-        WHERE unit_id = ?
-      `).bind(vocab, patterns, grammar, unit.id).run();
-    } else {
-      await DB.prepare(`
-        INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))
-      `).bind(unit.id, code, num, vocab, patterns, grammar).run();
-    }
-
-    return c.json({
-      data: {
-        textbook_code: code,
-        unit_number: num,
-        r2_key: r2Key,
-        content,
-        saved: true
+    if (images.length > 0) {
+      content = await callLLMWithImages(c, images);
+    } else if (pdf) {
+      // 无图但只有 PDF → unpdf 尝试文字提取
+      const arrayBuffer = await pdf.arrayBuffer();
+      const { extractText, getDocumentProxy } = await import('unpdf');
+      const pdfBytes = new Uint8Array(arrayBuffer);
+      const pdfDoc = await getDocumentProxy(pdfBytes);
+      const { text: pdfText } = await extractText(pdfDoc, { mergePages: true });
+      if (!pdfText || pdfText.trim().length === 0) {
+        return c.json({ error: { code: 'NO_TEXT', message: 'PDF 提取不到文字 (扫描版?). 请在前端把 PDF 转图片后再上传' } }, 400);
       }
-    });
+      content = await callLLM(c, pdfText);
+    } else {
+      return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[] or pdf' } }, 400);
+    }
   } catch (err) {
     return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
   }
+
+  // 上传到 R2 (有 PDF 就存 PDF,否则存第一张图)
+  let r2Key = '';
+  if (pdf) {
+    r2Key = `${code}/Unit${num}_${pdf.name}`;
+    await R2.put(r2Key, await pdf.arrayBuffer(), { httpMetadata: { contentType: 'application/pdf' } });
+  } else if (images.length > 0 && R2) {
+    r2Key = `${code}/Unit${num}_${images[0].name}`;
+    await R2.put(r2Key, await images[0].arrayBuffer(), { httpMetadata: { contentType: images[0].type } });
+  }
+
+  // 写入 unit_content
+  const vocab = JSON.stringify(content.vocab || []);
+  const patterns = JSON.stringify(content.patterns || []);
+  const grammar = JSON.stringify(content.grammar || []);
+
+  const existing = await DB.prepare('SELECT id FROM unit_content WHERE unit_id = ?').bind(unit.id).first();
+  if (existing) {
+    await DB.prepare(`
+      UPDATE unit_content SET vocab = ?, patterns = ?, grammar = ?, extracted_by = 'llm', extracted_at = datetime('now'), updated_at = datetime('now')
+      WHERE unit_id = ?
+    `).bind(vocab, patterns, grammar, unit.id).run();
+  } else {
+    await DB.prepare(`
+      INSERT INTO unit_content (unit_id, textbook_code, unit_number, vocab, patterns, grammar, extracted_by, extracted_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))
+    `).bind(unit.id, code, num, vocab, patterns, grammar).run();
+  }
+
+  return c.json({
+    data: {
+      textbook_code: code,
+      unit_number: num,
+      r2_key: r2Key,
+      content,
+      saved: true
+    }
+  });
 });
+
+// ============================================================
+// Vision LLM: 用图片直接读
+// 模型: meta/llama-3.2-90b-vision-instruct (NVIDIA NIM) 或 glm-4v (智谱)
+// ============================================================
+async function callLLMWithImages(c, imageFiles) {
+  const baseUrl = c.env.LLM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
+  const apiKey = c.env.LLM_API_KEY;
+  const model = c.env.LLM_MODEL || 'meta/llama-3.2-90b-vision-instruct';
+
+  if (!apiKey) {
+    throw new Error('LLM_API_KEY not configured. Run: wrangler secret put LLM_API_KEY');
+  }
+
+  // 把所有图片转 base64 (用 FileReader-like 方式)
+  // Workers 里没有 FileReader,但可以用 btoa + Uint8Array 的 chunk
+  function arrayBufferToBase64(buf) {
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const CHUNK = 0x1000;  // 4KB chunk,远小于 fromCharCode.apply 安全上限
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      const end = Math.min(i + CHUNK, bytes.length);
+      let s = '';
+      for (let j = i; j < end; j++) {
+        s += String.fromCharCode(bytes[j]);
+      }
+      binary += s;
+    }
+    return btoa(binary);
+  }
+
+  const imageContents = [];
+  for (let i = 0; i < imageFiles.length; i++) {
+    const f = imageFiles[i];
+    if (i >= 8) break;  // 最多 8 页,避免超出 token 限制
+    const buf = await f.arrayBuffer();
+    const b64 = arrayBufferToBase64(buf);
+    const mime = f.type || 'image/png';
+    imageContents.push({
+      type: 'image_url',
+      image_url: { url: `data:${mime};base64,${b64}` }
+    });
+  }
+
+  // 拼成多模态 content
+  const userContent = [
+    { type: 'text', text: `Please extract vocabulary, sentence patterns, and grammar from these textbook page images (${imageFiles.length} pages).` },
+    ...imageContents
+  ];
+
+  const resp = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: EXTRACTION_PROMPT },
+        { role: 'user', content: userContent }
+      ],
+      temperature: 0.1,
+      max_tokens: 2048
+    })
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`LLM API error ${resp.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  let raw = data.choices?.[0]?.message?.content || '';
+  raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { vocab: [], patterns: [], grammar: [], _raw: raw.substring(0, 500) };
+  }
+}
 
 export default textbooks;
