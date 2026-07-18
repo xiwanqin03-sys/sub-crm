@@ -76,10 +76,15 @@ export default function Textbooks() {
 
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const maxPages = Math.min(pdf.numPages, bookMode ? 20 : 8);
+      setTotalPages(pdf.numPages);
+
+      // 整本书模式按批次渲染 (batchStart..batchStart+BATCH_SIZE),单 unit 模式渲染前 8 页
+      const startPage = bookMode ? (batchStart + 1) : 1;
+      const maxPages = bookMode ? Math.min(BATCH_SIZE, pdf.numPages - batchStart) : Math.min(8, pdf.numPages);
       const images = [];
-      for (let i = 1; i <= maxPages; i++) {
-        const page = await pdf.getPage(i);
+      for (let i = 0; i < maxPages; i++) {
+        const pageNum = startPage + i;
+        const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
@@ -90,7 +95,9 @@ export default function Textbooks() {
         images.push({ blob, url: URL.createObjectURL(blob) });
       }
       setRenderedImages(images);
-      if (pdf.numPages > 8) setRenderError(`PDF 有 ${pdf.numPages} 页,只处理前 8 页`);
+      if (bookMode && pdf.numPages > batchStart + BATCH_SIZE) {
+        setRenderError(`当前批次: 第 ${batchStart+1}-${batchStart + images.length} 页 (共 ${pdf.numPages} 页). 还剩 ${pdf.numPages - batchStart - images.length} 页未处理`);
+      }
     } catch (err) {
       setRenderError('PDF 渲染失败: ' + err.message);
       console.error('PDF render error:', err);
@@ -120,16 +127,25 @@ export default function Textbooks() {
 
   // 整本书模式: 上传前20页图片 → AI 自动分单元 → 先返回预览 (不写库)
   // 用户在前端校对后再点 "确认保存" 调 commit-units 才写库
-  const [previewUnits, setPreviewUnits] = useState(null);  // AI 识别出的 unit array
+  // 支持分批: 每批 20 页,AI 识别后追加到 accumulatedUnits
+  // 最后一次性 commit 全部
+  const [previewUnits, setPreviewUnits] = useState(null);  // 当前批次的 AI 识别结果
+  const [accumulatedUnits, setAccumulatedUnits] = useState([]);  // 已校对、累积的 unit (跨批次)
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [batchStart, setBatchStart] = useState(0);  // 当前批次的起始页码 (0=第一页)
+  const BATCH_SIZE = 20;
+  const [totalPages, setTotalPages] = useState(0);  // 整本书总页数
+
+  // 当前批次的图片 (computed from renderedImages + batchStart)
+  // 我们让 PDF.js 渲染当前 batch 的 20 页,而不是整本一次性
 
   const handleExtractBook = async () => {
     if (renderedImages.length === 0) { alert('请先选择 PDF 并等待渲染'); return; }
     setExtracting(true); setExtractError(''); setPreviewUnits(null);
     try {
       const fd = new FormData();
-      renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${i+1}.png`));
+      renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${batchStart + i + 1}.png`));
       const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/preview-book/${selectedBook.code}`, {
         method: 'POST',
         headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' },
@@ -146,22 +162,59 @@ export default function Textbooks() {
     setExtracting(false);
   };
 
-  // 用户校对完点 "确认保存" → 写入 D1
-  const handleCommitUnits = async () => {
-    if (!previewUnits || previewUnits.length === 0) { alert('没有可保存的内容'); return; }
+  // 把当前批次的 previewUnits 追加到 accumulatedUnits (校对完点"确认这批,处理下一批")
+  const handleAppendBatch = () => {
+    if (!previewUnits || previewUnits.length === 0) {
+      alert('本批没有任何识别结果,直接跳到下一批');
+      setShowReviewModal(false);
+      setPreviewUnits(null);
+      // 自动切到下一批
+      handleNextBatch();
+      return;
+    }
+    setAccumulatedUnits(prev => [...prev, ...previewUnits]);
+    setShowReviewModal(false);
+    setPreviewUnits(null);
+    // 自动切到下一批
+    setTimeout(() => handleNextBatch(), 100);
+  };
+
+  // 翻到下一批 (重新渲染页 21-40 / 41-60 ...)
+  const handleNextBatch = async () => {
+    const nextStart = batchStart + BATCH_SIZE;
+    if (nextStart >= totalPages) {
+      alert('🎉 已经处理完整本书所有页!\n累积 ' + accumulatedUnits.length + ' 个 unit,请点页面上的 "全部保存到数据库" 按钮');
+      return;
+    }
+    setBatchStart(nextStart);
+    // 重新调用 handleFileChange 让 PDF.js 渲染下一批
+    // (这里简化用 PDF.js 直接渲染 — 用户点 "AI 识别下一批" 按钮触发)
+    alert('已切换到第 ' + (nextStart + 1) + ' 页起的下一批. 请点 "🤖 识别下一批" 继续');
+  };
+
+  // 一次性把累积的所有 unit 写入 D1
+  const handleCommitAll = async () => {
+    if (accumulatedUnits.length === 0 && (!previewUnits || previewUnits.length === 0)) {
+      alert('还没有任何已校对的内容,请先 AI 识别并确认各批内容');
+      return;
+    }
+    const allUnits = [...accumulatedUnits];
+    if (previewUnits && previewUnits.length > 0) allUnits.push(...previewUnits);
     setCommitting(true);
     try {
       const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/commit-units/${selectedBook.code}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
-        body: JSON.stringify({ units: previewUnits })
+        body: JSON.stringify({ units: allUnits })
       });
       const resp = await r.json();
       if (resp.data) {
         const d = resp.data;
-        alert(`✅ 已保存!\n识别 ${d.units_received} 个 unit → 写入 ${d.units_written} 个:\n${(d.written || []).map(w => `  Unit ${w.unit_number} (${w.unit_title||''}): ${w.vocab_count} 词, ${w.patterns_count} 句型`).join('\n')}`);
+        alert(`✅ 已保存!\n识别 ${d.units_received} 个 unit → 写入 ${d.units_written} 个:\n${(d.written || []).map(w => `  Unit ${w.unit_number} (${w.unit_title||''}): ${w.vocab_count} 词, ${w.patterns_count} 句型`).join('\n')}\n\n跳过 ${d.units_skipped?.length || 0} 个`);
         setShowReviewModal(false);
         setPreviewUnits(null);
+        setAccumulatedUnits([]);
+        setBatchStart(0);
         openBook(selectedBook.code);
         setSelectedUnit(null);
       } else {
@@ -187,6 +240,11 @@ export default function Textbooks() {
   const removeUnit = (idx) => {
     if (!confirm('删除此单元全部内容?')) return;
     setPreviewUnits(prev => prev.filter((_, i) => i !== idx));
+  };
+  // 删除累积数组里的 unit (已校对的)
+  const removeAccumulatedUnit = (idx) => {
+    if (!confirm('从已校对累积列表里删除此 unit?')) return;
+    setAccumulatedUnits(prev => prev.filter((_, i) => i !== idx));
   };
 
   // 保存提取结果到 D1 (用 extract 返回的已存的内容, 或者用校对后的)
@@ -289,13 +347,13 @@ export default function Textbooks() {
         </div>
       )}
 
-      {/* PDF 上传 + 提取 (含单 unit + 整本书 两种模式) */}
+      {/* PDF 上传 + 提取 (含单 unit + 整本书两种模式, 整本书支持分批) */}
       <div className="border-2 border-dashed rounded-lg p-6 mb-6">
         <div className="font-medium text-gray-700 mb-3 flex items-center gap-2">
           <Sparkles size={18} className="text-purple-600" /> AI 提取
           <span className="text-xs text-gray-500 ml-2">
-            模式: <span className="font-medium">{bookMode ? '📚 整本书 (自动分单元)' : '📄 当前 Unit'}</span>
-            <button onClick={() => setBookMode(!bookMode)} className="ml-2 text-primary-600 underline">
+            模式: <span className="font-medium">{bookMode ? '📚 整本书 (自动分单元,分批处理)' : '📄 当前 Unit'}</span>
+            <button onClick={() => { setBookMode(!bookMode); setBatchStart(0); setAccumulatedUnits([]); }} className="ml-2 text-primary-600 underline">
               切换到 {bookMode ? '单 unit' : '整本书'} 模式
             </button>
           </span>
@@ -314,14 +372,46 @@ export default function Textbooks() {
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm flex items-center gap-2"
           >
             {extracting ? <Loader className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            {extracting ? 'AI 识别中... (10-60 秒)' : bookMode ? '🤖 整本书识别并写入所有 unit' : '🤖 AI 提取并保存'}
+            {extracting ? 'AI 识别中... (10-60 秒)' : bookMode ? `🤖 识别第 ${batchStart+1}-${batchStart + (renderedImages.length||BATCH_SIZE)} 页` : '🤖 AI 提取并保存'}
           </button>
+          {/* 整本书模式: 已累积 unit 数 + 全部保存按钮 */}
+          {bookMode && accumulatedUnits.length > 0 && (
+            <button
+              onClick={handleCommitAll}
+              disabled={committing}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-2"
+            >
+              {committing ? <Loader className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+              {committing ? '保存中...' : `✅ 全部保存 ${accumulatedUnits.length} 个 unit 到数据库`}
+            </button>
+          )}
         </div>
         <p className="text-xs text-gray-500 mb-2">
           {bookMode
-            ? '整本书模式: 上传整本书 PDF → 浏览器渲染前 20 页 → AI 自动识别每个 unit 的内容 → 全部写入数据库对应 unit'
+            ? `整本书模式: 每次处理 ${BATCH_SIZE} 页 → AI 识别 → 校对后点"确认这批"累积到列表 → 切下一批继续 → 全部完成后点"全部保存"一次性写入数据库`
             : '单 Unit 模式: 上传 PDF → 浏览器渲染每页 → AI 提取词汇/句型/语法 → 仅写入当前选定的 unit'}
         </p>
+        {/* 整本书模式: 进度条 */}
+        {bookMode && totalPages > 0 && (
+          <div className="mb-2 text-xs text-gray-600">
+            📖 进度: 第 {batchStart + 1}-{Math.min(batchStart + BATCH_SIZE, totalPages)} 页 / 共 {totalPages} 页
+            <span className="ml-2">已完成 {accumulatedUnits.length} 个 unit 校对</span>
+          </div>
+        )}
+        {/* 已累积的 unit 列表 (折叠显示) */}
+        {bookMode && accumulatedUnits.length > 0 && (
+          <div className="mt-3 p-3 bg-green-50 border rounded">
+            <div className="font-medium text-sm text-green-700 mb-2">✅ 已校对的 {accumulatedUnits.length} 个 unit (待全部完成才写入库)</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {accumulatedUnits.map((u, i) => (
+                <div key={i} className="text-xs bg-white px-2 py-1 border rounded flex items-center justify-between">
+                  <span>Unit {u.unit_number}: {u.unit_title || '?'} ({(u.vocab||[]).length} 词)</span>
+                  <button onClick={() => removeAccumulatedUnit(i)} className="text-red-500 hover:bg-red-100 px-1 rounded">×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {renderError && <div className="mt-2 text-sm text-amber-600">⚠️ {renderError}</div>}
         {rendering && <div className="mt-2 text-sm text-gray-500 flex items-center gap-2"><Loader size={14} className="animate-spin" /> 正在把 PDF 转图片...</div>}
         {renderedImages.length > 0 && (
@@ -329,7 +419,7 @@ export default function Textbooks() {
             {renderedImages.map((img, i) => (
               <div key={i} className="relative">
                 <img src={img.url} alt={`page ${i+1}`} className="w-full h-auto rounded border" style={{maxHeight: '120px', objectFit: 'contain', backgroundColor: '#fff'}} />
-                <span className="text-xs text-gray-600 absolute top-1 left-1 bg-white/80 px-1 rounded">P{i+1}</span>
+                <span className="text-xs text-gray-600 absolute top-1 left-1 bg-white/80 px-1 rounded">P{batchStart + i + 1}</span>
               </div>
             ))}
           </div>
@@ -527,21 +617,30 @@ export default function Textbooks() {
             {/* Modal footer */}
             <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between gap-3">
               <div className="text-sm text-gray-500">
-                共 {previewUnits.length} 个 unit,可继续编辑或删除
+                本批 {previewUnits.length} 个 unit (累积已完成 {accumulatedUnits.length} 个)
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setShowReviewModal(false); setPreviewUnits(null); }}
                   className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
                   disabled={committing}
-                >取消 (不保存)</button>
+                >取消 (丢弃本批结果)</button>
                 <button
-                  onClick={handleCommitUnits}
+                  onClick={handleAppendBatch}
                   disabled={committing || previewUnits.length === 0}
-                  className="px-4 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <CheckCircle size={14} />
+                  确认这批 + 切下一批 →
+                </button>
+                {/* 也可以立即把本批和累积的全部一次性 commit */}
+                <button
+                  onClick={handleCommitAll}
+                  disabled={committing}
+                  className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
                 >
                   {committing ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                  {committing ? '保存中...' : '✅ 确认保存到数据库'}
+                  ✅ 确认全部保存到数据库 ({accumulatedUnits.length + (previewUnits?.length || 0)} 个)
                 </button>
               </div>
             </div>
