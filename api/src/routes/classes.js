@@ -146,6 +146,10 @@ const data = results.results?.map(cls => ({
   fb_teacher_message: cls.fb_teacher_message,
   fb_homework: cls.fb_homework,
   fb_next_preview: cls.fb_next_preview,
+  textbook_code: cls.textbook_code,
+  unit_number: cls.unit_number,
+  page_from: cls.page_from,
+  page_to: cls.page_to,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -209,6 +213,10 @@ const data = results.results?.map(cls => ({
   fb_teacher_message: cls.fb_teacher_message,
   fb_homework: cls.fb_homework,
   fb_next_preview: cls.fb_next_preview,
+  textbook_code: cls.textbook_code,
+  unit_number: cls.unit_number,
+  page_from: cls.page_from,
+  page_to: cls.page_to,
 })) || [];
 
   return c.json(success({ data, pagination }));
@@ -323,8 +331,10 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
   }
 
   const result = await DB.prepare(`
-    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id, is_trial)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO classes (student_id, package_id, teacher, teacher_id, subject, hours, date, start_time, end_time, content, homework, notes, status, organization_id, is_trial,
+                        textbook_code, unit_number, page_from, page_to,
+                        fb_unit, fb_lesson, fb_lesson_level, fb_vocab, fb_patterns, fb_homework)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     studentId,
     data.package_id || null,
@@ -340,7 +350,17 @@ classes.post('/student/:student_id', validate(classSchema), async (c) => {
     data.notes || null,
     data.status || 'completed',
     organizationId,
-    data.is_trial || 0
+    data.is_trial || 0,
+    data.textbook_code || null,
+    data.unit_number || null,
+    data.page_from || null,
+    data.page_to || null,
+    data.fb_unit || null,
+    data.fb_lesson || null,
+    data.fb_lesson_level || null,
+    data.fb_vocab || null,
+    data.fb_patterns || null,
+    data.fb_homework || null
   ).run();
 
   const classId = result.meta.last_row_id;

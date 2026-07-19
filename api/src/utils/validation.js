@@ -80,6 +80,11 @@ export const classSchema = z.object({
   fb_teacher_message: z.string().optional().nullable().transform(v => v || null),        // 问候+亮点+练习建议
   fb_homework: z.string().optional().nullable().transform(v => v || null),               // 课后作业(选填)
   fb_next_preview: z.string().optional().nullable().transform(v => v || null),           // 下节课预告(选填)
+  // 教材页码引用 (用于家长端嵌入 PDF 页图, 配合 R2 page-img/<code>/<unit>/<page>)
+  textbook_code: z.string().optional().nullable().transform(v => v || null),              // 如 EU-S
+  unit_number: z.number().int().optional().nullable(),                                    // 如 1
+  page_from: z.number().int().optional().nullable(),                                       // 起始页
+  page_to: z.number().int().optional().nullable(),                                         // 结束页
 });
 
 export const classUpdateSchema = classSchema.partial();

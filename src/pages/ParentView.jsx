@@ -249,8 +249,8 @@ function ParentStudentView() {
           {classes.length > 0 ? (
             <div className="space-y-3">
               {classes.slice(0, 10).map(cls => (
-                <div key={cls.id} className="flex items-center gap-4 p-3 border-b border-gray-100 last:border-0">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div key={cls.id} className="flex items-start gap-4 p-3 border-b border-gray-100 last:border-0">
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                     <Clock className="w-5 h-5 text-orange-600" />
                   </div>
                   <div className="flex-1">
@@ -258,6 +258,61 @@ function ParentStudentView() {
                     <div className="text-sm text-gray-500">
                       {cls.hours} 节 · {cls.teacher || '常规课程'}
                     </div>
+                    {/* 课程信息: 教材+Unit+Page */}
+                    {((cls.textbook_code && cls.unit_number) || cls.fb_unit) && (
+                      <div className="text-xs text-purple-600 mt-1">
+                        📚 {cls.textbook_code || 'EU'} · Unit {cls.unit_number || cls.fb_unit}
+                        {cls.page_from && cls.page_to && ` · 页 ${cls.page_from}-${cls.page_to}`}
+                      </div>
+                    )}
+                    {/* 今日词汇 */}
+                    {cls.fb_vocab && (
+                      <div className="text-xs text-gray-700 mt-1">
+                        <span className="font-medium">今日学: </span>{cls.fb_vocab}
+                      </div>
+                    )}
+                    {/* 句型 */}
+                    {cls.fb_patterns && (
+                      <div className="text-xs text-gray-700 mt-0.5">
+                        <span className="font-medium">句型: </span>{cls.fb_patterns}
+                      </div>
+                    )}
+                    {/* PDF 页面图嵌入 (家长可看到教材真实页面,方便复习) */}
+                    {cls.textbook_code && cls.unit_number && cls.page_from && cls.page_to && (
+                      <div className="mt-2">
+                        <div className="text-xs text-gray-500 mb-1">📖 教材第 {cls.page_from}-{cls.page_to} 页 (点击放大查看):</div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {Array.from({ length: Math.max(0, parseInt(cls.page_to) - parseInt(cls.page_from) + 1) }, (_, i) => {
+                            const page = parseInt(cls.page_from) + i;
+                            return (
+                              <a
+                                key={page}
+                                href={`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/page-img/${cls.textbook_code}/${cls.unit_number}/${page}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block border rounded overflow-hidden hover:shadow-md"
+                                title={`点击看大图: 第 ${page} 页`}
+                              >
+                                <img
+                                  src={`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/page-img/${cls.textbook_code}/${cls.unit_number}/${page}`}
+                                  alt={`第 ${page} 页`}
+                                  className="w-full h-auto"
+                                  loading="lazy"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                                <div className="text-xs text-center text-gray-500 bg-white py-0.5">P{page}</div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {/* 作业 */}
+                    {cls.fb_homework && (
+                      <div className="text-xs text-blue-700 mt-1">
+                        <span className="font-medium">📝 作业: </span>{cls.fb_homework}
+                      </div>
+                    )}
                     {cls.notes && (
                       <div className="text-xs text-orange-600 mt-1">课后反馈: {cls.notes}</div>
                     )}

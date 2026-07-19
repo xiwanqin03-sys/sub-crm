@@ -83,6 +83,11 @@ export default function TeacherPortal() {
       fb_teacher_message: cls.fb_teacher_message || '',
       fb_homework: cls.fb_homework || '',
       fb_next_preview: cls.fb_next_preview || '',
+      // 教材页码引用 (配合 R2 里 EU-S/UnitN/page-XX.png)
+      textbook_code: cls.textbook_code || (typeof selectedBook !== 'undefined' ? selectedBook : ''),
+      unit_number: cls.unit_number || '',
+      page_from: cls.page_from || '',
+      page_to: cls.page_to || '',
       status: cls.status || 'completed'
     });
     // 回填发音/语法纠错
@@ -380,6 +385,89 @@ export default function TeacherPortal() {
                       className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
+                </div>
+                {/* 📖 教材页码引用 (PDF 页码, 配合 R2 里 EU-S/UnitN/page-XX.png) */}
+                <div className="border-t pt-3 mt-3">
+                  <div className="font-medium text-gray-700 text-sm mb-2">📖 教材页码 (可选, 家长端可看这些 PDF 页)</div>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">教材</label>
+                      <select
+                        value={feedbackForm.textbook_code || ''}
+                        onChange={(e) => setFeedbackForm({ ...feedbackForm, textbook_code: e.target.value, unit_number: '', page_from: '', page_to: '' })}
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="">不指定</option>
+                        <option value="EU-S">EU Starter</option>
+                        <option value="EU-L1">EU Level 1</option>
+                        <option value="EU-L2">EU Level 2</option>
+                        <option value="EU-L3">EU Level 3</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Unit 编号</label>
+                      <input
+                        type="number" min={0} max={20}
+                        value={feedbackForm.unit_number || ''}
+                        onChange={(e) => setFeedbackForm({ ...feedbackForm, unit_number: e.target.value, page_from: '', page_to: '' })}
+                        placeholder="如 1"
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">起始页</label>
+                      <input
+                        type="number" min={1} max={99}
+                        value={feedbackForm.page_from || ''}
+                        onChange={(e) => setFeedbackForm({ ...feedbackForm, page_from: e.target.value })}
+                        placeholder="如 2"
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">结束页</label>
+                      <input
+                        type="number" min={1} max={99}
+                        value={feedbackForm.page_to || ''}
+                        onChange={(e) => setFeedbackForm({ ...feedbackForm, page_to: e.target.value })}
+                        placeholder="如 4"
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                  {/* PDF 页缩略图预览 */}
+                  {feedbackForm.textbook_code && feedbackForm.unit_number && feedbackForm.page_from && feedbackForm.page_to && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded">
+                      <div className="text-xs text-gray-500 mb-2">
+                        📄 预览 {feedbackForm.textbook_code}/Unit{feedbackForm.unit_number}/ 第 {feedbackForm.page_from}-{feedbackForm.page_to} 页
+                        (家长反馈页会展示这些教材真实页面,方便指导复习)
+                      </div>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1">
+                        {Array.from({ length: Math.max(0, parseInt(feedbackForm.page_to) - parseInt(feedbackForm.page_from) + 1) }, (_, i) => {
+                          const page = parseInt(feedbackForm.page_from) + i;
+                          return (
+                            <a
+                              key={page}
+                              href={`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/page-img/${feedbackForm.textbook_code}/${feedbackForm.unit_number}/${page}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block border rounded overflow-hidden hover:shadow-md"
+                              title={`点击看大图: 页 ${page}`}
+                            >
+                              <img
+                                src={`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/page-img/${feedbackForm.textbook_code}/${feedbackForm.unit_number}/${page}`}
+                                alt={`Page ${page}`}
+                                className="w-full h-auto"
+                                loading="lazy"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                              <div className="text-xs text-center text-gray-500 bg-white py-0.5">P{page}</div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">今日词汇</label>
