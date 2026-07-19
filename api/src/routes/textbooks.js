@@ -766,6 +766,100 @@ textbooks.post('/preview-unit/:code/:num', async (c) => {
 });
 
 // ============================================================
+// 单元管理 (Admin 直接增删改 textbook_units 列表,无须经 AI)
+// ============================================================
+
+// GET /units-manage/:code — 列出该书所有 unit
+textbooks.get('/units-manage/:code', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  const r = await DB.prepare(
+    `SELECT id, unit_number, unit_title, is_active, lesson_count,
+            (SELECT COUNT(*) FROM unit_content WHERE unit_id = textbook_units.id) AS content_count
+     FROM textbook_units WHERE textbook_code = ? ORDER BY unit_number ASC`
+  ).bind(code).all();
+  return c.json({ data: { textbook_code: code, units: r.results || [] } });
+});
+
+// POST /units-manage/:code — 新增/更新一行 unit
+// Body: { unit_number, unit_title, lesson_count, is_active }
+// 如果 unit_number 已存在 → UPDATE; 否则 INSERT
+textbooks.post('/units-manage/:code', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  let body;
+  try { body = await c.req.json(); } catch { return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON' } }, 400); }
+
+  const num = parseInt(body.unit_number);
+  if (isNaN(num)) return c.json({ error: { code: 'BAD_REQUEST', message: 'unit_number required' } }, 400);
+
+  // 先查这本书的 textbook_id
+  const book = await DB.prepare('SELECT id FROM textbooks WHERE code = ?').bind(code).first();
+  if (!book) return c.json({ error: { code: 'NOT_FOUND', message: '教材不存在' } }, 404);
+
+  const existing = await DB.prepare(
+    'SELECT id FROM textbook_units WHERE textbook_code = ? AND unit_number = ?'
+  ).bind(code, num).first();
+
+  if (existing) {
+    await DB.prepare(
+      `UPDATE textbook_units SET unit_title = ?, lesson_count = ?, is_active = ? WHERE id = ?`
+    ).bind(body.unit_title || null, body.lesson_count || 1, body.is_active === false ? 0 : 1, existing.id).run();
+    return c.json({ data: { action: 'updated', unit_number: num } });
+  } else {
+    const r = await DB.prepare(
+      `INSERT INTO textbook_units (textbook_id, textbook_code, unit_number, unit_title, lesson_count, is_active)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(book.id, code, num, body.unit_title || null, body.lesson_count || 1, body.is_active === false ? 0 : 1).run();
+    return c.json({ data: { action: 'inserted', unit_number: num, id: r.meta?.last_row_id } });
+  }
+});
+
+// PATCH /units-manage/:code/:num — 改 unit_number / unit_title / lesson_count / is_active
+// Body: { new_unit_number?, unit_title?, lesson_count?, is_active? }
+textbooks.patch('/units-manage/:code/:num', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  const oldNum = parseInt(c.req.param('num'));
+  let body;
+  try { body = await c.req.json(); } catch { return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON' } }, 400); }
+
+  const unit = await DB.prepare(
+    'SELECT id FROM textbook_units WHERE textbook_code = ? AND unit_number = ?'
+  ).bind(code, oldNum).first();
+  if (!unit) return c.json({ error: { code: 'NOT_FOUND', message: 'Unit 不存在' } }, 404);
+
+  // 如果改 unit_number,要确认新数值不冲突
+  if (body.new_unit_number != null && body.new_unit_number !== oldNum) {
+    const conflict = await DB.prepare(
+      'SELECT id FROM textbook_units WHERE textbook_code = ? AND unit_number = ? AND id != ?'
+    ).bind(code, parseInt(body.new_unit_number), unit.id).first();
+    if (conflict) return c.json({ error: { code: 'CONFLICT', message: `Unit ${body.new_unit_number} 已存在` } }, 409);
+
+    await DB.prepare(
+      'UPDATE textbook_units SET unit_number = ?, unit_title = COALESCE(?, unit_title), lesson_count = COALESCE(?, lesson_count), is_active = COALESCE(?, is_active) WHERE id = ?'
+    ).bind(parseInt(body.new_unit_number), body.unit_title ?? null, body.lesson_count ?? null, body.is_active ?? null, unit.id).run();
+  } else {
+    await DB.prepare(
+      'UPDATE textbook_units SET unit_title = COALESCE(?, unit_title), lesson_count = COALESCE(?, lesson_count), is_active = COALESCE(?, is_active) WHERE id = ?'
+    ).bind(body.unit_title ?? null, body.lesson_count ?? null, body.is_active ?? null, unit.id).run();
+  }
+
+  return c.json({ data: { action: 'updated', unit_number: body.new_unit_number ?? oldNum } });
+});
+
+// DELETE /units-manage/:code/:num — 删 unit (有 unit_content 关联也没事,ON DELETE CASCADE 会一起删)
+textbooks.delete('/units-manage/:code/:num', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  const num = parseInt(c.req.param('num'));
+  await DB.prepare(
+    'DELETE FROM textbook_units WHERE textbook_code = ? AND unit_number = ?'
+  ).bind(code, num).run();
+  return c.json({ data: { action: 'deleted', unit_number: num } });
+});
+
+// ============================================================
 // POST /preview-book/:code — 整本书图片 → AI 识别 → 返回 array (不写库)
 // 用途: Admin 整本书模式"AI 识别"按钮 — 先输出到前端校对,确认后才保存
 // Form: images[] (多页图片)

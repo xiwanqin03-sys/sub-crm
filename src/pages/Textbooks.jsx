@@ -132,17 +132,97 @@ export default function Textbooks() {
     setExtracting(false);
   };
 
-  // 整本书模式: 上传前20页图片 → AI 自动分单元 → 先返回预览 (不写库)
-  // 用户在前端校对后再点 "确认保存" 调 commit-units 才写库
-  // 支持分批: 每批 20 页,AI 识别后追加到 accumulatedUnits
-  // 最后一次性 commit 全部
-  const [previewUnits, setPreviewUnits] = useState(null);  // 当前批次的 AI 识别结果
-  const [accumulatedUnits, setAccumulatedUnits] = useState([]);  // 已校对、累积的 unit (跨批次)
+  // 单元管理 Modal (直接增删改 textbook_units 列表)
+  const [showUnitsManage, setShowUnitsManage] = useState(false);
+  const [manageUnits, setManageUnits] = useState([]);  // 从 /units-manage 返回的 unit 列表
+  const [manageLoading, setManageLoading] = useState(false);
+  const [newUnitNum, setNewUnitNum] = useState('');
+  const [newUnitTitle, setNewUnitTitle] = useState('');
+
+  const openUnitsManage = async () => {
+    if (!selectedBook) return;
+    setShowUnitsManage(true);
+    setManageLoading(true);
+    try {
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}`,
+        { headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' } });
+      const resp = await r.json();
+      setManageUnits(resp.data?.units || []);
+    } catch (e) { alert('加载单元列表失败: ' + e.message); }
+    setManageLoading(false);
+  };
+
+  const refreshUnitsManage = async () => {
+    const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}`,
+      { headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' } });
+    const resp = await r.json();
+    setManageUnits(resp.data?.units || []);
+  };
+
+  const updateManageUnit = async (idx, field, value) => {
+    const u = manageUnits[idx];
+    const oldNum = u.unit_number;
+    // 本地立即更新 (乐观)
+    setManageUnits(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+    try {
+      // 改 unit_number 是单独路径
+      if (field === 'unit_number' && value !== oldNum) {
+        await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}/${oldNum}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+          body: JSON.stringify({ new_unit_number: parseInt(value) || 0 })
+        });
+      } else if (field !== 'unit_number') {
+        await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}/${oldNum}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+          body: JSON.stringify({ [field]: field === 'is_active' ? Boolean(value) : (field === 'lesson_count' ? parseInt(value) : value) })
+        });
+      }
+    } catch (e) {
+      alert('保存失败: ' + e.message);
+      refreshUnitsManage();
+    }
+  };
+
+  const deleteManageUnit = async (num) => {
+    if (!confirm(`删除 Unit ${num}?\n该单元的 AI 提取内容也会一并删除`)) return;
+    try {
+      await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}/${num}`, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' }
+      });
+      refreshUnitsManage();
+    } catch (e) { alert('删除失败: ' + e.message); }
+  };
+
+  const addManageUnit = async () => {
+    if (!newUnitNum) { alert('请填 unit 编号'); return; }
+    try {
+      await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/units-manage/${selectedBook.code}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+        body: JSON.stringify({ unit_number: parseInt(newUnitNum), unit_title: newUnitTitle, lesson_count: 1, is_active: true })
+      });
+      setNewUnitNum(''); setNewUnitTitle('');
+      refreshUnitsManage();
+    } catch (e) { alert('新增失败: ' + e.message); }
+  };
+
+  // 单元管理 Modal 完成 — 接上述 addManageUnit/etc
+  // ========================================
+  // 整本书模式批量提取 state
+  // ========================================
+  // 整本书模式: 上传 8 页 → AI 自动分单元 → 先返回预览 (不写库)
+  // 用户校对完点 "确认保存" 调 commit-units 才写库
+  // 支持分批: 每批 8 页,AI 识别后追加到 accumulatedUnits
+  const [previewUnits, setPreviewUnits] = useState(null);
+  const [accumulatedUnits, setAccumulatedUnits] = useState([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [committing, setCommitting] = useState(false);
-  const [batchStart, setBatchStart] = useState(0);  // 当前批次的起始页码 (0=第一页)
-  const BATCH_SIZE = 8;  // NIM gemma-3n 实测稳定 8 页 (temperature=0 + max_tokens 4096)
-  const [totalPages, setTotalPages] = useState(0);  // 整本书总页数
+  const [batchStart, setBatchStart] = useState(0);
+  const BATCH_SIZE = 8;  // NIM gemma-3n 实测稳定 8 页
+  const [totalPages, setTotalPages] = useState(0);
 
   // 当前批次的图片 (computed from renderedImages + batchStart)
   // 我们让 PDF.js 渲染当前 batch 的 20 页,而不是整本一次性
@@ -353,8 +433,18 @@ export default function Textbooks() {
         <button onClick={() => setSelectedBook(null)} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4 text-sm">
           <ArrowLeft size={16} /> 返回教材列表
         </button>
-        <h1 className="text-2xl font-bold mb-2">{selectedBook.name}</h1>
-        <div className="text-sm text-gray-500 mb-6">{selectedBook.code} · {selectedBook.level} · {selectedBook.publisher}</div>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">{selectedBook.name}</h1>
+            <div className="text-sm text-gray-500">{selectedBook.code} · {selectedBook.level} · {selectedBook.publisher}</div>
+          </div>
+          <button
+            onClick={openUnitsManage}
+            className="px-4 py-2 text-sm border-2 border-purple-400 text-purple-700 rounded-lg hover:bg-purple-50 font-medium"
+          >
+            ⚙️ 管理单元列表
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {selectedBook.units?.map(u => (
             <div key={u.unit_number} onClick={() => openUnit(u)} className={`border rounded-lg p-3 hover:shadow-md cursor-pointer ${u.has_content ? 'border-green-300 bg-green-50' : 'hover:border-primary-300'}`}>
@@ -372,6 +462,122 @@ export default function Textbooks() {
             </div>
           ))}
         </div>
+
+        {/* 🎯 单元管理 Modal — 直接增删改 textbook_units 列表 */}
+        {showUnitsManage && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto">
+              {/* header */}
+              <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2">⚙️ 管理单元列表</h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    直接编辑 {selectedBook.code} 的单元列表 (如改单元标题/编号/添加新单元/删除错的单元).
+                    本教材是 <b>Everybody Up 第二版</b>? 此处按每级 8 个 Unit 的真实结构维护。
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowUnitsManage(false); setManageUnits([]); openBook(selectedBook.code); }}
+                  className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                >×</button>
+              </div>
+
+              {/* body */}
+              <div className="p-6">
+                {manageLoading ? (
+                  <div className="flex items-center gap-2 text-gray-500"><Loader size={14} className="animate-spin" /> 加载中...</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 px-2 mb-2">
+                      <div className="col-span-1">编号</div>
+                      <div className="col-span-5">单元标题</div>
+                      <div className="col-span-2">课时数</div>
+                      <div className="col-span-2">启用</div>
+                      <div className="col-span-1">内容</div>
+                      <div className="col-span-1">删除</div>
+                    </div>
+                    <div className="space-y-1">
+                      {manageUnits.map((u, idx) => (
+                        <div key={u.id || idx} className="grid grid-cols-12 gap-2 items-center px-2 py-1 border rounded text-sm">
+                          <input
+                            type="number"
+                            min={0} max={99}
+                            value={u.unit_number}
+                            onChange={(e) => updateManageUnit(idx, 'unit_number', parseInt(e.target.value) || 0)}
+                            className="col-span-1 px-1 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={u.unit_title || ''}
+                            placeholder="如:Hello!"
+                            onChange={(e) => updateManageUnit(idx, 'unit_title', e.target.value)}
+                            className="col-span-5 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="number"
+                            min={1} max={20}
+                            value={u.lesson_count || 1}
+                            onChange={(e) => updateManageUnit(idx, 'lesson_count', parseInt(e.target.value) || 1)}
+                            className="col-span-2 px-1 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={u.is_active === 1 || u.is_active === true}
+                            onChange={(e) => updateManageUnit(idx, 'is_active', e.target.checked)}
+                            className="col-span-2 w-4 h-4"
+                          />
+                          <span className="col-span-1 text-xs text-gray-500 text-center">{u.content_count || 0}</span>
+                          <button
+                            onClick={() => deleteManageUnit(u.unit_number)}
+                            className="col-span-1 text-red-500 hover:bg-red-100 px-1 rounded text-xs"
+                            title="删除此单元"
+                          >🗑</button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 新增单元 */}
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="text-sm font-medium text-gray-700 mb-2">添加新单元</div>
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <input
+                          type="number"
+                          min={0} max={99}
+                          value={newUnitNum}
+                          onChange={(e) => setNewUnitNum(e.target.value)}
+                          placeholder="编号"
+                          className="col-span-1 px-1 py-1 border rounded text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={newUnitTitle}
+                          onChange={(e) => setNewUnitTitle(e.target.value)}
+                          placeholder="标题"
+                          className="col-span-5 px-2 py-1 border rounded text-sm"
+                        />
+                        <div className="col-span-2 text-xs text-gray-400">1 (默认)</div>
+                        <div className="col-span-2 text-xs text-gray-400">默认启用</div>
+                        <button
+                          onClick={addManageUnit}
+                          className="col-span-2 px-2 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                        >+ 添加</button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* footer */}
+              <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between">
+                <div className="text-xs text-gray-500">编辑自动保存 (改一个字段即写库). 删除前会确认.</div>
+                <button
+                  onClick={() => { setShowUnitsManage(false); setManageUnits([]); openBook(selectedBook.code); }}
+                  className="px-4 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                >完成</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
