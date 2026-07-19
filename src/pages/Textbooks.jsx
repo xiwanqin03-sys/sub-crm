@@ -296,9 +296,10 @@ export default function Textbooks() {
     try {
       // 发到后端的图片最多 8 页 (z.ai GLM-4.6V 上限)
       // BATCH_SIZE=8, 渲染也是 8,所以这里直接全部发
+      // 注: 用 batch_start 参数告知后端这是第几页起 (用于 R2 保存图片名使用真实页码)
       const fd = new FormData();
       renderedImages.forEach((img, i) => fd.append('images', img.blob, `page-${batchStart + i + 1}.png`));
-      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/preview-book/${selectedBook.code}`, {
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/preview-book/${selectedBook.code}?batch_start=${batchStart}`, {
         method: 'POST',
         headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' },
         body: fd

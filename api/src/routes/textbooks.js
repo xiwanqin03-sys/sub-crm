@@ -752,13 +752,30 @@ textbooks.post('/preview-unit/:code/:num', async (c) => {
   try {
     // 单 Unit prompt 提取 (返回 vocab/patterns/grammar 对象,不是 array)
     const content = await callLLMWithImages(c, images, { bookMode: false, maxPages: 8 });
+
+    // 把这次上传的 PDF 页面图保存到 R2 (path: `${code}/Unit${num}/page-${i}.png`)
+    // 老师填 feedback 时会引用这些图, 家长端显示
+    const R2 = c.env.TEXTBOOKS_R2;
+    let pagesSaved = 0;
+    if (R2) {
+      const images_arr = Array.isArray(images) ? images : [images];
+      pagesSaved = images_arr.length;
+      for (let i = 0; i < images_arr.length; i++) {
+        const f = images_arr[i];
+        const buf = await f.arrayBuffer();
+        const key = `${code}/Unit${num}/page-${String(i+1).padStart(2,'0')}.png`;
+        await R2.put(key, buf, { httpMetadata: { contentType: f.type || 'image/png' } });
+      }
+    }
+
     return c.json({ data: {
       unit_number: num,
       // 优先用 AI 从 PDF 看到的真实标题, fallback 到 DB 默认
       unit_title: content.unit_title || unit.unit_title || '',
       vocab: content.vocab || [],
       patterns: content.patterns || [],
-      grammar: content.grammar || []
+      grammar: content.grammar || [],
+      pages_saved: pagesSaved
     }});
   } catch (err) {
     return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
@@ -825,6 +842,57 @@ textbooks.delete('/books-manage/:code', async (c) => {
 });
 
 // ---- 单元管理 (Admin 直接增删改 textbook_units 列表,无须经 AI) ----
+
+// GET /unit-pages/:code/:num — 列出某 unit 在 R2 的所有页面图 (用于家长端 feedback 显示)
+// 返回 [{ key, url, page_num, size, uploaded }]
+textbooks.get('/unit-pages/:code/:num', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  const code = c.req.param('code');
+  const num = parseInt(c.req.param('num'));
+  if (!R2) return c.json({ error: { code: 'NOT_CONFIGURED', message: 'TEXTBOOKS_R2 未配置' } }, 500);
+
+  const prefix = `${code}/Unit${num}/`;
+  const listed = await R2.list({ prefix, limit: 100 });
+  const items = (listed.objects || []).map(o => ({
+    key: o.key,
+    page_num: parseInt((o.key.match(/page-(\d+)\.png$/) || [])[1] || 0),
+    size: o.size,
+    uploaded: o.uploaded?.toISOString?.() || null
+  })).sort((a, b) => a.page_num - b.page_num);
+
+  // 给前端一个 R2 public URL 或直接 base path
+  const baseUrl = `https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/page-img/${code}/${num}`;
+  return c.json({ data: {
+    textbook_code: code,
+    unit_number: num,
+    pages: items.map(it => ({
+      ...it,
+      url: `${baseUrl}/${it.page_num}`
+    }))
+  }});
+});
+
+// GET /page-img/:code/:num/:page — 获取 R2 里某 unit 的指定页面图 (公开访问, 无需 API Key)
+textbooks.get('/page-img/:code/:num/:page', async (c) => {
+  const R2 = c.env.TEXTBOOKS_R2;
+  const code = c.req.param('code');
+  const num = parseInt(c.req.param('num'));
+  const page = parseInt(c.req.param('page'));
+  if (!R2) return c.json({ error: { code: 'NOT_CONFIGURED', message: 'R2 未配置' } }, 500);
+
+  const key = `${code}/Unit${num}/page-${String(page).padStart(2,'0')}.png`;
+  const obj = await R2.get(key);
+  if (!obj) return c.json({ error: { code: 'NOT_FOUND', message: `图片不存在: ${key}` } }, 404);
+
+  const ct = obj.httpMetadata?.contentType || 'image/png';
+  return new Response(obj.body, {
+    headers: {
+      'Content-Type': ct,
+      'Cache-Control': 'public, max-age=31536000',
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
+});
 
 // GET /units-manage/:code — 列出该书所有 unit
 textbooks.get('/units-manage/:code', async (c) => {
@@ -927,12 +995,36 @@ textbooks.post('/preview-book/:code', async (c) => {
 
   if (images.length === 0) return c.json({ error: { code: 'BAD_REQUEST', message: 'Missing images[]' } }, 400);
 
+  // R2 路径: ${code}/Unit${num}/page-${batchStart+i+1}.png
+  // 需要 batchStart 参数告知当前是第几页起, 让整本书模式下图片按 page 编号保存
+  const batchStart = parseInt(c.req.query('batch_start') || '0');
+
   try {
     const bookContent = await callLLMWithImages(c, images, { bookMode: true, maxPages: 8 });
     if (!Array.isArray(bookContent)) {
       return c.json({ error: { code: 'LLM_PARSE_ERROR', message: 'LLM 返回不是 unit 数组', _raw: JSON.stringify(bookContent).substring(0, 300) } }, 502);
     }
-    return c.json({ data: { units: bookContent, pages_sent: images.length } });
+
+    // 把这次上传的 PDF 页图保存到 R2, 按 unit 分组 (简单策略: 按 batch_start 起,平均分给每个识别到的 unit)
+    // 因为 AI 返回的是 unit 数组不知道哪页属于哪个,
+    // 实务策略: 我们就把所有页存到 "当前批次所在 unit" 目录下 (按 unit 数量平均分)
+    const R2 = c.env.TEXTBOOKS_R2;
+    if (R2) {
+      const images_arr = Array.isArray(images) ? images : [images];
+      const pagesPerUnit = Math.ceil(images_arr.length / bookContent.length);
+      let pageIdx = 0;
+      for (const u of bookContent) {
+        for (let j = 0; j < pagesPerUnit && pageIdx < images_arr.length; j++) {
+          const f = images_arr[pageIdx];
+          const buf = await f.arrayBuffer();
+          const key = `${code}/Unit${u.unit_number}/page-${String(batchStart + pageIdx + 1).padStart(2,'0')}.png`;
+          await R2.put(key, buf, { httpMetadata: { contentType: f.type || 'image/png' } });
+          pageIdx++;
+        }
+      }
+    }
+
+    return c.json({ data: { units: bookContent, pages_sent: images.length, pages_saved_to_r2: images.length } });
   } catch (err) {
     return c.json({ error: { code: 'LLM_ERROR', message: err.message } }, 502);
   }
