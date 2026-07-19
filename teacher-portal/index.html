@@ -144,7 +144,6 @@
   </div>
  </div>
 </div>
-</div>
 
 <!-- Feedback Modal -->
 <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
@@ -158,6 +157,26 @@
     <div class="grid grid-cols-2 gap-3">
       <div><label class="block text-xs text-gray-500 mb-1">Level</label><select id="fb-level" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"><option value="">Select level</option><option value="Pre-A1">Pre-A1</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option></select></div>
       <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs text-gray-500 mb-1">Unit</label><input id="fb-unit" type="text" placeholder="e.g. 5" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div><div><label class="block text-xs text-gray-500 mb-1">Lesson</label><input id="fb-lesson" type="text" placeholder="e.g. 3" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div></div>
+    </div>
+    <!-- 📖 Textbook Page Reference (parent portal 显示 PDF 真实页面图) -->
+    <div class="mt-3 pt-3 border-t border-gray-100">
+      <div class="text-xs text-gray-500 mb-2">📖 Textbook Pages (可选, 家长端会显示这些 PDF 页面图)</div>
+      <div class="grid grid-cols-4 gap-2">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Textbook</label>
+          <select id="fb-textbook-code" class="w-full px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+            <option value="">None</option>
+            <option value="EU-S">EU Starter</option>
+            <option value="EU-L1">EU Level 1</option>
+            <option value="EU-L2">EU Level 2</option>
+            <option value="EU-L3">EU Level 3</option>
+          </select>
+        </div>
+        <div><label class="block text-xs text-gray-500 mb-1">Unit #</label><input id="fb-unit-num" type="number" min="0" max="20" placeholder="e.g. 1" class="w-full px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Page from</label><input id="fb-page-from" type="number" min="1" max="99" placeholder="e.g. 2" class="w-full px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Page to</label><input id="fb-page-to" type="number" min="1" max="99" placeholder="e.g. 4" class="w-full px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500"></div>
+      </div>
+      <div id="fb-pages-preview" class="mt-2"></div>
     </div>
   </div>
   <!-- 📚 Today's Learning -->
@@ -417,6 +436,20 @@ function showViewFeedback(idx) {
     html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">📅 Lesson Info</div>';
     html += '<div class="text-sm text-gray-600">Level: ' + esc(cls.fb_lesson_level) + ' · Unit ' + esc(cls.fb_unit) + ' / Lesson ' + esc(cls.fb_lesson) + '</div>';
     html += '</div>';
+  }
+
+  // 📖 Textbook Pages (嵌入 PDF 真实页面图)
+  if (cls.textbook_code && cls.unit_number && cls.page_from && cls.page_to) {
+    html += '<div class="border rounded-lg p-3"><div class="font-medium text-gray-700 text-sm mb-2">📖 Textbook Pages (' + esc(cls.textbook_code) + '/Unit' + cls.unit_number + ' pages ' + cls.page_from + '-' + cls.page_to + ')</div>';
+    html += '<div class="grid grid-cols-3 sm:grid-cols-4 gap-1">';
+    for (var p = parseInt(cls.page_from); p <= parseInt(cls.page_to); p++) {
+      var url = API_BASE + '/textbooks/page-img/' + encodeURIComponent(cls.textbook_code) + '/' + encodeURIComponent(cls.unit_number) + '/' + p;
+      html += '<a href="' + url + '" target="_blank" class="block border rounded overflow-hidden hover:shadow-md" title="Page ' + p + ' (click to enlarge)">';
+      html += '<img src="' + url + '" alt="Page ' + p + '" class="w-full h-auto" loading="lazy" onerror="this.parentElement.style.display=\'none\'">';
+      html += '<div class="text-xs text-center text-gray-500 bg-white py-0.5">P' + p + '</div>';
+      html += '</a>';
+    }
+    html += '</div></div>';
   }
 
   // Today's Learning
@@ -885,6 +918,13 @@ function openFeedback(cls) {
   document.getElementById('fb-next').value = cls.fb_next_preview || '';
   document.getElementById('fb-message').value = cls.fb_teacher_message || '';
 
+  // 教材页码 (textbook + unit + page range)
+  document.getElementById('fb-textbook-code').value = cls.textbook_code || '';
+  document.getElementById('fb-unit-num').value = cls.unit_number || '';
+  document.getElementById('fb-page-from').value = cls.page_from || '';
+  document.getElementById('fb-page-to').value = cls.page_to || '';
+  renderPagesPreview();   // show preview if all 4 filled
+
   // Render pronunciation error rows
   renderErrorRows('pron', cls.fb_pronunciation_errors);
   // Render grammar error rows
@@ -895,6 +935,38 @@ function openFeedback(cls) {
   document.getElementById('feedback-modal').classList.remove('hidden');
   document.getElementById('feedback-modal').classList.add('flex');
 }
+
+// Render PDF pages preview (4 inputs → 缩略图 grid)
+function renderPagesPreview() {
+  var code = document.getElementById('fb-textbook-code').value;
+  var unit = document.getElementById('fb-unit-num').value;
+  var from = parseInt(document.getElementById('fb-page-from').value);
+  var to = parseInt(document.getElementById('fb-page-to').value);
+  var box = document.getElementById('fb-pages-preview');
+  if (!box) return;
+  if (!code || !unit || !from || !to || from > to) { box.innerHTML = ''; return; }
+
+  var html = '<div class="text-xs text-gray-500 mb-2">📄 Preview ' + escapeHtml(code) + '/Unit' + escapeHtml(unit) + ' pages ' + from + '-' + to + ' (click to enlarge):</div>';
+  html += '<div class="grid grid-cols-4 sm:grid-cols-6 gap-1">';
+  for (var p = from; p <= to; p++) {
+    var url = API_BASE + '/textbooks/page-img/' + encodeURIComponent(code) + '/' + encodeURIComponent(unit) + '/' + p;
+    html += '<a href="' + url + '" target="_blank" class="block border rounded overflow-hidden hover:shadow-md" title="Page ' + p + ' (click to enlarge)">';
+    html += '<img src="' + url + '" alt="Page ' + p + '" class="w-full h-auto" loading="lazy" onerror="this.parentElement.style.display=\'none\'">';
+    html += '<div class="text-xs text-center text-gray-500 bg-white py-0.5">P' + p + '</div>';
+    html += '</a>';
+  }
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+// 监听 4 个输入字段变化,刷新预览
+['fb-textbook-code', 'fb-unit-num', 'fb-page-from', 'fb-page-to'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    var ev = (id === 'fb-textbook-code') ? 'change' : 'input';
+    el.addEventListener(ev, renderPagesPreview);
+  }
+});
 
 
 // ===== Submit Feedback from History =====
@@ -987,6 +1059,11 @@ document.getElementById('feedback-form').addEventListener('submit', async functi
     fb_teacher_message: document.getElementById('fb-message').value,
     fb_homework: document.getElementById('fb-homework').value,
     fb_next_preview: document.getElementById('fb-next').value,
+    // 教材页码引用 (配合 R2 page-img/<code>/<unit>/<page>, 家长端嵌入 PDF 页面图)
+    textbook_code: document.getElementById('fb-textbook-code').value || null,
+    unit_number: document.getElementById('fb-unit-num').value ? parseInt(document.getElementById('fb-unit-num').value) : null,
+    page_from: document.getElementById('fb-page-from').value ? parseInt(document.getElementById('fb-page-from').value) : null,
+    page_to: document.getElementById('fb-page-to').value ? parseInt(document.getElementById('fb-page-to').value) : null,
     status: document.getElementById('input-status').value
   };
 
