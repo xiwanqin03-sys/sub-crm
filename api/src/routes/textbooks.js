@@ -249,11 +249,12 @@ function safeParse(str) {
 // ============================================================
 // LLM 提取 Prompt (同 scripts/extract_textbook.py)
 // ============================================================
-const EXTRACTION_PROMPT = `You are a textbook content extractor. Given the text content of a language textbook unit, extract vocabulary, sentence patterns, and grammar points into structured JSON.
+const EXTRACTION_PROMPT = `You are a textbook content extractor. Given the text content of a language textbook unit, extract the unit's title, vocabulary, sentence patterns, and grammar points into structured JSON.
 
 Return ONLY valid JSON (no markdown fences, no explanation) in this exact schema:
 
 {
+  "unit_title": "Hello!",
   "vocab": [
     {"word": "apple", "translation": "苹果", "is_core": true, "difficulty": 1}
   ],
@@ -266,6 +267,7 @@ Return ONLY valid JSON (no markdown fences, no explanation) in this exact schema
 }
 
 Rules:
+- "unit_title": the actual heading printed on the textbook page (e.g. "Hello!", "My Family"). If you see a page heading like "Unit 1: Hello!", use "Hello!". If no title is visible, use null.
 - "is_core": true if the item appears prominently in the unit's main vocabulary list or is a target pattern/grammar; false if supplementary.
 - "difficulty": 1 (basic/critical), 2 (intermediate), 3 (advanced).
 - If a translation is provided in parentheses or list items, include it; otherwise leave translation as null.
@@ -752,7 +754,8 @@ textbooks.post('/preview-unit/:code/:num', async (c) => {
     const content = await callLLMWithImages(c, images, { bookMode: false, maxPages: 8 });
     return c.json({ data: {
       unit_number: num,
-      unit_title: unit.unit_title || '',
+      // 优先用 AI 从 PDF 看到的真实标题, fallback 到 DB 默认
+      unit_title: content.unit_title || unit.unit_title || '',
       vocab: content.vocab || [],
       patterns: content.patterns || [],
       grammar: content.grammar || []
