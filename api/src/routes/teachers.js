@@ -49,6 +49,7 @@ teachers.get('/', async (c) => {
       email: teacher.email,
       subjects: teacher.subjects ? JSON.parse(teacher.subjects) : [],
       hourly_rate: teacher.hourly_rate,
+      hourly_rate_25: teacher.hourly_rate_25,
       status: teacher.status,
       notes: teacher.notes,
       organization_id: teacher.organization_id, // 保留旧字段兼容
@@ -102,6 +103,7 @@ teachers.get('/:id', async (c) => {
         email: teacher.email,
         subjects: teacher.subjects ? JSON.parse(teacher.subjects) : [],
         hourly_rate: teacher.hourly_rate,
+        hourly_rate_25: teacher.hourly_rate_25,
         status: teacher.status,
         notes: teacher.notes,
         organization_ids: parseOrgIds(teacher.organization_ids),
@@ -217,7 +219,9 @@ teachers.patch('/:id', async (c) => {
       }
     }
 
+    // 自动更新 updated_at (changed fields)
     if (fields.length > 0) {
+      fields.push('updated_at = datetime(\'now\')');
       await DB.prepare(`UPDATE teachers SET ${fields.join(', ')} WHERE id = ?`).bind(...values, id).run();
     }
 
@@ -227,8 +231,15 @@ teachers.patch('/:id', async (c) => {
       data: {
         id: teacher.id,
         name: teacher.name,
+        phone: teacher.phone,
+        email: teacher.email,
+        subjects: teacher.subjects ? JSON.parse(teacher.subjects) : [],
+        hourly_rate: teacher.hourly_rate,
+        hourly_rate_25: teacher.hourly_rate_25,
         status: teacher.status,
+        notes: teacher.notes,
         organization_ids: parseOrgIds(teacher.organization_ids),
+        created_at: teacher.created_at,
         updated_at: teacher.updated_at
       },
       meta: { timestamp: new Date().toISOString() }
