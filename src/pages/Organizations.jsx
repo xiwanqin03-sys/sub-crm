@@ -196,141 +196,146 @@ export default function Organizations() {
 
       {/* 新增/编辑弹窗 */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+            {/* sticky header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 shrink-0">
               <h2 className="text-lg font-bold">{editingOrg ? '编辑机构' : '新增机构'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">机构名称 *</label>
-                <input
-                  type="text" required
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">联系人</label>
-                <input
-                  type="text"
-                  value={formData.contact_name}
-                  onChange={e => setFormData({...formData, contact_name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              {/* 滚动 body */}
+              <div className="p-6 space-y-4 overflow-y-auto">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">机构名称 *</label>
+                  <input
+                    type="text" required
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">联系人</label>
                   <input
                     type="text"
-                    value={formData.contact_phone}
-                    onChange={e => setFormData({...formData, contact_phone: e.target.value})}
+                    value={formData.contact_name}
+                    onChange={e => setFormData({...formData, contact_name: e.target.value})}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">联系邮箱</label>
-                  <input
-                    type="email"
-                    value={formData.contact_email}
-                    onChange={e => setFormData({...formData, contact_email: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">地址</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={e => setFormData({...formData, address: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              {/* 结算单价配置 */}
-              <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-400 mb-3">结算单价配置（可选）</p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">50分钟单价（¥）</label>
-                  <input
-                    type="number" step="0.01"
-                    value={formData.unit_price_cny}
-                    onChange={e => setFormData({...formData, unit_price_cny: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="80"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+                    <input
+                      type="text"
+                      value={formData.contact_phone}
+                      onChange={e => setFormData({...formData, contact_phone: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">联系邮箱</label>
+                    <input
+                      type="email"
+                      value={formData.contact_email}
+                      onChange={e => setFormData({...formData, contact_email: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">25分钟单价（¥）</label>
-                  <input
-                    type="number" step="0.01"
-                    value={formData.unit_price_25_cny}
-                    onChange={e => setFormData({...formData, unit_price_25_cny: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">课时系数</label>
-                  <input
-                    type="number" step="0.01" min="0.01" max="1"
-                    value={formData.short_class_coefficient}
-                    onChange={e => setFormData({...formData, short_class_coefficient: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="0.66"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-gray-400">留空则使用全局系数设置。空=不覆盖，0=重置为全局值。</p>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={e => setFormData({...formData, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-
-              {/* 机构登录 */}
-              <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs font-medium text-gray-400 mb-3">机构端登录设置（可选）</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">登录代码</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">地址</label>
                   <input
                     type="text"
-                    value={formData.login_code}
-                    onChange={e => setFormData({...formData, login_code: e.target.value.toLowerCase().trim()})}
+                    value={formData.address}
+                    onChange={e => setFormData({...formData, address: e.target.value})}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="如：sunnybridge"
                   />
                 </div>
+                {/* 结算单价配置 */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 mb-3">结算单价配置（可选）</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">50分钟单价（¥）</label>
+                    <input
+                      type="number" step="0.01"
+                      value={formData.unit_price_cny}
+                      onChange={e => setFormData({...formData, unit_price_cny: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="80"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">25分钟单价（¥）</label>
+                    <input
+                      type="number" step="0.01"
+                      value={formData.unit_price_25_cny}
+                      onChange={e => setFormData({...formData, unit_price_25_cny: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">课时系数</label>
+                    <input
+                      type="number" step="0.01" min="0.01" max="1"
+                      value={formData.short_class_coefficient}
+                      onChange={e => setFormData({...formData, short_class_coefficient: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="0.66"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">留空则使用全局系数设置。空=不覆盖，0=重置为全局值。</p>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    密码 {editingOrg && <span className="text-xs text-gray-400">（留空=不修改）</span>}
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={e => setFormData({...formData, notes: e.target.value})}
+                    rows={3}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder={editingOrg ? '输入新密码修改' : '设置登录密码'}
                   />
+                </div>
+
+                {/* 机构登录 */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 mb-3">机构端登录设置（可选）</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">登录代码</label>
+                    <input
+                      type="text"
+                      value={formData.login_code}
+                      onChange={e => setFormData({...formData, login_code: e.target.value.toLowerCase().trim()})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="如：sunnybridge"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      密码 {editingOrg && <span className="text-xs text-gray-400">（留空=不修改）</span>}
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={e => setFormData({...formData, password: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder={editingOrg ? '输入新密码修改' : '设置登录密码'}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
+              {/* sticky footer */}
+              <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 shrink-0">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
                   取消
                 </button>
                 <button type="submit" disabled={saving} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
