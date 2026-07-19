@@ -139,6 +139,69 @@ export default function Textbooks() {
   const [newUnitNum, setNewUnitNum] = useState('');
   const [newUnitTitle, setNewUnitTitle] = useState('');
 
+  // ====== 教材库管理 Modal (直接增删改 textbooks 表) ======
+  const [showBooksManage, setShowBooksManage] = useState(false);
+  const [manageBooks, setManageBooks] = useState([]);
+  const [booksManageLoading, setBooksManageLoading] = useState(false);
+  const [newBook, setNewBook] = useState({ code: '', name: '', level: '', publisher: '', total_units: 8, description: '' });
+
+  const openBooksManage = async () => {
+    setShowBooksManage(true);
+    setBooksManageLoading(true);
+    try {
+      // 复用 GET / 返回的 books 列表
+      setManageBooks(books);
+    } catch (e) { alert('加载教材列表失败: ' + e.message); }
+    setBooksManageLoading(false);
+  };
+
+  const updateManageBook = async (code, field, value) => {
+    setManageBooks(prev => prev.map(b => b.code === code ? { ...b, [field]: value } : b));
+    try {
+      await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/books-manage/${code}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+        body: JSON.stringify({ [field]: field === 'total_units' || field === 'is_active' ? (field === 'is_active' ? Boolean(value) : parseInt(value)) : value })
+      });
+    } catch (e) {
+      alert('保存失败: ' + e.message);
+      loadBooks();  // 回滚
+    }
+  };
+
+  const addManageBook = async () => {
+    if (!newBook.code || !newBook.name) { alert('code 和 name 必填'); return; }
+    try {
+      const r = await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/books-manage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'sunnybridge-dev-key-2024' },
+        body: JSON.stringify(newBook)
+      });
+      const resp = await r.json();
+      if (resp.data) {
+        setNewBook({ code: '', name: '', level: '', publisher: '', total_units: 8, description: '' });
+        loadBooks();
+        setManageBooks(books);
+        alert(`✅ 新教材 ${newBook.code} 已创建\n下一步: 进入这本教材 → 点 "管理单元列表" 新增单元`);
+      } else {
+        alert(resp.error?.message || '新增失败');
+      }
+    } catch (e) { alert('新增失败: ' + e.message); }
+  };
+
+  const deleteManageBook = async (code, name) => {
+    if (!confirm(`删除整本教材 ${name} (${code})?\n\n这本教材的所有 unit 和 AI 提取内容都会一并删除!\n\n此操作不可恢复,确认吗?`)) return;
+    try {
+      await fetch(`https://sunnybridge-crm-api.xiwanqin03.workers.dev/api/v1/textbooks/books-manage/${code}`, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': 'sunnybridge-dev-key-2024' }
+      });
+      loadBooks();
+      setManageBooks(books);
+      alert(`已删除 ${name} (${code})`);
+    } catch (e) { alert('删除失败: ' + e.message); }
+  };
+
   const openUnitsManage = async () => {
     if (!selectedBook) return;
     setShowUnitsManage(true);
@@ -404,7 +467,15 @@ export default function Textbooks() {
   if (!selectedBook) {
     return (
       <div className="p-6 max-w-6xl">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2"><Book className="w-6 h-6 text-primary-600" />📚 教材库</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Book className="w-6 h-6 text-primary-600" />📚 教材库</h1>
+          <button
+            onClick={openBooksManage}
+            className="px-4 py-2 text-sm border-2 border-purple-400 text-purple-700 rounded-lg hover:bg-purple-50 font-medium"
+          >
+            ⚙️ 管理教材列表
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {books.map(b => (
             <div key={b.code} onClick={() => openBook(b.code)} className="border rounded-lg p-4 hover:shadow-md hover:border-primary-300 cursor-pointer transition">
@@ -417,11 +488,154 @@ export default function Textbooks() {
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <FileText size={14} />
-                {b.unit_count || 0} / {b.total_units} 单元已录入
+                <span>{b.unit_count || 0} / {b.total_units} 单元已录入</span>
               </div>
             </div>
           ))}
         </div>
+
+        {/* 🎯 教材库管理 Modal — 直接增删改 textbooks 列表 */}
+        {showBooksManage && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+              {/* header */}
+              <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2">⚙️ 管理教材列表</h2>
+                  <p className="text-xs text-gray-500 mt-1">直接编辑 教材库 (新增教材/改元数据/删除教材). 改字段自动写库.</p>
+                </div>
+                <button
+                  onClick={() => { setShowBooksManage(false); loadBooks(); }}
+                  className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                >×</button>
+              </div>
+
+              {/* body — 教材表格 */}
+              <div className="p-6">
+                {booksManageLoading ? (
+                  <div className="flex items-center gap-2 text-gray-500"><Loader size={14} className="animate-spin" /> 加载中...</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 px-2 mb-2">
+                      <div className="col-span-2">code (唯一)</div>
+                      <div className="col-span-4">教材名称</div>
+                      <div className="col-span-2">level</div>
+                      <div className="col-span-2">出版社</div>
+                      <div className="col-span-1">单元数</div>
+                      <div className="col-span-1">删</div>
+                    </div>
+                    <div className="space-y-1">
+                      {manageBooks.map(b => (
+                        <div key={b.code} className="grid grid-cols-12 gap-2 items-center px-2 py-1 border rounded text-sm">
+                          <div className="col-span-2 text-xs text-gray-600 font-mono">{b.code}</div>
+                          <input
+                            type="text"
+                            value={b.name}
+                            onChange={(e) => updateManageBook(b.code, 'name', e.target.value)}
+                            className="col-span-4 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={b.level || ''}
+                            placeholder="Starter/L1..."
+                            onChange={(e) => updateManageBook(b.code, 'level', e.target.value)}
+                            className="col-span-2 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={b.publisher || ''}
+                            onChange={(e) => updateManageBook(b.code, 'publisher', e.target.value)}
+                            className="col-span-2 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="number"
+                            min={1} max={30}
+                            value={b.total_units || 8}
+                            onChange={(e) => updateManageBook(b.code, 'total_units', e.target.value)}
+                            className="col-span-1 px-1 py-1 border rounded text-sm"
+                          />
+                          <button
+                            onClick={() => deleteManageBook(b.code, b.name)}
+                            className="col-span-1 text-red-500 hover:bg-red-100 px-1 rounded text-xs"
+                            title="删除整本教材 (含全部 unit)"
+                          >🗑</button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 新增教材 */}
+                    <div className="mt-6 pt-4 border-t">
+                      <div className="text-sm font-medium text-gray-700 mb-3">添加新教材</div>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-12 gap-2 items-center">
+                          <input
+                            type="text"
+                            value={newBook.code}
+                            onChange={(e) => setNewBook({ ...newBook, code: e.target.value })}
+                            placeholder="code (如 EU-S)"
+                            className="col-span-2 px-2 py-1 border rounded text-sm font-mono"
+                          />
+                          <input
+                            type="text"
+                            value={newBook.name}
+                            onChange={(e) => setNewBook({ ...newBook, name: e.target.value })}
+                            placeholder="教材全名"
+                            className="col-span-4 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={newBook.level}
+                            onChange={(e) => setNewBook({ ...newBook, level: e.target.value })}
+                            placeholder="Starter/L1..."
+                            className="col-span-2 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={newBook.publisher}
+                            onChange={(e) => setNewBook({ ...newBook, publisher: e.target.value })}
+                            placeholder="出版社"
+                            className="col-span-2 px-2 py-1 border rounded text-sm"
+                          />
+                          <input
+                            type="number"
+                            min={1} max={30}
+                            value={newBook.total_units}
+                            onChange={(e) => setNewBook({ ...newBook, total_units: parseInt(e.target.value) || 8 })}
+                            className="col-span-1 px-1 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={newBook.description}
+                          onChange={(e) => setNewBook({ ...newBook, description: e.target.value })}
+                          placeholder="教材描述 (可选)"
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                        <button
+                          onClick={addManageBook}
+                          className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                        >+ 新增教材</button>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-xs text-gray-500">
+                      💡 提示: 新增教材后,这本书默认没有任何 unit. 进入新书 → 点右上角 <b>⚙️ 管理单元列表</b> 添加 unit.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* footer */}
+              <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between">
+                <div className="text-xs text-gray-500">编辑自动保存 (改字段即写库). 删除教材前会二次确认.</div>
+                <button
+                  onClick={() => { setShowBooksManage(false); loadBooks(); }}
+                  className="px-4 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                >完成</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

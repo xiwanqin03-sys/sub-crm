@@ -769,6 +769,63 @@ textbooks.post('/preview-unit/:code/:num', async (c) => {
 // 单元管理 (Admin 直接增删改 textbook_units 列表,无须经 AI)
 // ============================================================
 
+// ---- 教材库管理 (的管理 textbooks 列表) ----
+
+// POST /books-manage — 新增教材
+// Body: { code, name, level, publisher, total_units, description }
+textbooks.post('/books-manage', async (c) => {
+  const DB = c.env.DB;
+  let body;
+  try { body = await c.req.json(); } catch { return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON' } }, 400); }
+  if (!body.code || !body.name) return c.json({ error: { code: 'BAD_REQUEST', message: 'code 和 name 必填' } }, 400);
+
+  const existing = await DB.prepare('SELECT id FROM textbooks WHERE code = ?').bind(body.code).first();
+  if (existing) return c.json({ error: { code: 'CONFLICT', message: `code ${body.code} 已存在` } }, 409);
+
+  const r = await DB.prepare(
+    `INSERT INTO textbooks (code, name, level, publisher, total_units, description, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`
+  ).bind(body.code, body.name, body.level || null, body.publisher || null, body.total_units || 8, body.description || null).run();
+  return c.json({ data: { action: 'inserted', code: body.code, id: r.meta?.last_row_id } });
+});
+
+// PATCH /books-manage/:code — 改教材元数据
+// Body: { name?, level?, publisher?, total_units?, description?, is_active? }
+textbooks.patch('/books-manage/:code', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  let body;
+  try { body = await c.req.json(); } catch { return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON' } }, 400); }
+
+  const book = await DB.prepare('SELECT id FROM textbooks WHERE code = ?').bind(code).first();
+  if (!book) return c.json({ error: { code: 'NOT_FOUND', message: '教材不存在' } }, 404);
+
+  await DB.prepare(
+    `UPDATE textbooks SET
+       name = COALESCE(?, name),
+       level = COALESCE(?, level),
+       publisher = COALESCE(?, publisher),
+       total_units = COALESCE(?, total_units),
+       description = COALESCE(?, description),
+       is_active = COALESCE(?, is_active)
+     WHERE id = ?`
+  ).bind(body.name ?? null, body.level ?? null, body.publisher ?? null,
+        body.total_units ?? null, body.description ?? null,
+        body.is_active ?? null, book.id).run();
+
+  return c.json({ data: { action: 'updated', code } });
+});
+
+// DELETE /books-manage/:code — 删整本教材 (textbook_units 和 unit_content 通过 ON DELETE CASCADE 一起删)
+textbooks.delete('/books-manage/:code', async (c) => {
+  const DB = c.env.DB;
+  const code = c.req.param('code');
+  await DB.prepare('DELETE FROM textbooks WHERE code = ?').bind(code).run();
+  return c.json({ data: { action: 'deleted', code } });
+});
+
+// ---- 单元管理 (Admin 直接增删改 textbook_units 列表,无须经 AI) ----
+
 // GET /units-manage/:code — 列出该书所有 unit
 textbooks.get('/units-manage/:code', async (c) => {
   const DB = c.env.DB;
