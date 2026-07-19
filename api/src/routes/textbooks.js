@@ -833,6 +833,15 @@ textbooks.post('/commit-units/:code', async (c) => {
          VALUES (?, ?, ?, ?, ?, ?, 'llm', datetime('now'))`
       ).bind(unitId, code, item.unit_number, vocab, patterns, grammar).run();
     }
+
+    // 同步更新 textbook_units.unit_title (AI 识别的真实标题优先, 用户校对后可覆盖原 DB 预填标题)
+    // 注意: textbook_units 表没有 updated_at 字段,只用 unit_title 列
+    if (item.unit_title) {
+      await DB.prepare(
+        `UPDATE textbook_units SET unit_title = ? WHERE id = ?`
+      ).bind(item.unit_title, unitId).run();
+    }
+
     written.push({ unit_number: item.unit_number, unit_title: item.unit_title, vocab_count: (item.vocab || []).length, patterns_count: (item.patterns || []).length });
   }
 
